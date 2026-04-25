@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitive Definition
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    
+    // Admin check - Hardcoded for bootstrap or lookup
+    function isAdmin() { 
+      return isVerified() && (
+        request.auth.token.email == 'bernardoaster@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(userId) {
+      return isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // Validation Helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             data.createdAt == request.time &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 256;
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.keys().hasAll(['type', 'amount', 'date', 'accountId', 'userId', 'createdAt']) &&
+             data.userId == userId &&
+             data.type in ['income', 'expense', 'transfer'] &&
+             data.amount is number &&
+             data.date is string && data.date.size() <= 32 &&
+             data.accountId is string && data.accountId.size() <= 128 &&
+             data.createdAt == request.time &&
+             // Relational check
+             exists(/databases/$(database)/documents/users/$(userId)/accounts/$(data.accountId));
+    }
+
+    function isValidAccount(data, userId) {
+      return data.keys().hasAll(['name', 'type', 'balance', 'userId']) &&
+             data.userId == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.type in ['checking', 'savings', 'credit_card', 'cash', 'investment', 'other'] &&
+             data.balance is number;
+    }
+
+    function isValidCategory(data, userId) {
+      return data.keys().hasAll(['name', 'type', 'userId']) &&
+             data.userId == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.type in ['income', 'expense', 'transfer'];
+    }
+
+    // Rules matching blueprint paths
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']) &&
+        incoming().updatedAt == request.time
+      ) || isAdmin();
+
+      match /transactions/{transactionId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidTransaction(incoming(), userId);
+        allow update: if isOwner(userId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'description', 'date', 'categoryId', 'costCenterId', 'notes', 'consolidated', 'accountId', 'toAccountId', 'attachmentUrl', 'attachmentName', 'updatedAt']) &&
+          incoming().userId == existing().userId &&
+          incoming().updatedAt == request.time
+        ) || isAdmin();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /accounts/{accountId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidAccount(incoming(), userId);
+        allow update: if isOwner(userId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'balance', 'type', 'updatedAt']) &&
+          incoming().userId == existing().userId &&
+          incoming().updatedAt == request.time
+        ) || isAdmin();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /categories/{categoryId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidCategory(incoming(), userId);
+        allow update: if isOwner(userId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon', 'color', 'parentId', 'type', 'updatedAt']) &&
+          incoming().userId == existing().userId &&
+          incoming().updatedAt == request.time
+        ) || isAdmin();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /recurring_transactions/{recurringId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isSignedIn(); // Add validation helper if needed
+        allow update: if isOwner(userId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['active', 'lastProcessedDate', 'description', 'amount', 'type', 'accountId', 'categoryId', 'costCenterId', 'frequency', 'startDate', 'updatedAt']) &&
+          incoming().updatedAt == request.time
+        ) || isAdmin();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only manageable via Firebase Console or special script
+    }
+  }
+}

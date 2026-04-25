@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Income, expense or transfer record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "categoryId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "toAccountId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "consolidated": { "type": "boolean" },
+        "attachmentUrl": { "type": "string" },
+        "attachmentName": { "type": "string" },
+        "notes": { "type": "string", "description": "Additional notes about the transaction" }
+      },
+      "required": ["type", "amount", "date", "accountId", "userId"]
+    },
+    "Account": {
+      "title": "Account",
+      "description": "Bank account or credit card",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["checking", "savings", "credit_card", "cash"] },
+        "balance": { "type": "number" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "balance", "userId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Transaction category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "userId": { "type": "string" },
+        "parentId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "userId"]
+    },
+    "RecurringTransaction": {
+      "title": "Recurring Transaction",
+      "description": "Template for automatic transactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["weekly", "monthly"] },
+        "startDate": { "type": "string", "format": "date" },
+        "lastProcessedDate": { "type": "string", "format": "date" },
+        "categoryId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "userId": { "type": "string" },
+        "active": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "amount", "frequency", "startDate", "accountId", "userId", "active"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "User's financial transactions"
+    },
+    "/users/{userId}/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "User's financial accounts"
+    },
+    "/users/{userId}/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "User's transaction categories"
+    },
+    "/users/{userId}/recurring_transactions/{recurringId}": {
+      "schema": "RecurringTransaction",
+      "description": "User's recurring transaction templates"
+    }
+  }
+}
