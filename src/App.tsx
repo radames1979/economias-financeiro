@@ -161,74 +161,94 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label:
   </button>
 );
 
-const MobileNavItem = ({ icon: Icon, active, onClick }: { icon: any, active: boolean, onClick: () => void }) => (
-  <button
+const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, active: boolean, label: string, onClick: () => void }) => (
+  <motion.button
+    whileTap={{ scale: 0.9 }}
     onClick={onClick}
     className={cn(
-      "p-3 rounded-xl transition-all duration-200",
+      "flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200",
       active 
-        ? "text-blue-600 bg-blue-50 dark:bg-blue-900/20" 
-        : "text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white"
+        ? "text-blue-600 dark:text-blue-400" 
+        : "text-slate-400 dark:text-slate-500"
     )}
   >
-    <Icon size={24} />
-  </button>
+    <div className={cn(
+      "p-1.5 rounded-xl transition-all duration-200",
+      active && "bg-blue-50 dark:bg-blue-900/20"
+    )}>
+      <Icon size={22} />
+    </div>
+    <span className="text-[10px] font-bold uppercase tracking-tight">{label}</span>
+  </motion.button>
 );
 
 const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string }) => (
-  <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm mb-3">
-    <div className="flex justify-between items-start mb-3">
+  <motion.div 
+    whileTap={{ scale: 0.98 }}
+    className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm mb-3 active:bg-slate-50 dark:active:bg-slate-800/50"
+  >
+    <div className="flex justify-between items-center mb-2">
       <div className="flex items-center gap-3">
         <div className={cn(
-          "p-2 rounded-xl",
+          "p-2.5 rounded-xl",
           t.type === 'income' ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" : 
           t.type === 'expense' ? "bg-rose-50 text-rose-600 dark:bg-rose-900/20" : 
           "bg-blue-50 text-blue-600 dark:bg-blue-900/20"
         )}>
-          {t.type === 'income' ? <TrendingUp size={18} /> : t.type === 'expense' ? <TrendingDown size={18} /> : <RefreshCw size={18} />}
+          {t.type === 'income' ? <TrendingUp size={20} /> : t.type === 'expense' ? <TrendingDown size={20} /> : <ArrowRightLeft size={20} />}
         </div>
-        <div>
-          <p className="font-bold text-slate-900 dark:text-white truncate max-w-[150px]">{t.description}</p>
-          <p className="text-[10px] text-slate-500 font-mono">{formatDate(t.date)}</p>
+        <div className="min-w-0">
+          <p className="font-bold text-slate-900 dark:text-white truncate text-sm">{t.description}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              {formatDate(t.date)}
+            </p>
+            <span className="text-[10px] text-slate-300">•</span>
+            <p className="text-[10px] text-blue-500 font-bold uppercase truncate max-w-[80px]">
+              {accounts.find(a => a.id === t.accountId)?.name}
+            </p>
+          </div>
         </div>
       </div>
-      <div className={cn(
-        "text-lg font-bold",
-        t.type === 'income' ? "text-emerald-600" : 
-        t.type === 'expense' ? "text-rose-600" : 
-        "text-blue-600"
-      )}>
-        {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
-      </div>
-    </div>
-    
-    <div className="flex items-center justify-between">
-      <div className="flex flex-wrap gap-2">
-        <span className="text-[10px] font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg uppercase tracking-wider">
-          {t.type === 'transfer' ? 'Transferência' : categories.find(c => c.id === t.costCenterId)?.name}
-        </span>
+      <div className="text-right">
+        <p className={cn(
+          "text-base font-black tracking-tight",
+          t.type === 'income' ? "text-emerald-600" : 
+          t.type === 'expense' ? "text-rose-600" : 
+          "text-blue-600"
+        )}>
+          {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
+        </p>
         <button 
           onClick={() => onToggleConsolidation(t)}
           className={cn(
-            "text-[10px] font-bold px-2 py-1 rounded-lg transition-colors",
+            "text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md mt-1 transition-colors",
             t.consolidated 
-              ? "bg-emerald-100 text-emerald-700" 
-              : "bg-amber-100 text-amber-700"
+              ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" 
+              : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
           )}
         >
-          {t.consolidated ? "CONSOLIDADO" : "PENDENTE"}
-        </button>
-      </div>
-      <div className="flex gap-1">
-        <button onClick={() => onEdit(t)} className="p-2 text-slate-400 hover:text-blue-500 transition-colors">
-          <Edit2 size={16} />
-        </button>
-        <button onClick={() => onDelete(t)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-          <Trash2 size={16} />
+          {t.consolidated ? 'Consolidado' : 'Pendente'}
         </button>
       </div>
     </div>
-  </div>
+    
+    <div className="flex gap-2 mt-4 pt-3 border-t border-slate-50 dark:border-slate-800/50">
+      <button 
+        onClick={() => onEdit(t)}
+        className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-xl active:bg-slate-100 dark:active:bg-slate-700 transition-colors"
+      >
+        <Edit2 size={14} />
+        Editar
+      </button>
+      <button 
+        onClick={() => onDelete(t)}
+        className="flex items-center justify-center w-10 min-w-10 h-10 text-rose-400 hover:text-rose-600 active:bg-rose-50 dark:active:bg-rose-900/20 rounded-xl transition-colors"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  </motion.div>
 );
 
 const Card = ({ children, className, title, onClick }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void }) => (
@@ -345,6 +365,19 @@ export default function App() {
   const [profile, setProfile] = useState<{ isPremium?: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -1924,12 +1957,31 @@ export default function App() {
                  activeTab === 'recurring' ? 'Recorrência' : 
                  'Relatórios'}
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
-              </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                  </p>
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full animate-pulse",
+                      isOnline ? "bg-emerald-500" : "bg-rose-500"
+                    )} />
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
+                      {isOnline ? "Real-time" : "Offline"}
+                    </span>
+                  </div>
+                </div>
             </div>
           </div>
           <div className="flex gap-2 items-center w-full sm:w-auto justify-end">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
+              title={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
+            >
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            
             <div className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -2164,11 +2216,11 @@ export default function App() {
 
                 <div className="lg:col-span-2">
                   <Card title="Projeção por Conta">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar -mx-2 px-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0">
                       {projectedBalancesByAccount.map((account) => (
                         <div 
                           key={account.id} 
-                          className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all duration-200"
+                          className="min-w-[280px] lg:min-w-0 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all duration-200"
                         >
                           <div className="flex items-center gap-3 mb-3">
                             <div className="p-2 bg-white rounded-xl shadow-sm text-blue-600">
@@ -4542,20 +4594,98 @@ export default function App() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 z-50 px-4 py-2 flex justify-between items-center shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-        <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-        <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} />
-        <div className="relative -top-6">
-          <button 
-            onClick={() => setIsAddTransactionModalOpen(true)}
-            className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/40 active:scale-95 transition-transform"
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 z-50 px-2 py-1 flex justify-around items-center shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+        <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Home" onClick={() => setActiveTab('dashboard')} />
+        <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Transações" onClick={() => setActiveTab('transactions')} />
+        <div className="relative -top-4">
+          <motion.button 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setIsQuickAddModalOpen(true)}
+            className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/40 active:scale-95 transition-transform"
           >
-            <Plus size={24} />
-          </button>
+            <Plus size={28} />
+          </motion.button>
         </div>
-        <MobileNavItem icon={CreditCard} active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
-        <MobileNavItem icon={PieChartIcon} active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />
+        <MobileNavItem icon={CreditCard} active={activeTab === 'accounts'} label="Contas" onClick={() => setActiveTab('accounts')} />
+        <MobileNavItem 
+          icon={Menu} 
+          active={isMobileMenuOpen} 
+          label="Mais" 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+        />
       </nav>
+
+      {/* Mobile More Menu Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[55]"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-24 z-[60] shadow-2xl"
+            >
+              <div className="w-12 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6" />
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Ações e Menus</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                >
+                  <div className="p-3 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-blue-600 dark:text-blue-400">
+                    <PieChartIcon size={24} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Relatórios</span>
+                </button>
+                <button 
+                  onClick={() => { setActiveTab('categories'); setIsMobileMenuOpen(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                >
+                  <div className="p-3 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-blue-600 dark:text-blue-400">
+                    <Tags size={24} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Categorias</span>
+                </button>
+                <button 
+                  onClick={() => { setActiveTab('recurring'); setIsMobileMenuOpen(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                >
+                  <div className="p-3 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-blue-600 dark:text-blue-400">
+                    <RefreshCw size={24} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Recorrência</span>
+                </button>
+                <button 
+                  onClick={() => { setIsPrivacyMode(!isPrivacyMode); setIsMobileMenuOpen(false); }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                >
+                  <div className="p-3 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-blue-600 dark:text-blue-400">
+                    {isPrivacyMode ? <EyeOff size={24} /> : <Eye size={24} />}
+                  </div>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Privacidade</span>
+                </button>
+              </div>
+              <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+                <button 
+                  onClick={logout}
+                  className="flex items-center justify-center gap-3 w-full p-4 rounded-2xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 font-bold hover:bg-rose-100 transition-colors"
+                >
+                  <LogOut size={20} />
+                  <span>Sair da Conta</span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Floating Action Button for Desktop/Tablet in Transactions Tab */}
       <AnimatePresence>
