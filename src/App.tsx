@@ -57,7 +57,9 @@ import {
   XCircle,
   Bell,
   AlertCircle,
-  Zap
+  Zap,
+  Check,
+  Clock
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
 import { GroupedVirtuoso } from 'react-virtuoso';
@@ -81,7 +83,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, isWithinInterval, parseISO, addWeeks, addMonths, subMonths, addDays, isSameMonth, isBefore, isAfter, startOfDay } from 'date-fns';
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, isWithinInterval, parseISO, addWeeks, addMonths, subMonths, addDays, isSameMonth, isBefore, isAfter, startOfDay, isToday, isYesterday, compareDesc } from 'date-fns';
 import { 
   ref as storageRef, 
   uploadBytes, 
@@ -146,18 +148,24 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Components ---
 
-const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
+const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed }: { icon: any, label: string, active: boolean, onClick: () => void, collapsed?: boolean }) => (
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200",
+      "w-full flex items-center justify-center lg:justify-start gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group relative",
       active 
         ? "bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900/20" 
-        : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+        : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
     )}
+    title={collapsed ? label : undefined}
   >
-    <Icon size={20} />
-    <span className="font-medium">{label}</span>
+    <Icon size={22} className={cn("transition-transform group-active:scale-90", active && "animate-pulse")} />
+    <span className={cn(
+      "text-sm font-bold transition-all duration-300 truncate",
+      collapsed ? "lg:hidden opacity-0 w-0" : "opacity-100 w-auto"
+    )}>
+      {label}
+    </span>
   </button>
 );
 
@@ -166,31 +174,46 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, acti
     whileTap={{ scale: 0.9 }}
     onClick={onClick}
     className={cn(
-      "flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-200",
+      "flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-300 relative",
       active 
         ? "text-blue-600 dark:text-blue-400" 
         : "text-slate-400 dark:text-slate-500"
     )}
   >
     <div className={cn(
-      "p-1.5 rounded-xl transition-all duration-200",
-      active && "bg-blue-50 dark:bg-blue-900/20"
+      "p-1.5 rounded-2xl transition-all duration-300",
+      active && "bg-blue-50/50 dark:bg-blue-900/20 scale-110"
     )}>
-      <Icon size={22} />
+      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
     </div>
-    <span className="text-[10px] font-bold uppercase tracking-tight">{label}</span>
+    <span className={cn(
+      "text-[10px] font-black uppercase tracking-tighter transition-all",
+      active ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 h-0 overflow-hidden"
+    )}>
+      {label}
+    </span>
+    {active && (
+      <motion.div
+        layoutId="mobileActive"
+        className="absolute -bottom-1 w-1 h-1 bg-blue-600 rounded-full"
+      />
+    )}
   </motion.button>
 );
 
-const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string }) => (
-  <motion.div 
-    whileTap={{ scale: 0.98 }}
-    className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm mb-3 active:bg-slate-50 dark:active:bg-slate-800/50"
-  >
-    <div className="flex justify-between items-center mb-2">
-      <div className="flex items-center gap-3">
+const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string }) => {
+  const category = categories.find(c => c.id === (t.categoryId || t.costCenterId));
+  const account = accounts.find(a => a.id === t.accountId);
+  
+  return (
+    <motion.div 
+      whileHover={{ x: 4 }}
+      whileTap={{ scale: 0.99 }}
+      className="group flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all duration-200"
+    >
+      <div className="flex items-center gap-4 min-w-0">
         <div className={cn(
-          "p-2.5 rounded-xl",
+          "w-10 h-10 min-w-10 rounded-xl flex items-center justify-center transition-colors",
           t.type === 'income' ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" : 
           t.type === 'expense' ? "bg-rose-50 text-rose-600 dark:bg-rose-900/20" : 
           "bg-blue-50 text-blue-600 dark:bg-blue-900/20"
@@ -198,65 +221,118 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
           {t.type === 'income' ? <TrendingUp size={20} /> : t.type === 'expense' ? <TrendingDown size={20} /> : <ArrowRightLeft size={20} />}
         </div>
         <div className="min-w-0">
-          <p className="font-bold text-slate-900 dark:text-white truncate text-sm">{t.description}</p>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-              {formatDate(t.date)}
-            </p>
-            <span className="text-[10px] text-slate-300">•</span>
-            <p className="text-[10px] text-blue-500 font-bold uppercase truncate max-w-[80px]">
-              {accounts.find(a => a.id === t.accountId)?.name}
-            </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{t.description}</p>
+            {t.attachmentUrl && <Paperclip size={12} className="text-slate-300" />}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{account?.name}</span>
+            <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{category?.name}</span>
           </div>
         </div>
       </div>
-      <div className="text-right">
-        <p className={cn(
-          "text-base font-black tracking-tight",
-          t.type === 'income' ? "text-emerald-600" : 
-          t.type === 'expense' ? "text-rose-600" : 
-          "text-blue-600"
-        )}>
-          {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
-        </p>
-        <button 
-          onClick={() => onToggleConsolidation(t)}
-          className={cn(
-            "text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md mt-1 transition-colors",
-            t.consolidated 
-              ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" 
-              : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-          )}
-        >
-          {t.consolidated ? 'Consolidado' : 'Pendente'}
-        </button>
+      
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <p className={cn(
+            "text-sm font-black tracking-tight",
+            t.type === 'income' ? "text-emerald-600" : 
+            t.type === 'expense' ? "text-rose-600" : 
+            "text-blue-600"
+          )}>
+            {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
+          </p>
+          <button 
+            onClick={() => onToggleConsolidation(t)}
+            className={cn(
+              "text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md transition-colors",
+              t.consolidated 
+                ? "text-emerald-500/50" 
+                : "bg-amber-50 text-amber-600 dark:bg-amber-900/20"
+            )}
+          >
+            {t.consolidated ? <Check size={10} className="inline mr-1" /> : <Clock size={10} className="inline mr-1" />}
+            {t.consolidated ? 'Confirmado' : 'Pendente'}
+          </button>
+        </div>
+        
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => onEdit(t)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+            <Edit2 size={14} />
+          </button>
+          <button onClick={() => onDelete(t)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void }) => (
+  <div className="bg-white dark:bg-slate-900 rounded-[32px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden relative">
+    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+    <div className="relative z-10">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div>
+          <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Saldo Total</p>
+          <h2 className={cn(
+            "text-4xl lg:text-5xl font-black tracking-tighter mb-2",
+            balance < 0 ? "text-rose-600" : "text-slate-900 dark:text-white"
+          )}>
+            {formatCurrencyWithPrivacy(balance)}
+          </h2>
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter",
+              projected >= balance ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" : "bg-rose-50 text-rose-600 dark:bg-rose-900/20"
+            )}>
+              {projected >= balance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              Projetado: {formatCurrencyWithPrivacy(projected)}
+            </div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 lg:gap-8 border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-800 pt-6 lg:pt-0 lg:pl-8">
+          <button onClick={onStatClick} className="text-left group">
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Receitas
+            </p>
+            <p className="text-xl lg:text-2xl font-black text-emerald-600 tracking-tight group-active:scale-95 transition-transform">
+              {formatCurrencyWithPrivacy(income)}
+            </p>
+          </button>
+          <button onClick={onStatClick} className="text-left group">
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              Despesas
+            </p>
+            <p className="text-xl lg:text-2xl font-black text-rose-600 tracking-tight group-active:scale-95 transition-transform">
+              {formatCurrencyWithPrivacy(expense)}
+            </p>
+          </button>
+        </div>
       </div>
     </div>
-    
-    <div className="flex gap-2 mt-4 pt-3 border-t border-slate-50 dark:border-slate-800/50">
-      <button 
-        onClick={() => onEdit(t)}
-        className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-xl active:bg-slate-100 dark:active:bg-slate-700 transition-colors"
-      >
-        <Edit2 size={14} />
-        Editar
-      </button>
-      <button 
-        onClick={() => onDelete(t)}
-        className="flex items-center justify-center w-10 min-w-10 h-10 text-rose-400 hover:text-rose-600 active:bg-rose-50 dark:active:bg-rose-900/20 rounded-xl transition-colors"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  </motion.div>
+  </div>
 );
 
 const Card = ({ children, className, title, onClick }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void }) => (
   <div 
     onClick={onClick}
-    className={cn("bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-100 dark:border-slate-800", className)}
+    className={cn(
+      "bg-white dark:bg-slate-900 rounded-[32px] p-6 border border-slate-100 dark:border-slate-800 shadow-sm",
+      onClick && "cursor-pointer active:scale-[0.98] transition-transform",
+      className
+    )}
   >
-    {title && <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">{title}</h3>}
+    {title && (
+      <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6">
+        {title}
+      </h3>
+    )}
     {children}
   </div>
 );
@@ -362,9 +438,12 @@ const CalculatorComponent = ({ value, onValueChange, onClose }: { value: string,
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<{ isPremium?: boolean } | null>(null);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<Account | null>(null);
+  const [isAccountDetailsVisible, setIsAccountDetailsVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<{ isPremium?: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>('dashboard');
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -395,6 +474,7 @@ export default function App() {
   const [calcValue, setCalcValue] = useState('');
   const [activeCalcField, setActiveCalcField] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>('all');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   const [isUploading, setIsUploading] = useState(false);
@@ -425,6 +505,22 @@ export default function App() {
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(new Date());
   const [dashboardFilterMode, setDashboardFilterMode] = useState<'to-today' | 'full-month' | 'tomorrow'>('to-today');
+
+  const currentMonth = startOfMonth(dashboardDate);
+
+  // Filter transactions for selected account in current month
+  const accountTransactions = useMemo(() => {
+    if (!selectedAccountForDetails) return [];
+    
+    return transactions
+      .filter(t => t.accountId === selectedAccountForDetails.id)
+      .filter(t => {
+        const tDate = new Date(t.date);
+        return tDate.getMonth() === currentMonth.getMonth() && 
+               tDate.getFullYear() === currentMonth.getFullYear();
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [selectedAccountForDetails, transactions, currentMonth]);
 
   // Reports State
   const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -558,6 +654,8 @@ export default function App() {
       });
 
       if (!isInInterval) return false;
+
+      if (selectedAccountFilter !== 'all' && t.accountId !== selectedAccountFilter) return false;
 
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -727,6 +825,16 @@ export default function App() {
       });
     });
   }, [transactions, dashboardRange]);
+
+  const dashboardTransactionsByDate = useMemo(() => {
+    const grouped: Record<string, Transaction[]> = {};
+    dashboardTransactions.forEach(t => {
+      if (!grouped[t.date]) grouped[t.date] = [];
+      grouped[t.date].push(t);
+    });
+    return Object.entries(grouped)
+      .sort((a, b) => compareDesc(parseISO(a[0]), parseISO(b[0])));
+  }, [dashboardTransactions]);
 
   const dailySummary = useMemo(() => {
     const summary: Record<string, { income: number; expense: number }> = {};
@@ -1505,6 +1613,16 @@ export default function App() {
     });
   }, [transactions, reportStartDate, reportEndDate, reportFilterType, reportFilterAccount, reportFilterCategory, reportFilterStatus, reportFilterSearch]);
 
+  const filteredTransactionsByDate = useMemo(() => {
+    const grouped: Record<string, Transaction[]> = {};
+    filteredTransactions.forEach(t => {
+      if (!grouped[t.date]) grouped[t.date] = [];
+      grouped[t.date].push(t);
+    });
+    return Object.entries(grouped)
+      .sort((a, b) => compareDesc(parseISO(a[0]), parseISO(b[0])));
+  }, [filteredTransactions]);
+
   const categorySummary = useMemo(() => {
     const expenses = filteredTransactions.filter(t => t.type === 'expense');
     const summary: Record<string, { id: string, name: string, value: number, color: string }> = {};
@@ -1883,66 +2001,63 @@ export default function App() {
       {/* Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-[60] w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-[60] w-20 lg:w-64 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 transition-all duration-300 ease-in-out lg:translate-x-0 lg:static",
+        isSidebarOpen ? "translate-x-0 w-64" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className="p-6 flex flex-col h-full">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 dark:shadow-blue-900/20">
+        <div className="p-4 lg:p-6 flex flex-col h-full items-center lg:items-stretch">
+          <div className="flex items-center gap-3 mb-10 overflow-hidden">
+            <div className="w-10 h-10 min-w-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 dark:shadow-blue-900/20">
               <Wallet size={24} className="text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900 dark:text-white">Economias</span>
+            <span className={cn("text-xl font-black text-slate-900 dark:text-white transition-opacity", !isSidebarOpen && "lg:hidden")}>Money</span>
           </div>
 
-          <nav className="flex-1 flex flex-col gap-2">
-            <SidebarItem icon={LayoutDashboard} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-            <SidebarItem icon={ArrowUpCircle} label="Transações" active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} />
-            <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
-            <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} />
-            <SidebarItem icon={RefreshCw} label="Recorrência" active={activeTab === 'recurring'} onClick={() => setActiveTab('recurring')} />
-            <SidebarItem icon={PieChartIcon} label="Relatórios" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />
+          <nav className="flex-1 flex flex-col gap-2 w-full">
+            <SidebarItem icon={LayoutDashboard} label="Resumo" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={!isSidebarOpen} />
+            <SidebarItem icon={ArrowUpCircle} label="Atividade" active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} collapsed={!isSidebarOpen} />
+            <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} collapsed={!isSidebarOpen} />
+            <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} collapsed={!isSidebarOpen} />
+            <SidebarItem icon={RefreshCw} label="Recorrência" active={activeTab === 'recurring'} onClick={() => setActiveTab('recurring')} collapsed={!isSidebarOpen} />
+            <SidebarItem icon={PieChartIcon} label="Análise" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} collapsed={!isSidebarOpen} />
           </nav>
 
-          <div className="mt-auto pt-6 border-t border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-3 mb-6 px-2">
-              <div className="relative">
-                <img src={user.photoURL || ''} alt={user.displayName || ''} className="w-10 h-10 rounded-full border-2 border-blue-100 dark:border-blue-900" />
+          <div className="mt-auto pt-6 border-t border-slate-100 dark:border-slate-800 w-full space-y-4">
+            <div className="flex items-center gap-3 px-2">
+              <div className="relative shrink-0">
+                <img src={user.photoURL || ''} alt="" className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700" />
                 {profile?.isPremium && (
-                  <div className="absolute -top-1 -right-1 bg-amber-400 text-white p-0.5 rounded-full border border-white dark:border-slate-900" title="Pro Account">
-                    <Zap size={8} fill="currentColor" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full border border-white dark:border-slate-900 flex items-center justify-center">
+                    <Zap size={6} className="text-white" fill="currentColor" />
                   </div>
                 )}
               </div>
-              <div className="flex-1 overflow-hidden">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.displayName}</p>
-                  {profile?.isPremium && (
-                    <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[8px] font-black px-1 rounded uppercase tracking-tighter">PRO</span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+              <div className={cn("min-w-0 transition-opacity", !isSidebarOpen && "lg:hidden")}>
+                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.displayName}</p>
+                {profile?.isPremium && <span className="text-[10px] text-amber-500 font-black uppercase tracking-tighter">PRO Plan</span>}
               </div>
             </div>
+
             <button
               onClick={logout}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-200 font-medium"
+              className="flex items-center justify-center lg:justify-start gap-3 w-full px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-200 font-medium group"
             >
-              <LogOut size={20} />
-              Sair
+              <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+              <span className={cn("lg:inline", !isSidebarOpen && "lg:hidden")}>Sair</span>
             </button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 lg:pb-8">
+      <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="max-w-5xl mx-auto p-4 md:p-6 lg:p-10 pb-24 lg:pb-10">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 text-slate-500 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -2125,129 +2240,75 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard 
-                  title="Saldo Atual" 
-                  value={formatCurrencyWithPrivacy(totalBalance)} 
-                  icon={Wallet} 
-                  color="bg-blue-600" 
-                  valueColor={totalBalance < 0 ? "text-rose-600" : totalBalance > 0 ? "text-emerald-600" : "text-slate-900 dark:text-white"}
-                  onClick={handleStatCardClick}
-                />
-                <StatCard 
-                  title="Saldo Projetado" 
-                  value={formatCurrencyWithPrivacy(projectedBalance)} 
-                  icon={RefreshCw} 
-                  color="bg-indigo-500" 
-                  valueColor={projectedBalance < 0 ? "text-rose-600" : projectedBalance > 0 ? "text-emerald-600" : "text-slate-900 dark:text-white"}
-                  onClick={handleStatCardClick}
-                />
-                <StatCard 
-                  title="Receitas" 
-                  value={formatCurrencyWithPrivacy(totalIncome)} 
-                  icon={TrendingUp} 
-                  color="bg-emerald-500" 
-                  trend="+12%" 
-                  valueColor="text-emerald-600"
-                  onClick={handleStatCardClick}
-                />
-                <StatCard 
-                  title="Despesas" 
-                  value={formatCurrencyWithPrivacy(totalExpense)} 
-                  icon={TrendingDown} 
-                  color="bg-rose-500" 
-                  trend="-5%" 
-                  valueColor="text-rose-600"
-                  onClick={handleStatCardClick}
-                />
-              </div>
+              <SummaryHero 
+                balance={totalBalance}
+                projected={projectedBalance}
+                income={totalIncome}
+                expense={totalExpense}
+                formatCurrencyWithPrivacy={formatCurrencyWithPrivacy}
+                onStatClick={handleStatCardClick}
+              />
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card title="Resumo Diário">
-                  <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                    {dailySummary.length === 0 ? (
+                <Card title="Atividade Recente" className="lg:col-span-2">
+                  <div className="space-y-6 max-h-[600px] overflow-y-auto no-scrollbar pr-1">
+                    {dashboardTransactionsByDate.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                        <Calendar size={48} className="mb-4 opacity-20" />
-                        <p className="text-sm">Nenhuma transação neste período</p>
+                        <Calendar size={48} className="mb-4 opacity-10" />
+                        <p className="font-bold">Sem movimentações no período</p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {dailySummary.map((day) => (
-                          <div key={day.date} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
-                                {format(parseISO(day.date), "dd 'de' MMMM", { locale: ptBR })}
-                              </span>
-                              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                                {format(parseISO(day.date), "EEEE", { locale: ptBR })}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="flex flex-col">
-                                <span className="text-[10px] text-slate-500 uppercase font-bold">Receitas</span>
-                                <span className="text-sm font-bold text-emerald-600">
-                                  {formatCurrency(day.income)}
-                                </span>
-                              </div>
-                              <div className="flex flex-col text-right">
-                                <span className="text-[10px] text-slate-500 uppercase font-bold">Despesas</span>
-                                <span className="text-sm font-bold text-rose-600">
-                                  {formatCurrency(day.expense)}
-                                </span>
-                              </div>
-                            </div>
-                            {(day.income - day.expense) !== 0 && (
-                              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold">Saldo do Dia</span>
-                                <span className={cn(
-                                  "text-xs font-bold",
-                                  (day.income - day.expense) > 0 ? "text-emerald-500" : "text-rose-500"
-                                )}>
-                                  {(day.income - day.expense) > 0 ? '+' : ''}{formatCurrency(day.income - day.expense)}
-                                </span>
-                              </div>
-                            )}
+                      dashboardTransactionsByDate.map(([date, dateItems]) => (
+                        <div key={date}>
+                          <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white dark:bg-slate-900 z-20 py-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                              {isToday(parseISO(date)) ? 'Hoje' : isYesterday(parseISO(date)) ? 'Ontem' : format(parseISO(date), "dd 'de' MMMM", { locale: ptBR })}
+                            </span>
+                            <div className="h-[1px] flex-1 bg-slate-50 dark:bg-slate-800" />
                           </div>
-                        ))}
-                      </div>
+                          <div className="space-y-1">
+                            {dateItems.map(t => (
+                              <TransactionCard 
+                                key={t.id}
+                                t={t}
+                                accounts={accounts}
+                                categories={categories}
+                                onEdit={(trans) => { setTransactionToEdit(trans); setIsEditTransactionModalOpen(true); }}
+                                onDelete={handleDeleteTransaction}
+                                onToggleConsolidation={handleToggleConsolidation}
+                                formatCurrency={formatCurrency}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </Card>
 
-                <div className="lg:col-span-2">
-                  <Card title="Projeção por Conta">
-                    <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar -mx-2 px-2 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0">
-                      {projectedBalancesByAccount.map((account) => (
+                <div className="space-y-6">
+                  <Card title="Saldo por Conta">
+                    <div className="space-y-3">
+                      {accounts.map(account => (
                         <div 
                           key={account.id} 
-                          className="min-w-[280px] lg:min-w-0 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all duration-200"
+                          className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 cursor-pointer active:scale-95 transition-transform"
+                          onClick={() => {
+                            setSelectedAccountForDetails(account);
+                            setIsAccountDetailsVisible(true);
+                          }}
                         >
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-white rounded-xl shadow-sm text-blue-600">
-                              <Wallet size={18} />
-                            </div>
-                            <span className="font-bold text-slate-700 truncate">{account.name}</span>
+                          <div className="p-2 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-blue-600">
+                            <CreditCard size={16} />
                           </div>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs text-slate-500">Saldo Atual</span>
-                              <span className="text-sm font-medium text-slate-700">{formatCurrency(account.balance)}</span>
-                            </div>
-                            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                              <span className="text-xs font-bold text-slate-500">Projetado</span>
-                              <span className={cn(
-                                "text-sm font-bold",
-                                account.projectedBalance < 0 ? "text-rose-600" : "text-emerald-600"
-                              )}>
-                                {formatCurrency(account.projectedBalance)}
-                              </span>
-                            </div>
-                            <button 
-                              onClick={() => setSelectedAccountForProjection(account.id)}
-                              className="w-full mt-2 py-1.5 text-[10px] font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors uppercase tracking-wider"
-                            >
-                              Ver Detalhes
-                            </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{account.name}</p>
+                            <p className={cn(
+                              "text-xs font-black tracking-tight",
+                              account.balance < 0 ? "text-rose-600" : "text-emerald-600"
+                            )}>
+                              {formatCurrencyWithPrivacy(account.balance)}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -2300,70 +2361,6 @@ export default function App() {
                 </Card>
               </div>
 
-              <Card title="Transações Recentes">
-                <div className="space-y-4">
-                  {/* Desktop View */}
-                  <div className="hidden md:block space-y-4">
-                    {dashboardTransactions.slice(0, 5).map((t) => (
-                      <div key={`desktop-recent-${t.id}`} className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "p-2 rounded-lg", 
-                            t.type === 'income' ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : 
-                            t.type === 'expense' ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400" :
-                            "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                          )}>
-                            {t.type === 'income' ? <ArrowUpCircle size={20} /> : 
-                             t.type === 'expense' ? <ArrowDownCircle size={20} /> : 
-                             <ArrowRightLeft size={20} />}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-slate-800 dark:text-slate-100">{t.description}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {formatDate(t.date)} • {
-                                t.type === 'transfer' 
-                                  ? `${accounts.find(a => a.id === t.accountId)?.name} → ${accounts.find(a => a.id === t.toAccountId)?.name}`
-                                  : categories.find(c => c.id === t.categoryId)?.name
-                              }
-                            </p>
-                          </div>
-                        </div>
-                        <p className={cn(
-                          "font-bold", 
-                          t.type === 'income' ? "text-emerald-600" : 
-                          t.type === 'expense' ? "text-rose-600" : 
-                          "text-blue-600"
-                        )}>
-                          {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrencyWithPrivacy(t.amount)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Mobile View */}
-                  <div className="md:hidden space-y-3">
-                    {dashboardTransactions.slice(0, 5).map((t) => (
-                      <TransactionCard 
-                        key={`mobile-recent-${t.id}`}
-                        t={t}
-                        accounts={accounts}
-                        categories={categories}
-                        onEdit={(t) => {
-                          setTransactionToEdit(t);
-                          setSelectedCostCenterId(t.costCenterId || '');
-                          setTransactionType(t.type);
-                          setSelectedFile(null);
-                          setShouldRemoveAttachment(false);
-                          setIsEditTransactionModalOpen(true);
-                        }}
-                        onDelete={handleDeleteTransaction}
-                        onToggleConsolidation={handleToggleConsolidation}
-                        formatCurrency={formatCurrencyWithPrivacy}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </Card>
             </motion.div>
           )}
 
@@ -2547,15 +2544,27 @@ export default function App() {
 
               <Card title="Histórico">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                      type="text" 
-                      placeholder="Buscar por descrição, valor, categoria..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    />
+                  <div className="flex-1 flex flex-col md:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                      <input 
+                        type="text" 
+                        placeholder="Buscar por descrição, valor, categoria..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                      />
+                    </div>
+                    <select
+                      value={selectedAccountFilter}
+                      onChange={(e) => setSelectedAccountFilter(e.target.value)}
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold shadow-sm min-w-[200px]"
+                    >
+                      <option value="all">🏦 Todas as Contas</option>
+                      {accounts.map(account => (
+                        <option key={account.id} value={account.id}>{account.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button 
@@ -2801,10 +2810,18 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {accounts.map((a) => (
-                  <Card key={a.id} className="relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 flex gap-2">
+                  <Card 
+                    key={a.id} 
+                    className="relative overflow-hidden cursor-pointer hover:shadow-lg transition-shadow active:scale-98"
+                    onClick={() => {
+                      setSelectedAccountForDetails(a);
+                      setIsAccountDetailsVisible(true);
+                    }}
+                  >
+                    <div className="absolute top-0 right-0 p-4 flex gap-2 z-10">
                       <button 
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setAccountToEdit(a);
                           setIsEditAccountModalOpen(true);
                         }}
@@ -2813,7 +2830,9 @@ export default function App() {
                         <Edit2 size={18} />
                       </button>
                       <button 
-                        onClick={async () => {
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!confirm(`Deseja realmente excluir a conta ${a.name}? Todas as transações associadas serão órfãs.`)) return;
                           try {
                             await deleteDoc(doc(db, `users/${user.uid}/accounts`, a.id));
                           } catch (error) {
@@ -4591,29 +4610,121 @@ export default function App() {
             <Plus size={32} className="group-hover:rotate-90 transition-transform duration-300" />
           </button>
         </AnimatePresence>
+        </div>
       </main>
 
+      {/* Account Details Modal */}
+      <AnimatePresence>
+        {isAccountDetailsVisible && selectedAccountForDetails && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAccountDetailsVisible(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70]"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 top-12 lg:top-20 lg:left-auto lg:right-0 lg:w-[450px] bg-white dark:bg-slate-900 rounded-t-[32px] lg:rounded-l-[32px] lg:rounded-tr-none p-6 z-[80] shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="w-12 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6 lg:hidden" />
+              
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
+                    <CreditCard size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                      {selectedAccountForDetails.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                      Extrato do Mês
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsAccountDetailsVisible(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 mb-6 border border-slate-100 dark:border-slate-800">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Saldo Atual</span>
+                  <span className="text-lg font-black text-slate-900 dark:text-white">
+                    {formatCurrency(selectedAccountForDetails.balance)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                <div className="space-y-1">
+                  {accountTransactions.length > 0 ? (
+                    accountTransactions.map((t) => (
+                      <TransactionCard 
+                        key={t.id}
+                        t={t}
+                        accounts={accounts}
+                        categories={categories}
+                        formatCurrency={formatCurrency}
+                        onEdit={(trans) => {
+                          setTransactionToEdit(trans);
+                          setIsEditTransactionModalOpen(true);
+                          setIsAccountDetailsVisible(false);
+                        }}
+                        onDelete={(trans) => {
+                          if (confirm('Deseja realmente excluir esta transação?')) {
+                            handleDeleteTransaction(trans);
+                          }
+                        }}
+                        onToggleConsolidation={handleToggleConsolidation}
+                      />
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-4">
+                        <ArrowUpCircle size={32} />
+                      </div>
+                      <p className="font-bold">Nenhuma movimentação este mês</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 z-50 px-2 py-1 flex justify-around items-center shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-        <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Home" onClick={() => setActiveTab('dashboard')} />
-        <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Transações" onClick={() => setActiveTab('transactions')} />
-        <div className="relative -top-4">
+      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-50">
+        <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 px-4 py-2 flex justify-around items-center rounded-[32px] shadow-2xl shadow-slate-200/50 dark:shadow-black/50">
+          <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Home" onClick={() => setActiveTab('dashboard')} />
+          <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Histórico" onClick={() => setActiveTab('transactions')} />
+          
           <motion.button 
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsQuickAddModalOpen(true)}
-            className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/40 active:scale-95 transition-transform"
+            className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-blue-500/40 active:scale-95 transition-transform mx-2 shrink-0"
           >
-            <Plus size={28} />
+            <Plus size={32} strokeWidth={3} />
           </motion.button>
-        </div>
-        <MobileNavItem icon={CreditCard} active={activeTab === 'accounts'} label="Contas" onClick={() => setActiveTab('accounts')} />
-        <MobileNavItem 
-          icon={Menu} 
-          active={isMobileMenuOpen} 
-          label="Mais" 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-        />
-      </nav>
+
+          <MobileNavItem icon={CreditCard} active={activeTab === 'accounts'} label="Contas" onClick={() => setActiveTab('accounts')} />
+          <MobileNavItem 
+            icon={Menu} 
+            active={isMobileMenuOpen} 
+            label="Mais" 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+          />
+        </nav>
+      </div>
 
       {/* Mobile More Menu Overlay */}
       <AnimatePresence>
