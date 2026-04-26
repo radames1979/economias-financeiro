@@ -531,6 +531,7 @@ export default function App() {
   const [reportFilterType, setReportFilterType] = useState('all');
   const [reportFilterSearch, setReportFilterSearch] = useState('');
   const [reportFilterStatus, setReportFilterStatus] = useState('all');
+  const [isReportFiltersOpen, setIsReportFiltersOpen] = useState(false);
 
   // Connection Test
   useEffect(() => {
@@ -2810,57 +2811,75 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {accounts.map((a) => (
-                  <Card 
-                    key={a.id} 
-                    className="relative overflow-hidden cursor-pointer hover:shadow-lg transition-shadow active:scale-98"
+                  <motion.div
+                    key={a.id}
+                    whileHover={{ y: -6 }}
+                    className="group relative h-52 bg-slate-900 dark:bg-slate-800 rounded-[32px] p-6 shadow-2xl shadow-slate-200 dark:shadow-black overflow-hidden flex flex-col justify-between cursor-pointer"
                     onClick={() => {
                       setSelectedAccountForDetails(a);
                       setIsAccountDetailsVisible(true);
                     }}
                   >
-                    <div className="absolute top-0 right-0 p-4 flex gap-2 z-10">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAccountToEdit(a);
-                          setIsEditAccountModalOpen(true);
-                        }}
-                        className="text-slate-300 hover:text-blue-500 transition-colors"
-                      >
-                        <Edit2 size={18} />
-                      </button>
-                      <button 
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          if (!confirm(`Deseja realmente excluir a conta ${a.name}? Todas as transações associadas serão órfãs.`)) return;
-                          try {
-                            await deleteDoc(doc(db, `users/${user.uid}/accounts`, a.id));
-                          } catch (error) {
-                            handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/accounts/${a.id}`);
-                          }
-                        }}
-                        className="text-slate-300 hover:text-rose-500 transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
-                        <CreditCard size={24} />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full translate-y-1/2 -translate-x-1/2" />
+                    
+                    <div className="relative z-10 flex justify-between items-start">
+                      <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl">
+                        <CreditCard size={24} className="text-white" />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-slate-800 dark:text-slate-100">{a.name}</h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">{a.type}</p>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAccountToEdit(a);
+                            setIsEditAccountModalOpen(true);
+                          }}
+                          className="p-2 text-white/40 hover:text-white"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm(`Deseja realmente excluir a conta ${a.name}?`)) return;
+                            try {
+                              await deleteDoc(doc(db, `users/${user.uid}/accounts`, a.id));
+                            } catch (error) {
+                              handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/accounts/${a.id}`);
+                            }
+                          }}
+                          className="p-2 text-white/40 hover:text-rose-400"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
-                    <p className={cn(
-                      "text-2xl font-bold",
-                      a.balance < 0 ? "text-rose-600" : a.balance > 0 ? "text-emerald-600" : "text-slate-900 dark:text-slate-100"
-                    )}>
-                      {formatCurrencyWithPrivacy(a.balance)}
-                    </p>
-                  </Card>
+
+                    <div className="relative z-10">
+                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{a.type === 'credit_card' ? 'Cartão de Crédito' : a.type === 'savings' ? 'Poupança' : 'Conta Corrente'}</p>
+                      <h3 className="text-xl font-bold text-white tracking-tight truncate mb-4">{a.name}</h3>
+                      
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Saldo Disponível</p>
+                          <p className="text-2xl font-black text-white tracking-tighter">
+                            {formatCurrencyWithPrivacy(a.balance)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
                 ))}
+
+                <button 
+                  onClick={() => setIsAddTransactionModalOpen(true)}
+                  className="group h-52 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[32px] p-6 flex flex-col items-center justify-center gap-3 hover:border-blue-500 transition-colors"
+                >
+                  <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 text-slate-400 group-hover:text-blue-600 transition-colors">
+                    <Plus size={24} />
+                  </div>
+                  <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest group-hover:text-blue-600 transition-colors">Nova Conta</span>
+                </button>
               </div>
             </motion.div>
           )}
@@ -3005,199 +3024,117 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
+              className="space-y-8"
             >
-              {/* Filtros Avançados */}
-              <Card title="Filtros Avançados">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Início</label>
-                      <div className="relative">
-                        <input 
-                          type="date" 
-                          value={reportStartDate}
-                          onChange={(e) => setReportStartDate(e.target.value)}
-                          className="w-full p-3 pl-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <Calendar className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Fim</label>
-                      <div className="relative">
-                        <input 
-                          type="date" 
-                          value={reportEndDate}
-                          onChange={(e) => setReportEndDate(e.target.value)}
-                          className="w-full p-3 pl-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <Calendar className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Tipo</label>
-                      <select 
-                        value={reportFilterType}
-                        onChange={(e) => setReportFilterType(e.target.value)}
-                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="all">Todos os Tipos</option>
-                        <option value="income">Receitas</option>
-                        <option value="expense">Despesas</option>
-                        <option value="transfer">Transferências</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Status</label>
-                      <select 
-                        value={reportFilterStatus}
-                        onChange={(e) => setReportFilterStatus(e.target.value)}
-                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="all">Todos os Status</option>
-                        <option value="consolidated">Consolidados</option>
-                        <option value="pending">Pendentes</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Conta</label>
-                      <select 
-                        value={reportFilterAccount}
-                        onChange={(e) => setReportFilterAccount(e.target.value)}
-                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Todas as Contas</option>
-                        {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Categoria / Centro de Custo</label>
-                      <select 
-                        value={reportFilterCategory}
-                        onChange={(e) => setReportFilterCategory(e.target.value)}
-                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Todas as Categorias</option>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1 lg:col-span-2">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Pesquisar</label>
-                      <div className="relative">
-                        <input 
-                          type="text" 
-                          placeholder="Pesquisar por descrição ou notas..."
-                          value={reportFilterSearch}
-                          onChange={(e) => setReportFilterSearch(e.target.value)}
-                          className="w-full p-3 pl-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <Search className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button 
-                      onClick={() => {
-                        setReportFilterCategory('');
-                        setReportFilterAccount('');
-                        setReportFilterType('all');
-                        setReportFilterSearch('');
-                        setReportFilterStatus('all');
-                      }}
-                      className="text-slate-500 hover:text-slate-700 font-bold px-4 py-2 text-sm"
-                    >
-                      Limpar Filtros
-                    </button>
-                    <button 
-                      onClick={exportToCSV}
-                      className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-4 py-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm"
-                    >
-                      <FileDown size={18} />
-                      CSV
-                    </button>
-                    <button 
-                      onClick={exportToPDF}
-                      className="flex items-center gap-2 bg-blue-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors text-sm"
-                    >
-                      <Download size={18} />
-                      PDF
-                    </button>
-                  </div>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Análise</h1>
+                  <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Visualize sua saúde financeira</p>
                 </div>
-              </Card>
+                
+                <div className="flex flex-wrap gap-2">
+                   <button 
+                      onClick={() => setIsReportFiltersOpen(!isReportFiltersOpen)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-transform"
+                    >
+                    <Filter size={16} />
+                    Filtrar Período
+                  </button>
+                  <button 
+                    onClick={exportToPDF}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-transform"
+                  >
+                    <Download size={16} />
+                    Relatório Completo
+                  </button>
+                </div>
+              </div>
 
-              {/* Estatísticas Rápidas */}
+              <AnimatePresence>
+                {isReportFiltersOpen && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <Card className="bg-slate-50/50 dark:bg-slate-800/20 border-blue-100/50 dark:border-blue-900/20">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">De</label>
+                          <input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Para</label>
+                          <input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold" />
+                        </div>
+                        {/* Add more filter fields here as needed */}
+                        <div className="flex items-end lg:col-span-2">
+                           <button 
+                              onClick={() => {
+                                setReportFilterCategory('');
+                                setReportFilterAccount('');
+                                setReportFilterType('all');
+                                setReportFilterSearch('');
+                                setReportFilterStatus('all');
+                              }}
+                              className="text-slate-400 hover:text-slate-600 font-black text-[10px] uppercase tracking-widest px-4 py-2"
+                            >
+                              Resetar Filtros
+                            </button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg">
-                        <TrendingUp size={20} />
-                      </div>
-                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Receitas</span>
-                    </div>
-                    {comparisonStats.incomeDiff !== 0 && (
-                      <div className={cn("text-xs font-bold flex items-center gap-0.5", comparisonStats.incomeDiff > 0 ? "text-emerald-600" : "text-rose-600")}>
-                        {comparisonStats.incomeDiff > 0 ? <Plus size={10}/> : ''}
-                        {comparisonStats.incomeDiff.toFixed(1)}%
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                <Card className="hover:shadow-md transition-shadow">
+                  <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-2">Entradas</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {formatCurrency(filteredTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0))}
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-1">vs. período anterior: {formatCurrency(comparisonStats.prevIncome)}</p>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {comparisonStats.incomeDiff > 0 ? (
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">+{comparisonStats.incomeDiff.toFixed(1)}%</span>
+                    ) : (
+                      <span className="text-[10px] font-black text-rose-600 bg-rose-50 dark:bg-rose-900/20 px-1.5 py-0.5 rounded">{comparisonStats.incomeDiff.toFixed(1)}%</span>
+                    )}
+                    <span className="text-[10px] font-bold text-slate-400">vs prev</span>
+                  </div>
                 </Card>
 
-                <Card className="bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-900/20">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-lg">
-                        <TrendingDown size={20} />
-                      </div>
-                      <span className="text-sm font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Despesas</span>
-                    </div>
-                    {comparisonStats.expenseDiff !== 0 && (
-                      <div className={cn("text-xs font-bold flex items-center gap-0.5", comparisonStats.expenseDiff > 0 ? "text-rose-600" : "text-emerald-600")}>
-                        {comparisonStats.expenseDiff > 0 ? <Plus size={10}/> : ''}
-                        {comparisonStats.expenseDiff.toFixed(1)}%
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                <Card className="hover:shadow-md transition-shadow">
+                  <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-2">Saídas</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {formatCurrency(filteredTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0))}
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-1">vs. período anterior: {formatCurrency(comparisonStats.prevExpense)}</p>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {comparisonStats.expenseDiff > 0 ? (
+                      <span className="text-[10px] font-black text-rose-600 bg-rose-50 dark:bg-rose-900/20 px-1.5 py-0.5 rounded">+{comparisonStats.expenseDiff.toFixed(1)}%</span>
+                    ) : (
+                      <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">{comparisonStats.expenseDiff.toFixed(1)}%</span>
+                    )}
+                    <span className="text-[10px] font-bold text-slate-400">vs prev</span>
+                  </div>
                 </Card>
 
-                <Card className="bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-                      <Calculator size={20} />
-                    </div>
-                    <span className="text-sm font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Balanço</span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                <Card className="hover:shadow-md transition-shadow">
+                  <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-2">Líquido</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {formatCurrency(
                       filteredTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0) -
                       filteredTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0)
                     )}
                   </p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-2">No período selecionado</p>
                 </Card>
 
-                <Card className="bg-slate-50 dark:bg-slate-900/10 border-slate-100 dark:border-slate-900/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-slate-100 dark:bg-slate-900/30 text-slate-600 dark:text-slate-400 rounded-lg">
-                      <RefreshCw size={20} />
-                    </div>
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">Transações</span>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{filteredTransactions.length}</p>
+                <Card className="hover:shadow-md transition-shadow">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Operações</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{filteredTransactions.length}</p>
+                  <p className="text-[10px] font-bold text-slate-400 mt-2">Total de registros</p>
                 </Card>
               </div>
 
