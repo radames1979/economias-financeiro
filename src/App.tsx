@@ -438,6 +438,76 @@ const CalculatorComponent = ({ value, onValueChange, onClose }: { value: string,
   );
 };
 
+interface ConfirmationRequest {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: 'danger' | 'warning' | 'info';
+}
+
+const ConfirmationModal = ({ 
+  request, 
+  onClose 
+}: { 
+  request: ConfirmationRequest, 
+  onClose: () => void 
+}) => (
+  <div className="fixed inset-0 flex items-center justify-center z-[110] px-4">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+      className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+    />
+    <motion.div 
+      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 0.9, opacity: 0, y: 20 }}
+      className="bg-white dark:bg-slate-900 rounded-[32px] p-8 max-w-md w-full shadow-2xl relative z-[120] border border-slate-100 dark:border-slate-800"
+    >
+      <div className={cn(
+        "w-16 h-16 rounded-2xl flex items-center justify-center mb-6",
+        request.variant === 'danger' ? "bg-rose-50 text-rose-600 dark:bg-rose-900/20" :
+        request.variant === 'warning' ? "bg-amber-50 text-amber-600 dark:bg-amber-900/20" :
+        "bg-blue-50 text-blue-600 dark:bg-blue-900/20"
+      )}>
+        {request.variant === 'danger' ? <Trash2 size={32} /> : 
+         request.variant === 'warning' ? <AlertCircle size={32} /> : 
+         <Check size={32} />}
+      </div>
+      
+      <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{request.title}</h3>
+      <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-8">{request.message}</p>
+      
+      <div className="flex gap-4">
+        <button 
+          onClick={onClose}
+          className="flex-1 py-4 px-6 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          {request.cancelText || 'Cancelar'}
+        </button>
+        <button 
+          onClick={() => {
+            request.onConfirm();
+            onClose();
+          }}
+          className={cn(
+            "flex-1 py-4 px-6 rounded-2xl text-white font-bold transition-all shadow-lg active:scale-95",
+            request.variant === 'danger' ? "bg-rose-600 hover:bg-rose-700 shadow-rose-200 dark:shadow-none" :
+            request.variant === 'warning' ? "bg-amber-600 hover:bg-amber-700 shadow-amber-200 dark:shadow-none" :
+            "bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none"
+          )}
+        >
+          {request.confirmText || 'Confirmar'}
+        </button>
+      </div>
+    </motion.div>
+  </div>
+);
+
 // --- Main App ---
 
 export default function App() {
@@ -480,6 +550,20 @@ export default function App() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>('all');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
+
+  const confirmAction = (config: Omit<ConfirmationRequest, 'onConfirm'>, onConfirm: () => void) => {
+    setConfirmation({ ...config, onConfirm });
+  };
+
+  const handleDeleteTransactionWithConfirm = (t: Transaction) => {
+    confirmAction({
+      title: 'Excluir Transação',
+      message: `Deseja realmente excluir "${t.description}"? O saldo da conta será ajustado se a transação estiver consolidada.`,
+      variant: 'danger',
+      confirmText: 'Excluir'
+    }, () => handleDeleteTransaction(t));
+  };
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -1476,48 +1560,51 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm(`Deseja consolidar ${pastPending.length} transações pendentes até ${formatDate(yesterday)}?`)) {
-      return;
-    }
+    confirmAction({
+      title: 'Consolidar Lançamentos',
+      message: `Deseja consolidar ${pastPending.length} transações pendentes até ${formatDate(yesterday)}? Os saldos das contas serão atualizados.`,
+      variant: 'info',
+      confirmText: 'Consolidar'
+    }, async () => {
+      let successCount = 0;
+      let errorCount = 0;
+      for (const t of pastPending) {
+        try {
+          await runTransaction(db, async (transaction) => {
+            const transRef = doc(db, `users/${user.uid}/transactions`, t.id);
+            if (!t.accountId) return;
+            
+            const fromAccountRef = doc(db, `users/${user.uid}/accounts`, t.accountId);
+            const toAccountRef = (t.type === 'transfer' && t.toAccountId) 
+              ? doc(db, `users/${user.uid}/accounts`, t.toAccountId) 
+              : null;
 
-    let successCount = 0;
-    let errorCount = 0;
-    for (const t of pastPending) {
-      try {
-        await runTransaction(db, async (transaction) => {
-          const transRef = doc(db, `users/${user.uid}/transactions`, t.id);
-          if (!t.accountId) return;
-          
-          const fromAccountRef = doc(db, `users/${user.uid}/accounts`, t.accountId);
-          const toAccountRef = (t.type === 'transfer' && t.toAccountId) 
-            ? doc(db, `users/${user.uid}/accounts`, t.toAccountId) 
-            : null;
+            const fromAccountSnap = await transaction.get(fromAccountRef);
+            const toAccountSnap = toAccountRef ? await transaction.get(toAccountRef) : null;
 
-          const fromAccountSnap = await transaction.get(fromAccountRef);
-          const toAccountSnap = toAccountRef ? await transaction.get(toAccountRef) : null;
-
-          if (t.type === 'transfer') {
-            if (fromAccountSnap.exists()) {
-              transaction.update(fromAccountRef, { balance: fromAccountSnap.data().balance - t.amount });
+            if (t.type === 'transfer') {
+              if (fromAccountSnap.exists()) {
+                transaction.update(fromAccountRef, { balance: fromAccountSnap.data().balance - t.amount });
+              }
+              if (toAccountSnap && toAccountSnap.exists()) {
+                transaction.update(toAccountRef!, { balance: toAccountSnap.data().balance + t.amount });
+              }
+            } else {
+              if (fromAccountSnap.exists()) {
+                const newBalance = t.type === 'income' ? fromAccountSnap.data().balance + t.amount : fromAccountSnap.data().balance - t.amount;
+                transaction.update(fromAccountRef, { balance: newBalance });
+              }
             }
-            if (toAccountSnap && toAccountSnap.exists()) {
-              transaction.update(toAccountRef!, { balance: toAccountSnap.data().balance + t.amount });
-            }
-          } else {
-            if (fromAccountSnap.exists()) {
-              const newBalance = t.type === 'income' ? fromAccountSnap.data().balance + t.amount : fromAccountSnap.data().balance - t.amount;
-              transaction.update(fromAccountRef, { balance: newBalance });
-            }
-          }
-          transaction.update(transRef, { consolidated: true, updatedAt: serverTimestamp() });
-        });
-        successCount++;
-      } catch (error) {
-        console.error(`Erro ao consolidar transação ${t.id}:`, error);
-        errorCount++;
+            transaction.update(transRef, { consolidated: true, updatedAt: serverTimestamp() });
+          });
+          successCount++;
+        } catch (error) {
+          console.error(`Erro ao consolidar transação ${t.id}:`, error);
+          errorCount++;
+        }
       }
-    }
-    alert(`${successCount} transações consolidadas com sucesso!${errorCount > 0 ? ` ${errorCount} falharam.` : ''}`);
+      alert(`${successCount} transações consolidadas com sucesso!${errorCount > 0 ? ` ${errorCount} falharam.` : ''}`);
+    });
   };
 
   // Automation: Process Recurring Transactions
@@ -1918,7 +2005,12 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    if (!window.confirm('Atenção: A importação de backup pode duplicar dados se já existirem. Deseja continuar?')) return;
+    confirmAction({
+      title: 'Importar Backup',
+      message: 'Atenção: A importação de backup pode duplicar dados se já existirem. Deseja continuar?',
+      variant: 'warning',
+      confirmText: 'Continuar'
+    }, async () => {
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -1944,6 +2036,7 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+    });
   };
 
   const handleStatCardClick = () => {
@@ -2131,7 +2224,14 @@ export default function App() {
             </div>
 
             <button
-              onClick={logout}
+              onClick={() => {
+                confirmAction({
+                  title: 'Sair da Conta',
+                  message: 'Deseja realmente encerrar sua sessão?',
+                  variant: 'warning',
+                  confirmText: 'Sair'
+                }, logout);
+              }}
               className="flex items-center justify-center lg:justify-start gap-3 w-full px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-200 font-medium group"
             >
               <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
@@ -2811,7 +2911,7 @@ export default function App() {
                                   <Edit2 size={18} />
                                 </button>
                                 <button 
-                                  onClick={() => handleDeleteTransaction(t)}
+                                   onClick={() => handleDeleteTransactionWithConfirm(t)}
                                   className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
                                   title="Excluir"
                                 >
@@ -2926,14 +3026,20 @@ export default function App() {
                           <Edit2 size={16} />
                         </button>
                         <button 
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (!confirm(`Deseja realmente excluir a conta ${a.name}?`)) return;
-                            try {
-                              await deleteDoc(doc(db, `users/${user.uid}/accounts`, a.id));
-                            } catch (error) {
-                              handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/accounts/${a.id}`);
-                            }
+                            confirmAction({
+                              title: 'Excluir Conta',
+                              message: `Deseja realmente excluir a conta "${a.name}"? As transações vinculadas não serão excluídas automaticamente.`,
+                              variant: 'danger',
+                              confirmText: 'Excluir'
+                            }, async () => {
+                              try {
+                                await deleteDoc(doc(db, `users/${user.uid}/accounts`, a.id));
+                              } catch (error) {
+                                handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/accounts/${a.id}`);
+                              }
+                            });
                           }}
                           className="p-2 text-white/40 hover:text-rose-400"
                         >
@@ -3040,12 +3146,19 @@ export default function App() {
                           <Edit2 size={18} />
                         </button>
                         <button 
-                          onClick={async () => {
-                            try {
-                              await deleteDoc(doc(db, `users/${user.uid}/categories`, root.id));
-                            } catch (error) {
-                              handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/categories/${root.id}`);
-                            }
+                          onClick={() => {
+                            confirmAction({
+                              title: 'Excluir Centro de Custo',
+                              message: `Deseja realmente excluir "${root.name}"? As subcategorias vinculadas não serão excluídas automaticamente.`,
+                              variant: 'danger',
+                              confirmText: 'Excluir'
+                            }, async () => {
+                              try {
+                                await deleteDoc(doc(db, `users/${user.uid}/categories`, root.id));
+                              } catch (error) {
+                                handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/categories/${root.id}`);
+                              }
+                            });
                           }}
                           className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
                         >
@@ -3074,12 +3187,19 @@ export default function App() {
                                 <Edit2 size={16} />
                               </button>
                               <button 
-                                onClick={async () => {
-                                  try {
-                                    await deleteDoc(doc(db, `users/${user.uid}/categories`, child.id));
-                                  } catch (error) {
-                                    handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/categories/${child.id}`);
-                                  }
+                                onClick={() => {
+                                  confirmAction({
+                                    title: 'Excluir Categoria',
+                                    message: `Deseja realmente excluir a categoria "${child.name}"?`,
+                                    variant: 'danger',
+                                    confirmText: 'Excluir'
+                                  }, async () => {
+                                    try {
+                                      await deleteDoc(doc(db, `users/${user.uid}/categories`, child.id));
+                                    } catch (error) {
+                                      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/categories/${child.id}`);
+                                    }
+                                  });
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
                               >
@@ -3590,12 +3710,19 @@ export default function App() {
                           {rt.active ? 'Ativo' : 'Pausado'}
                         </button>
                         <button 
-                          onClick={async () => {
-                            try {
-                              await deleteDoc(doc(db, `users/${user.uid}/recurring_transactions`, rt.id));
-                            } catch (error) {
-                              handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/recurring_transactions/${rt.id}`);
-                            }
+                          onClick={() => {
+                            confirmAction({
+                              title: 'Excluir Agendamento',
+                              message: `Deseja realmente excluir o agendamento de "${rt.description}"? Novas transações automáticas não serão mais geradas.`,
+                              variant: 'danger',
+                              confirmText: 'Excluir'
+                            }, async () => {
+                              try {
+                                await deleteDoc(doc(db, `users/${user.uid}/recurring_transactions`, rt.id));
+                              } catch (error) {
+                                handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/recurring_transactions/${rt.id}`);
+                              }
+                            });
                           }}
                           className="text-slate-300 hover:text-rose-500 transition-colors"
                         >
@@ -4732,9 +4859,12 @@ export default function App() {
                           setIsAccountDetailsVisible(false);
                         }}
                         onDelete={(trans) => {
-                          if (confirm('Deseja realmente excluir esta transação?')) {
-                            handleDeleteTransaction(trans);
-                          }
+                          confirmAction({
+                            title: 'Excluir Transação',
+                            message: `Deseja realmente excluir a transação "${trans.description}"? Os saldos das contas serão atualizados se ela estiver consolidada.`,
+                            variant: 'danger',
+                            confirmText: 'Excluir'
+                          }, () => handleDeleteTransaction(trans));
                         }}
                         onToggleConsolidation={handleToggleConsolidation}
                       />
@@ -4865,6 +4995,15 @@ export default function App() {
             </div>
             <span className="font-bold tracking-tight">Adicionar Transação</span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmation && (
+          <ConfirmationModal 
+            request={confirmation} 
+            onClose={() => setConfirmation(null)} 
+          />
         )}
       </AnimatePresence>
     </div>
