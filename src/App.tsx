@@ -42,6 +42,7 @@ import {
   X,
   PieChart as PieChartIcon,
   FileDown,
+  FileUp,
   Calendar,
   CalendarDays,
   Filter,
@@ -226,9 +227,9 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
             {t.attachmentUrl && <Paperclip size={12} className="text-slate-300" />}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{account?.name}</span>
-            <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{category?.name}</span>
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate max-w-[80px]">{account?.name}</span>
+            <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate max-w-[100px]">{category?.name}</span>
           </div>
         </div>
       </div>
@@ -319,7 +320,7 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
   </div>
 );
 
-const Card = ({ children, className, title, onClick }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void }) => (
+const Card = ({ children, className, title, onClick, extra }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void, extra?: React.ReactNode }) => (
   <div 
     onClick={onClick}
     className={cn(
@@ -329,9 +330,12 @@ const Card = ({ children, className, title, onClick }: { children: React.ReactNo
     )}
   >
     {title && (
-      <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6">
-        {title}
-      </h3>
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">
+          {title}
+        </h3>
+        {extra}
+      </div>
     )}
     {children}
   </div>
@@ -504,6 +508,7 @@ export default function App() {
   // Dashboard Date State
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(new Date());
+  const [dashboardDrillDownCategory, setDashboardDrillDownCategory] = useState<string | null>(null);
   const [dashboardFilterMode, setDashboardFilterMode] = useState<'to-today' | 'full-month' | 'tomorrow'>('to-today');
 
   const currentMonth = startOfMonth(dashboardDate);
@@ -527,6 +532,7 @@ export default function App() {
   const [reportEndDate, setReportEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
   const [reportFilterCategory, setReportFilterCategory] = useState('');
+  const [reportDrillDownCategory, setReportDrillDownCategory] = useState<string | null>(null);
   const [reportFilterAccount, setReportFilterAccount] = useState('');
   const [reportFilterType, setReportFilterType] = useState('all');
   const [reportFilterSearch, setReportFilterSearch] = useState('');
@@ -932,13 +938,36 @@ export default function App() {
   }, [dashboardTransactions, dashboardRange]);
 
   const pieData = useMemo(() => {
-    const categoryTotals: Record<string, number> = {};
-    dashboardTransactions.filter(t => t.type === 'expense').forEach(t => {
-      const cat = categories.find(c => c.id === t.categoryId)?.name || 'Outros';
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + t.amount;
+    const expenses = dashboardTransactions.filter(t => t.type === 'expense');
+    const summary: Record<string, { id: string, name: string, value: number, color: string }> = {};
+    
+    expenses.forEach(t => {
+      const subCat = categories.find(c => c.id === t.categoryId);
+      const parentCat = categories.find(c => c.id === t.costCenterId) || (subCat?.parentId ? categories.find(c => c.id === subCat.parentId) : subCat);
+
+      let targetId = 'none';
+      let targetName = 'Outros';
+      let targetColor = '#94a3b8';
+
+      if (dashboardDrillDownCategory) {
+        if (subCat?.parentId !== dashboardDrillDownCategory && subCat?.id !== dashboardDrillDownCategory) return;
+        targetId = subCat?.id || 'none';
+        targetName = subCat?.name || 'Outros';
+        targetColor = subCat?.color || '#94a3b8';
+      } else {
+        targetId = parentCat?.id || 'none';
+        targetName = parentCat?.name || 'Outros';
+        targetColor = parentCat?.color || '#94a3b8';
+      }
+
+      if (!summary[targetId]) {
+        summary[targetId] = { id: targetId, name: targetName, value: 0, color: targetColor };
+      }
+      summary[targetId].value += t.amount;
     });
-    return Object.entries(categoryTotals).map(([name, value]) => ({ name, value }));
-  }, [dashboardTransactions, categories]);
+
+    return Object.values(summary).sort((a, b) => b.value - a.value);
+  }, [dashboardTransactions, categories, dashboardDrillDownCategory]);
 
   const handleImportTransactions = async () => {
     if (!user || transactionsToImport.length === 0) return;
@@ -1629,19 +1658,38 @@ export default function App() {
     const summary: Record<string, { id: string, name: string, value: number, color: string }> = {};
     
     expenses.forEach(t => {
-      const category = categories.find(c => c.id === t.categoryId) || categories.find(c => c.id === t.costCenterId);
-      const categoryId = category?.id || 'none';
-      const categoryName = category?.name || 'Sem Categoria';
-      const categoryColor = category?.color || '#94a3b8';
-      
-      if (!summary[categoryId]) {
-        summary[categoryId] = { id: categoryId, name: categoryName, value: 0, color: categoryColor };
+      // Find actual category
+      const subCat = categories.find(c => c.id === t.categoryId);
+      // Find top level parent (cost center)
+      const parentCat = categories.find(c => c.id === t.costCenterId) || (subCat?.parentId ? categories.find(c => c.id === subCat.parentId) : subCat);
+
+      let targetCategoryId: string = 'none';
+      let targetCategoryName: string = 'Sem Categoria';
+      let targetCategoryColor: string = '#94a3b8';
+
+      if (reportDrillDownCategory) {
+        // Only include if it belongs to this cost center
+        const isChildOfDrillDown = subCat?.parentId === reportDrillDownCategory || subCat?.id === reportDrillDownCategory;
+        if (!isChildOfDrillDown) return;
+
+        targetCategoryId = subCat?.id || 'none';
+        targetCategoryName = subCat?.name || 'Sem Categoria';
+        targetCategoryColor = subCat?.color || '#94a3b8';
+      } else {
+        // Group by cost center
+        targetCategoryId = parentCat?.id || 'none';
+        targetCategoryName = parentCat?.name || 'Sem Categoria';
+        targetCategoryColor = parentCat?.color || '#94a3b8';
       }
-      summary[categoryId].value += t.amount;
+
+      if (!summary[targetCategoryId]) {
+        summary[targetCategoryId] = { id: targetCategoryId, name: targetCategoryName, value: 0, color: targetCategoryColor };
+      }
+      summary[targetCategoryId].value += t.amount;
     });
     
     return Object.values(summary).sort((a, b) => b.value - a.value);
-  }, [filteredTransactions, categories]);
+  }, [filteredTransactions, categories, reportDrillDownCategory]);
 
   const trendSummary = useMemo(() => {
     const sortedTransactions = [...filteredTransactions].sort((a, b) => a.date.localeCompare(b.date));
@@ -1846,6 +1894,58 @@ export default function App() {
     }
   };
 
+  const exportBackup = () => {
+    const data = {
+      transactions,
+      accounts,
+      categories,
+      recurringTransactions,
+      exportDate: new Date().toISOString(),
+      version: '1.0'
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `finance_backup_${format(new Date(), 'yyyyMMdd_HHmm')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const importBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!window.confirm('Atenção: A importação de backup pode duplicar dados se já existirem. Deseja continuar?')) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (!data.transactions || !data.accounts) throw new Error('Arquivo de backup inválido');
+
+        for (const acc of data.accounts) {
+          const { id, ...accData } = acc;
+          await setDoc(doc(db, `users/${user.uid}/accounts`, id), { ...accData, userId: user.uid });
+        }
+        for (const cat of data.categories) {
+          const { id, ...catData } = cat;
+          await setDoc(doc(db, `users/${user.uid}/categories`, id), { ...catData, userId: user.uid });
+        }
+        for (const t of data.transactions) {
+          const { id, ...tData } = t;
+          await setDoc(doc(db, `users/${user.uid}/transactions`, id), { ...tData, userId: user.uid });
+        }
+        alert('Backup importado com sucesso!');
+      } catch (error) {
+        alert('Erro ao importar backup: ' + (error as Error).message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleStatCardClick = () => {
     setReportStartDate(dashboardRange.start);
     setReportEndDate(dashboardRange.end);
@@ -1857,85 +1957,69 @@ export default function App() {
     
     const structure = [
       {
-        name: "1. Centro de Receitas (O que entra)",
+        name: "Entradas",
         type: "income",
-        subcategories: [
-          "Renda Principal: Salário líquido, Pro-labore ou faturamento MEI",
-          "Renda Extra: Vendas de desapegos (Enjoei/OLX), freelas, cashback de cartões/apps",
-          "Renda Passiva: Dividendos, rendimentos de CDB ou aluguel recebido",
-          "Benefícios e Extras: Bônus, comissões, reembolso, 13º salário, PPR"
-        ]
+        subcategories: ["Salário", "Freelance", "Rendimentos", "Outras Receitas"]
       },
       {
-        name: "2. Centro: Habitação (O custo de morar)",
+        name: "Moradia",
         type: "expense",
-        subcategories: [
-          "Fixos: Aluguel/Financiamento, Condomínio, IPTU",
-          "Manutenção: Material de limpeza, reparos domésticos, diarista/faxina",
-          "Contas de Consumo: Energia, Água, Gás (encanado ou botijão)"
-        ]
+        subcategories: ["Aluguel / Financiamento", "Condomínio", "IPTU / Impostos prediais", "Água", "Luz / Energia elétrica", "Gás", "Manutenção e Reparos", "Mobília e Eletrodomésticos", "Seguro residencial"]
       },
       {
-        name: "3. Centro: Alimentação e Mercado",
+        name: "Alimentação",
         type: "expense",
-        subcategories: [
-          "Essencial: Supermercado, feira, açougue e padaria",
-          "Conveniência/Lazer: Delivery (iFood/Zé Delivery) e refeições fora de casa",
-          "Higiene e Pet: Produtos de cuidado pessoal e itens para animais de estimação"
-        ]
+        subcategories: ["Supermercado / Feira", "Restaurantes / Delivery", "Lanches / Café fora", "Água mineral / Bebidas", "Alimentação no trabalho"]
       },
       {
-        name: "4. Centro: Estilo de Vida Conectado (Digital)",
+        name: "Transporte",
         type: "expense",
-        subcategories: [
-          "Conectividade: Plano de celular e Internet banda larga",
-          "Assinaturas: Streaming (Netflix, Spotify, Youtube Premium), iCloud/Google Drive, Amazon Prime",
-          "Educação: Mensalidade escolar, cursos online ou compra de livros"
-        ]
+        subcategories: ["Combustível", "Transporte público / Apps", "Manutenção do veículo", "IPVA / Licenciamento", "Seguro do veículo", "Estacionamento / Pedágio", "Táxi / Aplicativos"]
       },
       {
-        name: "5. Centro: Mobilidade e Transporte",
+        name: "Saúde",
         type: "expense",
-        subcategories: [
-          "Veículo Próprio: Combustível, Seguro, IPVA, licenciamento e manutenção",
-          "Transporte por App/Público: Uber, 99, passagens de ônibus ou metrô"
-        ]
+        subcategories: ["Plano de saúde / Convênio", "Consulta médica / Dentista", "Medicamentos / Farmácia", "Exames laboratoriais", "Academia / Atividade física", "Terapias"]
       },
       {
-        name: "6. Centro: Saúde e Bem-Estar",
+        name: "Educação",
         type: "expense",
-        subcategories: [
-          "Proteção: Plano de saúde e seguro de vida",
-          "Cuidados: Farmácia (uso contínuo e eventual) e consultas/exames",
-          "Fitness: Academia, Crossfit ou esportes"
-        ]
+        subcategories: ["Mensalidade escolar / Faculdade", "Cursos online / Idiomas", "Material escolar / Livros", "Uniforme", "Palestras e Workshops"]
       },
       {
-        name: "7. Centro: Qualidade de Vida (Lazer e Desejos)",
+        name: "Lazer e Entretenimento",
         type: "expense",
-        subcategories: [
-          "Social: Barzinhos, cinema, presentes para terceiros",
-          "Cuidados Pessoais: Cabeleireiro, manicure, barbearia",
-          "Shopping: Roupas, calçados e eletrônicos de desejo"
-        ]
+        subcategories: ["Cinema / Teatro / Shows", "Streaming (Netflix, Spotify etc)", "Jogos / Videogames / Hobbies", "Viagens de lazer", "Restaurantes e bares (lazer)", "Clubes / Associações"]
       },
       {
-        name: "8. Centro: Futuro e Proteção (O \"Eu de Amanhã\")",
+        name: "Vestuário",
         type: "expense",
-        subcategories: [
-          "Reserva de Emergência: Aporte mensal para segurança",
-          "Projetos: Fundo para viagens, troca de carro ou entrada de imóvel"
-        ]
+        subcategories: ["Roupas", "Calçados", "Acessórios", "Lavanderia / Costura"]
       },
       {
-        name: "9. Centro: Serviços Financeiros e Bancários",
+        name: "Comunicações",
         type: "expense",
-        subcategories: [
-          "Taxas: Tarifas bancárias, anuidade de cartão, juros",
-          "Empréstimos e Financiamentos: Parcelas de empréstimos pessoais ou consignados",
-          "Dívidas: Acordos de dívidas e renegociações",
-          "Cartões de Crédito: Pagamento de faturas (quando não detalhado por categoria)"
-        ]
+        subcategories: ["Internet fixa", "Celular", "TV por assinatura", "Telefonia"]
+      },
+      {
+        name: "Finanças Pessoais",
+        type: "expense",
+        subcategories: ["Cartão de crédito", "Empréstimos / Financiamentos", "Imposto de Renda", "Seguros de vida / Previdência", "Investimentos (aporte)", "Juros e multas"]
+      },
+      {
+        name: "Cuidados Pessoais",
+        type: "expense",
+        subcategories: ["Produtos de higiene", "Salão de beleza / Barbearia", "Perfumes / Cosméticos", "Spa / Massagem"]
+      },
+      {
+        name: "Animais de Estimação",
+        type: "expense",
+        subcategories: ["Ração", "Veterinário / Vacinas", "Higiene e banho", "Brinquedos e acessórios"]
+      },
+      {
+        name: "Outros / Imprevistos",
+        type: "expense",
+        subcategories: ["Presentes", "Doações / Igreja", "Despesas com família", "Multas", "Despesas não classificadas"]
       }
     ];
 
@@ -1960,6 +2044,7 @@ export default function App() {
           });
         }
       }
+      alert('Estrutura de categorias importada com sucesso!');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/categories`);
     }
@@ -2090,14 +2175,20 @@ export default function App() {
             </div>
           </div>
           <div className="flex gap-2 items-center w-full sm:w-auto justify-end">
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
-              title={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            
+            <div className="flex gap-1 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl border border-slate-100 dark:border-slate-800">
+               <button
+                onClick={exportBackup}
+                className="p-1.5 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-slate-800 hover:text-blue-600 transition-all"
+                title="Exportar Backup"
+              >
+                <Download size={18} />
+              </button>
+              <label className="p-1.5 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 transition-all cursor-pointer">
+                <FileUp size={18} />
+                <input type="file" accept=".json" onChange={importBackup} className="hidden" />
+              </label>
+            </div>
+
             <div className="relative">
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -2127,7 +2218,7 @@ export default function App() {
                     <div className="max-h-96 overflow-y-auto">
                       {notifications.length > 0 ? (
                         notifications.map((n) => (
-                          <div key={n.id} className="p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                          <div key={`notif-item-${n.id}`} className="p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                             <div className="flex gap-3">
                               <div className={cn(
                                 "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
@@ -2260,7 +2351,7 @@ export default function App() {
                       </div>
                     ) : (
                       dashboardTransactionsByDate.map(([date, dateItems]) => (
-                        <div key={date}>
+                        <div key={`dashboard-group-${date}`}>
                           <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white dark:bg-slate-900 z-20 py-1">
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                               {isToday(parseISO(date)) ? 'Hoje' : isYesterday(parseISO(date)) ? 'Ontem' : format(parseISO(date), "dd 'de' MMMM", { locale: ptBR })}
@@ -2270,7 +2361,7 @@ export default function App() {
                           <div className="space-y-1">
                             {dateItems.map(t => (
                               <TransactionCard 
-                                key={t.id}
+                                key={`dashboard-tx-${t.id}`}
                                 t={t}
                                 accounts={accounts}
                                 categories={categories}
@@ -2292,7 +2383,7 @@ export default function App() {
                     <div className="space-y-3">
                       {accounts.map(account => (
                         <div 
-                          key={account.id} 
+                          key={`dashboard-account-${account.id}`} 
                           className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 cursor-pointer active:scale-95 transition-transform"
                           onClick={() => {
                             setSelectedAccountForDetails(account);
@@ -2313,6 +2404,13 @@ export default function App() {
                           </div>
                         </div>
                       ))}
+                      <button 
+                        onClick={() => setIsAddTransactionModalOpen(true)}
+                        className="w-full mt-2 py-3 rounded-2xl border-2 border-dashed border-slate-100 dark:border-slate-800 text-slate-400 hover:text-blue-600 hover:border-blue-600 transition-all text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2"
+                      >
+                        <Plus size={16} />
+                        Novo Lançamento
+                      </button>
                     </div>
                   </Card>
                 </div>
@@ -2336,7 +2434,20 @@ export default function App() {
                   </div>
                 </Card>
 
-                <Card title="Despesas por Categoria">
+                <Card 
+                  title="Despesas por Categoria"
+                  extra={dashboardDrillDownCategory && (
+                    <motion.button 
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      onClick={() => setDashboardDrillDownCategory(null)}
+                      className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      <ChevronLeft size={14} />
+                      Voltar
+                    </motion.button>
+                  )}
+                >
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -2348,13 +2459,26 @@ export default function App() {
                           outerRadius={80}
                           paddingAngle={5}
                           dataKey="value"
+                          onClick={(data: any) => {
+                            if (data && data.id && !dashboardDrillDownCategory && data.id !== 'none') {
+                              setDashboardDrillDownCategory(data.id);
+                            }
+                          }}
+                          style={{ cursor: dashboardDrillDownCategory ? 'default' : 'pointer' }}
                         >
                           {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                            <Cell key={`cell-dashboard-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip 
-                          contentStyle={{ backgroundColor: isDarkMode ? '#0f172a' : '#fff', border: 'none', borderRadius: '12px', color: isDarkMode ? '#fff' : '#000' }}
+                          contentStyle={{ 
+                            backgroundColor: isDarkMode ? '#0f172a' : '#fff', 
+                            border: 'none', 
+                            borderRadius: '12px', 
+                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                            color: isDarkMode ? '#fff' : '#000' 
+                          }}
+                          formatter={(value: number) => [formatCurrency(value), 'Valor']}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -2569,41 +2693,11 @@ export default function App() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button 
-                      onClick={() => {
-                        setTransactionsToImport(PDF_IMPORT_DATA);
-                        setImportSource('pdf');
-                        setIsImportModalOpen(true);
-                      }}
-                      className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold px-4 py-2 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm"
+                      onClick={() => setIsAddTransactionModalOpen(true)}
+                      className="flex items-center gap-2 bg-blue-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors text-sm"
                     >
-                      <FileDown size={18} />
-                      Importar PDF
-                    </button>
-                    <label className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold px-4 py-2 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-sm cursor-pointer">
-                      <Download size={18} />
-                      Importar Excel
-                      <input 
-                        type="file" 
-                        accept=".xlsx, .xls, .csv" 
-                        className="hidden" 
-                        onChange={handleExcelFileChange}
-                      />
-                    </label>
-                    <button 
-                      onClick={downloadExcelTemplate}
-                      className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold px-4 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-sm"
-                      title="Baixar Modelo de Excel"
-                    >
-                      <Download size={18} />
-                      Modelo
-                    </button>
-                    <button 
-                      onClick={handleConsolidatePastPending}
-                      className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 font-bold px-4 py-2 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-sm"
-                      title="Consolidar Pendentes até Ontem"
-                    >
-                      <RefreshCw size={18} />
-                      Consolidar Pendentes (até Ontem)
+                      <Plus size={18} />
+                      Novo Lançamento
                     </button>
                   </div>
                 </div>
@@ -2615,7 +2709,7 @@ export default function App() {
                       groupContent={(index) => {
                         const month = sortedMonths[index];
                         return (
-                          <div key={`group-${month}`} className="bg-white dark:bg-slate-900 py-4">
+                          <div key={`virtuoso-group-${month}`} className="bg-white dark:bg-slate-900 py-4">
                             <div className="flex items-center gap-4 px-2">
                               <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                               <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
@@ -2784,13 +2878,6 @@ export default function App() {
             >
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Gerenciar Contas</h2>
-                <button 
-                  onClick={() => setIsAccountImportModalOpen(true)}
-                  className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold px-4 py-2 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm"
-                >
-                  <Download size={18} />
-                  Importar do Print
-                </button>
               </div>
 
               <Card title="Nova Conta">
@@ -2812,7 +2899,7 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {accounts.map((a) => (
                   <motion.div
-                    key={a.id}
+                    key={`account-main-${a.id}`}
                     whileHover={{ y: -6 }}
                     className="group relative h-52 bg-slate-900 dark:bg-slate-800 rounded-[32px] p-6 shadow-2xl shadow-slate-200 dark:shadow-black overflow-hidden flex flex-col justify-between cursor-pointer"
                     onClick={() => {
@@ -2894,13 +2981,6 @@ export default function App() {
             >
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Centros de Custo e Categorias</h2>
-                <button 
-                  onClick={handleSeedCategories}
-                  className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 font-bold px-4 py-2 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors text-sm"
-                >
-                  <Download size={18} />
-                  Importar Estrutura Sugerida
-                </button>
               </div>
 
               <Card title="Novo Centro de Custo ou Categoria">
@@ -2935,7 +3015,7 @@ export default function App() {
 
               <div className="space-y-6">
                 {categories.filter(c => !c.parentId).map((root) => (
-                  <div key={root.id} className="space-y-3">
+                  <div key={`category-tab-root-${root.id}`} className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider rounded">Centro de Custo</div>
                     </div>
@@ -2978,7 +3058,7 @@ export default function App() {
                     <div className="ml-8 space-y-2 border-l-2 border-slate-100 dark:border-slate-800 pl-4">
                       {categories.filter(c => c.parentId === root.id).length > 0 ? (
                         categories.filter(c => c.parentId === root.id).map((child) => (
-                          <Card key={child.id} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group">
+                          <Card key={`category-tab-child-${child.id}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group">
                             <div className="flex items-center gap-3">
                               <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{child.name}</p>
@@ -3163,8 +3243,28 @@ export default function App() {
                   </div>
                 </Card>
 
-                <Card title="Despesas por Categoria">
-                  <p className="text-[10px] text-slate-400 -mt-2 mb-4">Clique em uma fatia para filtrar a tabela</p>
+                <Card 
+                  title="Despesas por Categoria"
+                  extra={reportDrillDownCategory && (
+                    <motion.button 
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      onClick={() => {
+                        setReportDrillDownCategory(null);
+                        setReportFilterCategory('');
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-lg transition-colors"
+                    >
+                      <ChevronLeft size={14} />
+                      Voltar ao Início
+                    </motion.button>
+                  )}
+                >
+                  <p className="text-[10px] text-slate-400 -mt-2 mb-4">
+                    {reportDrillDownCategory 
+                      ? 'Mostrando subcategorias. Clique para filtrar a tabela.' 
+                      : 'Clique em um Centro de Custo para ver o detalhamento.'}
+                  </p>
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -3178,7 +3278,13 @@ export default function App() {
                           dataKey="value"
                           onClick={(data: any) => {
                             if (data && data.id) {
-                              setReportFilterCategory(data.id === reportFilterCategory ? '' : data.id);
+                              if (!reportDrillDownCategory && data.id !== 'none') {
+                                setReportDrillDownCategory(data.id);
+                                // Optional: also filter table by the parent
+                                setReportFilterCategory(data.id);
+                              } else {
+                                setReportFilterCategory(data.id === reportFilterCategory ? '' : data.id);
+                              }
                             }
                           }}
                           style={{ cursor: 'pointer' }}
@@ -3614,7 +3720,7 @@ export default function App() {
                             <option value="">Selecione o Centro de Custo</option>
                             {categories
                               .filter(c => !c.parentId && c.type === transactionType)
-                              .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                              .map(c => <option key={`add-tx-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                         </div>
@@ -3630,7 +3736,7 @@ export default function App() {
                             <option value="">Selecione a Categoria</option>
                             {categories
                               .filter(c => c.parentId === selectedCostCenterId)
-                              .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                              .map(c => <option key={`add-tx-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                         </div>
@@ -3641,7 +3747,7 @@ export default function App() {
                       <label className="text-xs font-bold text-slate-500 ml-1">{transactionType === 'transfer' ? 'Conta de Origem' : 'Conta'}</label>
                       <select name="accountId" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
                         <option value="">Selecione a Conta</option>
-                        {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        {accounts.map(a => <option key={`add-tx-acc-from-opt-${a.id}`} value={a.id}>{a.name}</option>)}
                       </select>
                     </div>
 
@@ -3650,7 +3756,7 @@ export default function App() {
                         <label className="text-xs font-bold text-slate-500 ml-1">Conta de Destino</label>
                         <select name="toAccountId" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
                           <option value="">Selecione a Conta</option>
-                          {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                          {accounts.map(a => <option key={`add-tx-acc-to-opt-${a.id}`} value={a.id}>{a.name}</option>)}
                         </select>
                       </div>
                     )}
@@ -4075,7 +4181,7 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 ml-1">Conta {transactionType === 'transfer' ? 'Origem' : ''}</label>
                     <select name="accountId" defaultValue={transactionToEdit.accountId} className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                       <option value="">Selecione a Conta</option>
-                      {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                      {accounts.map(acc => <option key={`edit-tx-acc-from-opt-${acc.id}`} value={acc.id}>{acc.name}</option>)}
                     </select>
                   </div>
 
@@ -4084,7 +4190,7 @@ export default function App() {
                       <label className="text-xs font-bold text-slate-500 ml-1">Conta Destino</label>
                       <select name="toAccountId" defaultValue={transactionToEdit.toAccountId || ''} className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                         <option value="">Selecione a Conta Destino</option>
-                        {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
+                        {accounts.map(acc => <option key={`edit-tx-acc-to-opt-${acc.id}`} value={acc.id}>{acc.name}</option>)}
                       </select>
                     </div>
                   )}
@@ -4103,7 +4209,7 @@ export default function App() {
                           <option value="">Selecione o Centro de Custo</option>
                           {categories
                             .filter(c => !c.parentId && c.type === transactionType)
-                            .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                            .map(c => <option key={`edit-tx-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
@@ -4119,7 +4225,7 @@ export default function App() {
                           <option value="">Selecione a Categoria</option>
                           {categories
                             .filter(c => c.parentId === selectedCostCenterId)
-                            .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                            .map(c => <option key={`edit-tx-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
@@ -4257,7 +4363,7 @@ export default function App() {
                       {transactions
                         .filter(t => !t.consolidated && (t.accountId === selectedAccountForProjection || t.toAccountId === selectedAccountForProjection))
                         .map(t => (
-                          <div key={t.id} className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                          <div key={`pending-projection-${t.id}`} className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
                             <div className="flex-1 pr-4">
                               <p className="text-sm font-bold text-slate-700 truncate">{t.description}</p>
                               <p className="text-[10px] text-slate-400">{formatDate(t.date)}</p>
@@ -4599,6 +4705,15 @@ export default function App() {
                     {formatCurrency(selectedAccountForDetails.balance)}
                   </span>
                 </div>
+                <button 
+                  onClick={() => {
+                    setIsAddTransactionModalOpen(true);
+                  }}
+                  className="w-full mt-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
+                >
+                  <Plus size={16} />
+                  Fazer Lançamento
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto no-scrollbar">
@@ -4606,7 +4721,7 @@ export default function App() {
                   {accountTransactions.length > 0 ? (
                     accountTransactions.map((t) => (
                       <TransactionCard 
-                        key={t.id}
+                        key={`account-details-item-${t.id}`}
                         t={t}
                         accounts={accounts}
                         categories={categories}
