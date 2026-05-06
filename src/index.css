@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", ui-sans-serif, system-ui, sans-serif;
   
   --color-slate-50: #f8fafc;
   --color-slate-100: #f1f5f9;
@@ -17,8 +17,26 @@
 }
 
 @layer base {
+  html {
+    @apply h-full overflow-hidden;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
   body {
-    @apply font-sans bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-blue-100 selection:text-blue-900;
+    @apply font-sans bg-white dark:bg-black text-slate-900 dark:text-slate-100 antialiased selection:bg-blue-100 selection:text-blue-900 h-full overflow-hidden fixed inset-0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+  }
+  #root {
+    @apply h-full overflow-y-auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #root::-webkit-scrollbar {
+    display: none;
   }
 }
 
@@ -30,18 +48,15 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+  
+  /* Safari safe area utility classes */
+  .p-safe {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-slate-200 dark:bg-slate-800 rounded-full;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-300 dark:bg-slate-700;
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
   }
 }

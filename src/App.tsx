@@ -182,13 +182,13 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, acti
     )}
   >
     <div className={cn(
-      "p-1.5 rounded-2xl transition-all duration-300",
-      active && "bg-blue-50/50 dark:bg-blue-900/20 scale-110"
+      "p-2 rounded-2xl transition-all duration-300",
+      active && "bg-blue-600 dark:bg-blue-500 text-white shadow-lg shadow-blue-200 dark:shadow-none scale-105"
     )}>
-      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
     </div>
     <span className={cn(
-      "text-[10px] font-black uppercase tracking-tighter transition-all",
+      "text-[9px] font-black uppercase tracking-tighter transition-all",
       active ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1 h-0 overflow-hidden"
     )}>
       {label}
@@ -272,45 +272,52 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
 };
 
 const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void }) => (
-  <div className="bg-white dark:bg-slate-900 rounded-[32px] p-6 lg:p-8 border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden relative">
-    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+  <div className="bg-slate-900 dark:bg-slate-800 rounded-[32px] p-6 lg:p-8 border border-white/5 shadow-2xl overflow-hidden relative group">
+    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-blue-600/30 transition-colors duration-500" />
+    <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-600/10 blur-[80px] rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
+    
     <div className="relative z-10">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Saldo Total</p>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center">
+              <Wallet size={18} className="text-white" />
+            </div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Disponível</p>
+          </div>
           <h2 className={cn(
-            "text-4xl lg:text-5xl font-black tracking-tighter mb-2",
-            balance < 0 ? "text-rose-600" : "text-slate-900 dark:text-white"
+            "text-5xl lg:text-6xl font-black tracking-tighter mb-3",
+            balance < 0 ? "text-rose-400" : "text-white"
           )}>
             {formatCurrencyWithPrivacy(balance)}
           </h2>
           <div className="flex items-center gap-2">
             <div className={cn(
-              "flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter",
-              projected >= balance ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20" : "bg-rose-50 text-rose-600 dark:bg-rose-900/20"
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter backdrop-blur-md",
+              projected >= balance ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
             )}>
-              {projected >= balance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {projected >= balance ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
               Projetado: {formatCurrencyWithPrivacy(projected)}
             </div>
           </div>
         </div>
         
-        <div className="grid grid-cols-2 gap-4 lg:gap-8 border-t lg:border-t-0 lg:border-l border-slate-100 dark:border-slate-800 pt-6 lg:pt-0 lg:pl-8">
-          <button onClick={onStatClick} className="text-left group">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Receitas
-            </p>
-            <p className="text-xl lg:text-2xl font-black text-emerald-600 tracking-tight group-active:scale-95 transition-transform">
+        <div className="grid grid-cols-2 gap-4 lg:gap-8 border-t lg:border-t-0 lg:border-l border-white/10 pt-6 lg:pt-0 lg:pl-8">
+          <button onClick={onStatClick} className="text-left group/btn active:scale-95 transition-transform">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ganhos</p>
+            </div>
+            <p className="text-xl lg:text-2xl font-black text-emerald-400 tracking-tight">
               {formatCurrencyWithPrivacy(income)}
             </p>
           </button>
-          <button onClick={onStatClick} className="text-left group">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-              Despesas
-            </p>
-            <p className="text-xl lg:text-2xl font-black text-rose-600 tracking-tight group-active:scale-95 transition-transform">
+          <button onClick={onStatClick} className="text-left group/btn active:scale-95 transition-transform">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Gastos</p>
+            </div>
+            <p className="text-xl lg:text-2xl font-black text-rose-400 tracking-tight">
               {formatCurrencyWithPrivacy(expense)}
             </p>
           </button>
@@ -2242,128 +2249,76 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="max-w-5xl mx-auto p-4 md:p-6 lg:p-10 pb-24 lg:pb-10">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 text-slate-500 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              {isSidebarOpen ? <X /> : <Menu />}
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">
-                {activeTab === 'dashboard' ? 'Dashboard' : 
-                 activeTab === 'transactions' ? 'Transações' : 
-                 activeTab === 'accounts' ? 'Minhas Contas' : 
-                 activeTab === 'categories' ? 'Categorias' : 
-                 activeTab === 'recurring' ? 'Recorrência' : 
-                 'Relatórios'}
-              </h1>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+      <main className="flex-1 overflow-y-auto no-scrollbar relative">
+        <div className="max-w-5xl mx-auto p-4 md:p-6 lg:p-10 pb-32 lg:pb-10">
+          <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 pt-safe">
+            <div className="flex items-center gap-4 w-full lg:w-auto">
+              <div className="flex-1">
+                <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
+                  {activeTab === 'dashboard' ? 'Início' : 
+                   activeTab === 'transactions' ? 'Transações' : 
+                   activeTab === 'accounts' ? 'Minhas Contas' : 
+                   activeTab === 'categories' ? 'Categorias' : 
+                   activeTab === 'recurring' ? 'Agendados' : 
+                   'Relatórios'}
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                     {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
                   </p>
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
-                    <div className={cn(
-                      "w-1.5 h-1.5 rounded-full animate-pulse",
-                      isOnline ? "bg-emerald-500" : "bg-rose-500"
-                    )} />
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
-                      {isOnline ? "Real-time" : "Offline"}
-                    </span>
-                  </div>
                 </div>
+              </div>
+              <div className="flex items-center gap-2 lg:hidden">
+                <button
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-sm relative"
+                >
+                  <Bell size={20} />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
+                  )}
+                </button>
+                <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-2xl border border-slate-200 dark:border-slate-800 object-cover" />
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2 items-center w-full sm:w-auto justify-end">
-            <div className="flex gap-1 bg-slate-50 dark:bg-slate-900 p-1 rounded-xl border border-slate-100 dark:border-slate-800">
-               <button
-                onClick={exportBackup}
-                className="p-1.5 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-slate-800 hover:text-blue-600 transition-all"
-                title="Exportar Backup"
-              >
-                <Download size={18} />
+
+            <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+              <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <button onClick={exportBackup} className="p-2 rounded-xl text-slate-500 hover:text-blue-600 transition-all"><Download size={18} /></button>
+                <label className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 transition-all cursor-pointer">
+                  <FileUp size={18} />
+                  <input type="file" accept=".json" onChange={importBackup} className="hidden" />
+                </label>
+              </div>
+
+              <div className="hidden lg:block relative">
+                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 relative">
+                  <Bell size={20} />
+                  {notifications.length > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full"></span>}
+                </button>
+                <AnimatePresence>
+                  {isNotificationsOpen && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 z-[100] overflow-hidden">
+                      {/* Notifications content */}
+                      <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold">Notificações</div>
+                      <div className="max-h-96 overflow-y-auto p-4">
+                        {notifications.length === 0 && <p className="text-sm text-slate-500 text-center">Tudo limpo!</p>}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+                {isPrivacyMode ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
-              <label className="p-1.5 rounded-lg text-slate-500 hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 transition-all cursor-pointer">
-                <FileUp size={18} />
-                <input type="file" accept=".json" onChange={importBackup} className="hidden" />
-              </label>
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm relative"
-                title="Notificações"
-              >
-                <Bell size={20} />
-                {notifications.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 border-2 border-white dark:border-slate-800 rounded-full"></span>
-                )}
+              <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
-
-              <AnimatePresence>
-                {isNotificationsOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-[60] overflow-hidden"
-                  >
-                    <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                      <h3 className="font-bold text-slate-900 dark:text-white">Notificações</h3>
-                      <span className="text-xs font-medium px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
-                        {notifications.length} novas
-                      </span>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {notifications.length > 0 ? (
-                        notifications.map((n) => (
-                          <div key={`notif-item-${n.id}`} className="p-4 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                            <div className="flex gap-3">
-                              <div className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                                n.type === 'reminder' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400"
-                              )}>
-                                {n.type === 'reminder' ? <Bell size={16} /> : <AlertCircle size={16} />}
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold text-slate-900 dark:text-white">{n.title}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{n.message}</p>
-                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">{formatDate(n.date)}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-8 text-center">
-                          <Bell className="mx-auto text-slate-200 dark:text-slate-700 mb-2" size={32} />
-                          <p className="text-sm text-slate-500 dark:text-slate-400">Nenhuma notificação por enquanto.</p>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
+          </header>
 
-            <button
-              onClick={() => setIsPrivacyMode(!isPrivacyMode)}
-              className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
-              title={isPrivacyMode ? "Desativar Modo Privacidade" : "Ativar Modo Privacidade"}
-            >
-              {isPrivacyMode ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm"
-              title={isDarkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-          </div>
-        </header>
-
-        <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
             <motion.div
               key="dashboard"
@@ -4885,15 +4840,15 @@ export default function App() {
       </AnimatePresence>
 
       {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-50">
-        <nav className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 px-4 py-2 flex justify-around items-center rounded-[32px] shadow-2xl shadow-slate-200/50 dark:shadow-black/50">
-          <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Home" onClick={() => setActiveTab('dashboard')} />
+      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-[90]">
+        <nav className="bg-white/80 dark:bg-black/90 backdrop-blur-2xl border border-white/20 dark:border-white/5 p-2 flex justify-around items-center rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] pb-safe">
+          <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Início" onClick={() => setActiveTab('dashboard')} />
           <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Histórico" onClick={() => setActiveTab('transactions')} />
           
           <motion.button 
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsQuickAddModalOpen(true)}
-            className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-blue-500/40 active:scale-95 transition-transform mx-2 shrink-0"
+            whileTap={{ scale: 0.8 }}
+            onClick={() => setIsAddTransactionModalOpen(true)}
+            className="w-14 h-14 bg-blue-600 rounded-[22px] flex items-center justify-center text-white shadow-xl shadow-blue-500/40 active:scale-95 transition-transform mx-2 shrink-0 border-4 border-white dark:border-black"
           >
             <Plus size={32} strokeWidth={3} />
           </motion.button>
@@ -4902,7 +4857,7 @@ export default function App() {
           <MobileNavItem 
             icon={Menu} 
             active={isMobileMenuOpen} 
-            label="Mais" 
+            label="Menu" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
           />
         </nav>
