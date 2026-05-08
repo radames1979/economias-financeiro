@@ -185,14 +185,19 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, acti
   <button
     onClick={onClick}
     className={cn(
-      "flex flex-col items-center justify-center gap-1 flex-1 py-2 active:scale-90 transition-all",
+      "flex flex-col items-center justify-center gap-1 flex-1 py-1 active:scale-90 transition-all",
       active ? "text-white" : "text-slate-500 dark:text-slate-400"
     )}
   >
-    <Icon size={active ? 24 : 20} strokeWidth={active ? 3 : 2} className={cn("mb-1 transition-all", active && "text-cyan-400")} />
+    <div className={cn(
+      "mb-1.5 transition-all duration-300",
+      active && "text-cyan-400"
+    )}>
+      <Icon size={24} strokeWidth={active ? 3 : 2} />
+    </div>
     <span className={cn(
-      "text-[9px] font-black uppercase tracking-widest",
-      active ? "text-cyan-400" : "text-slate-500"
+      "text-[8px] font-black uppercase tracking-[0.2em]",
+      active ? "text-cyan-400" : "text-slate-400"
     )}>
       {label}
     </span>
@@ -2251,18 +2256,21 @@ export default function App() {
         sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]"
       )}>
         {/* Sticky Header Mobile */}
-        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-slate-900/80 backdrop-blur-xl border-b border-white/5 p-4 flex justify-between items-center pt-safe">
+        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-slate-950/90 backdrop-blur-2xl border-b border-white/5 px-6 py-4 flex justify-between items-center pt-safe shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center text-white shadow-lg">
-              <Zap size={18} strokeWidth={3} />
+            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+              <Zap size={22} strokeWidth={3} />
             </div>
-            <h1 className="text-lg font-black text-white tracking-tighter">AsterBank</h1>
+            <div className="flex flex-col">
+              <h1 className="text-lg font-black text-white tracking-tighter leading-none">AsterBank</h1>
+              <span className="text-[8px] font-black text-cyan-500 uppercase tracking-widest mt-1">Private Wealth</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-400 hover:text-white transition-colors">
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all active:scale-90 border border-white/5">
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <button onClick={logout} className="p-2 text-rose-500 hover:text-rose-400 transition-colors">
+            <button onClick={logout} className="p-2.5 bg-rose-500/10 rounded-xl text-rose-500 hover:text-rose-400 transition-all active:scale-90 border border-rose-500/10">
               <LogOut size={20} />
             </button>
           </div>
@@ -4891,19 +4899,21 @@ export default function App() {
       </AnimatePresence>
 
       {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] pb-safe">
-        <nav className="bg-slate-900/90 backdrop-blur-2xl border-t border-white/5 flex justify-around items-end px-2 pt-2 pb-2">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100]">
+        <nav className="bg-slate-950/95 backdrop-blur-3xl border-t border-white/5 flex justify-around items-center px-2 pt-3 pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
           <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => setActiveTab('dashboard')} />
-          <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Lançamentos" onClick={() => setActiveTab('transactions')} />
+          <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => setActiveTab('transactions')} />
           
-          <button 
-            onClick={() => setIsAddTransactionModalOpen(true)}
-            className="w-14 h-14 bg-cyan-500 rounded-full flex items-center justify-center text-white shadow-xl shadow-cyan-500/20 active:scale-90 transition-all -translate-y-4 border-4 border-slate-900"
-          >
-            <Plus size={28} strokeWidth={3} />
-          </button>
+          <div className="relative -top-6">
+            <button 
+              onClick={() => setIsAddTransactionModalOpen(true)}
+              className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[22px] flex items-center justify-center text-white shadow-[0_15px_30px_rgba(6,182,212,0.4)] active:scale-90 transition-all border-4 border-slate-950"
+            >
+              <Plus size={32} strokeWidth={3} />
+            </button>
+          </div>
 
-          <MobileNavItem icon={Calendar} active={activeTab === 'recurring'} label="Calendário" onClick={() => setActiveTab('recurring')} />
+          <MobileNavItem icon={Calendar} active={activeTab === 'recurring'} label="Agendados" onClick={() => setActiveTab('recurring')} />
           <MobileNavItem 
             icon={Menu} 
             active={isMobileMenuOpen} 
