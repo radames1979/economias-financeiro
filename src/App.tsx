@@ -182,29 +182,21 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed }: { icon: 
 );
 
 const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, active: boolean, label: string, onClick: () => void }) => (
-  <motion.button
-    whileTap={{ scale: 0.8 }}
+  <button
     onClick={onClick}
     className={cn(
-      "flex flex-col items-center justify-center gap-1.5 flex-1 py-1 transition-all duration-500 relative",
-      active 
-        ? "text-cyan-500 dark:text-cyan-400" 
-        : "text-slate-400 dark:text-slate-500"
+      "flex flex-col items-center justify-center gap-1 flex-1 py-2 active:scale-90 transition-all",
+      active ? "text-white" : "text-slate-500 dark:text-slate-400"
     )}
   >
-    <div className={cn(
-      "p-3 rounded-[20px] transition-all duration-500 relative z-10",
-      active && "bg-cyan-500 text-white shadow-[0_8px_20px_rgba(6,182,212,0.4)] scale-110"
-    )}>
-      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-    </div>
+    <Icon size={active ? 24 : 20} strokeWidth={active ? 3 : 2} className={cn("mb-1 transition-all", active && "text-cyan-400")} />
     <span className={cn(
-      "text-[10px] font-extrabold uppercase tracking-[0.1em] transition-all",
-      active ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-2 scale-50"
+      "text-[9px] font-black uppercase tracking-widest",
+      active ? "text-cyan-400" : "text-slate-500"
     )}>
       {label}
     </span>
-  </motion.button>
+  </button>
 );
 
 const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string }) => {
@@ -278,81 +270,40 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
 };
 
 const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void }) => (
-  <div className="bg-slate-950 dark:bg-slate-900 rounded-[40px] p-6 lg:p-12 border border-white/10 shadow-2xl overflow-hidden relative group">
-    {/* Animated background elements */}
-    <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/20 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/30 transition-colors duration-1000" />
-    <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none opacity-30" />
+  <div className="bg-slate-900 dark:bg-slate-900 rounded-[40px] p-6 pt-8 pb-10 border border-white/5 shadow-2xl overflow-hidden relative group">
+    {/* Background Glow */}
+    <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/20 transition-colors duration-1000" />
     
-    <div className="relative z-10">
-      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 lg:gap-12">
-        <div className="space-y-4 lg:space-y-6 flex-1">
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
-            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Patrimônio em Tempo Real</p>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex items-center gap-4">
-              <h2 className={cn(
-                "text-5xl md:text-7xl lg:text-8xl font-black font-mono tracking-tighter leading-none bg-clip-text text-transparent bg-gradient-to-br",
-                balance < 0 ? "from-rose-400 to-rose-600" : "from-white to-slate-400"
-              )}>
-                {formatCurrencyWithPrivacy(balance)}
-              </h2>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3 mt-4">
-              <motion.div 
-                whileHover={{ scale: 1.05 }}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-mono font-black uppercase tracking-tight backdrop-blur-xl border transition-all",
-                  projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : "bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]"
-                )}
-              >
-                {projected >= balance ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                <span className="opacity-60 mr-1">Projeção:</span> {formatCurrencyWithPrivacy(projected)}
-              </motion.div>
-              
-              {projected !== balance && (
-                <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Variação de {Math.abs(((projected - balance) / (balance || 1)) * 100).toFixed(1)}%
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 w-full xl:w-auto">
-          <button 
-            onClick={onStatClick} 
-            className="flex flex-row xl:flex-col items-center xl:items-start gap-4 p-5 lg:p-7 rounded-[32px] bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-500 group/btn active:scale-95 w-full shadow-lg"
-          >
-            <div className="w-12 h-12 min-w-[3rem] rounded-[20px] bg-emerald-500 text-white flex items-center justify-center border border-emerald-400/50 shadow-[0_10px_20px_rgba(16,185,129,0.3)] group-hover/btn:rotate-12 transition-transform duration-500">
-              <ArrowUpCircle size={24} strokeWidth={2.5} />
-            </div>
-            <div className="min-w-0 text-left">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover/btn:text-emerald-400 transition-colors">Receitas Mensais</p>
-              <p className="text-2xl lg:text-3xl font-mono font-black text-emerald-400 tracking-tight truncate">
-                {formatCurrencyWithPrivacy(income)}
-              </p>
-            </div>
-          </button>
-          
-          <button 
-            onClick={onStatClick} 
-            className="flex flex-row xl:flex-col items-center xl:items-start gap-4 p-5 lg:p-7 rounded-[32px] bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-500 group/btn active:scale-95 w-full shadow-lg"
-          >
-            <div className="w-12 h-12 min-w-[3rem] rounded-[20px] bg-rose-500 text-white flex items-center justify-center border border-rose-400/50 shadow-[0_10px_20px_rgba(244,63,94,0.3)] group-hover/btn:-rotate-12 transition-transform duration-500">
-              <ArrowDownCircle size={24} strokeWidth={2.5} />
-            </div>
-            <div className="min-w-0 text-left">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover/btn:text-rose-400 transition-colors">Despesas Mensais</p>
-              <p className="text-2xl lg:text-3xl font-mono font-black text-rose-400 tracking-tight truncate">
-                {formatCurrencyWithPrivacy(expense)}
-              </p>
-            </div>
-          </button>
-        </div>
+    <div className="relative z-10 flex flex-col items-center text-center">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Balanço do Mês</p>
+      
+      <h2 className={cn(
+        "text-5xl md:text-6xl font-black font-mono tracking-tighter leading-none mb-2",
+        balance < 0 ? "text-rose-500" : "text-white"
+      )}>
+        {formatCurrencyWithPrivacy(balance)}
+      </h2>
+
+      <motion.div 
+        whileHover={{ scale: 1.05 }}
+        className={cn(
+          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-8 border",
+          projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+        )}
+      >
+        {projected >= balance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+        Projeção: {formatCurrencyWithPrivacy(projected)}
+      </motion.div>
+
+      <div className="grid grid-cols-2 gap-4 w-full">
+        <button onClick={onStatClick} className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all">
+          <p className="text-[9px] font-black text-emerald-500/80 uppercase tracking-widest">Entradas</p>
+          <p className="text-lg font-mono font-black text-emerald-400">{formatCurrencyWithPrivacy(income)}</p>
+        </button>
+        <button onClick={onStatClick} className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all">
+          <p className="text-[9px] font-black text-rose-500/80 uppercase tracking-widest">Saídas</p>
+          <p className="text-lg font-mono font-black text-rose-500">{formatCurrencyWithPrivacy(expense)}</p>
+        </button>
       </div>
     </div>
   </div>
@@ -2299,9 +2250,27 @@ export default function App() {
         "flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 h-full",
         sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]"
       )}>
+        {/* Sticky Header Mobile */}
+        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-slate-900/80 backdrop-blur-xl border-b border-white/5 p-4 flex justify-between items-center pt-safe">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center text-white shadow-lg">
+              <Zap size={18} strokeWidth={3} />
+            </div>
+            <h1 className="text-lg font-black text-white tracking-tighter">AsterBank</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-400 hover:text-white transition-colors">
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button onClick={logout} className="p-2 text-rose-500 hover:text-rose-400 transition-colors">
+              <LogOut size={20} />
+            </button>
+          </div>
+        </header>
+
         <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 pb-32 lg:pb-12">
-          {/* Header Mobile Otimizado Safari */}
-          <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12 pt-safe">
+          {/* Header Desktop */}
+          <header className="hidden lg:flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12 pt-safe">
             <div className="flex items-center gap-6 w-full lg:w-auto">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
@@ -2397,63 +2366,26 @@ export default function App() {
               className="space-y-6"
             >
               {/* Dashboard Date Controls */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center justify-between lg:justify-start gap-4 w-full lg:w-auto">
-                  <button 
-                    onClick={() => setDashboardDate(subMonths(dashboardDate, 1))}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <div className="flex flex-col items-center lg:items-start">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">Período</span>
-                    <span className="text-base md:text-lg font-bold text-slate-900 dark:text-white capitalize">
-                      {dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => setDashboardDate(addMonths(dashboardDate, 1))}
-                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
+              <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-2 rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md mb-8">
+                <button 
+                  onClick={() => setDashboardDate(subMonths(dashboardDate, 1))}
+                  className="p-3 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                
+                <div className="flex flex-col items-center">
+                  <span className="text-base font-black text-slate-900 dark:text-white capitalize tracking-tight">
+                    {dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full lg:w-auto">
-                  <button
-                    onClick={() => setDashboardFilterMode('to-today')}
-                    className={cn(
-                      "px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-                      dashboardFilterMode === 'to-today' 
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-100 dark:shadow-blue-900/20" 
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    )}
-                  >
-                    1º até Hoje
-                  </button>
-                  <button
-                    onClick={() => setDashboardFilterMode('full-month')}
-                    className={cn(
-                      "px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-                      dashboardFilterMode === 'full-month' 
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-100 dark:shadow-blue-900/20" 
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    )}
-                  >
-                    Mês Inteiro
-                  </button>
-                  <button
-                    onClick={() => setDashboardFilterMode('tomorrow')}
-                    className={cn(
-                      "px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-                      dashboardFilterMode === 'tomorrow' 
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-100 dark:shadow-blue-900/20" 
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
-                    )}
-                  >
-                    Até Amanhã
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setDashboardDate(addMonths(dashboardDate, 1))}
+                  className="p-3 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
+                >
+                  <ChevronRight size={20} />
+                </button>
               </div>
 
               <SummaryHero 
@@ -4959,25 +4891,23 @@ export default function App() {
       </AnimatePresence>
 
       {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-[90]">
-        <nav className="glass-nav p-2 flex justify-around items-center rounded-[32px] shadow-2xl pb-safe">
-          <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Início" onClick={() => setActiveTab('dashboard')} />
-          <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => setActiveTab('transactions')} />
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] pb-safe">
+        <nav className="bg-slate-900/90 backdrop-blur-2xl border-t border-white/5 flex justify-around items-end px-2 pt-2 pb-2">
+          <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => setActiveTab('dashboard')} />
+          <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Lançamentos" onClick={() => setActiveTab('transactions')} />
           
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+          <button 
             onClick={() => setIsAddTransactionModalOpen(true)}
-            className="w-16 h-16 bg-cyan-500 rounded-[28px] flex items-center justify-center text-white shadow-[0_15px_30_rgba(6,182,212,0.4)] active:scale-95 transition-all mx-2 shrink-0 border-4 border-white/50 dark:border-white/10"
+            className="w-14 h-14 bg-cyan-500 rounded-full flex items-center justify-center text-white shadow-xl shadow-cyan-500/20 active:scale-90 transition-all -translate-y-4 border-4 border-slate-900"
           >
-            <Plus size={36} strokeWidth={3} />
-          </motion.button>
+            <Plus size={28} strokeWidth={3} />
+          </button>
 
-          <MobileNavItem icon={CreditCard} active={activeTab === 'accounts'} label="Patrimônio" onClick={() => setActiveTab('accounts')} />
+          <MobileNavItem icon={Calendar} active={activeTab === 'recurring'} label="Calendário" onClick={() => setActiveTab('recurring')} />
           <MobileNavItem 
             icon={Menu} 
             active={isMobileMenuOpen} 
-            label="Mais" 
+            label="Ajustes" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
           />
         </nav>
