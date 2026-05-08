@@ -709,7 +709,7 @@ export default function App() {
 
     const qTransactions = query(
       collection(db, `users/${user.uid}/transactions`),
-      orderBy('date', 'asc')
+      orderBy('date', 'desc')
     );
     const unsubTransactions = onSnapshot(qTransactions, (snapshot) => {
       setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction)));
@@ -778,7 +778,7 @@ export default function App() {
   }, [filteredTransactionsByDashboard]);
 
   const sortedMonths = useMemo(() => {
-    return Object.keys(groupedTransactionsByMonth).sort();
+    return Object.keys(groupedTransactionsByMonth).sort((a, b) => b.localeCompare(a));
   }, [groupedTransactionsByMonth]);
 
   const groupCounts = useMemo(() => {
