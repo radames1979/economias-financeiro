@@ -278,38 +278,43 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
 };
 
 const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void }) => (
-  <div className="bg-slate-950 dark:bg-slate-900 rounded-[40px] p-8 lg:p-12 border border-white/10 shadow-2xl overflow-hidden relative group">
+  <div className="bg-slate-950 dark:bg-slate-900 rounded-[40px] p-6 lg:p-12 border border-white/10 shadow-2xl overflow-hidden relative group">
     {/* Animated background elements */}
-    <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/30 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/40 transition-colors duration-1000" />
-    <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/20 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none opacity-50" />
+    <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/20 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/30 transition-colors duration-1000" />
+    <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/10 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none opacity-30" />
     
     <div className="relative z-10">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
-        <div className="space-y-6">
+      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 lg:gap-12">
+        <div className="space-y-4 lg:space-y-6 flex-1">
           <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-            <Wallet size={18} className="text-cyan-400" />
-            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Patrimônio Líquido</p>
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-ping" />
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Patrimônio em Tempo Real</p>
           </div>
           
           <div className="space-y-2">
-            <h2 className={cn(
-              "text-6xl lg:text-8xl font-black font-mono tracking-tighter leading-none mb-4 bg-clip-text text-transparent bg-gradient-to-br",
-              balance < 0 ? "from-rose-400 to-rose-600" : "from-white to-slate-400"
-            )}>
-              {formatCurrencyWithPrivacy(balance)}
-            </h2>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              <div className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-mono font-black uppercase tracking-tight backdrop-blur-xl border",
-                projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+            <div className="flex items-center gap-4">
+              <h2 className={cn(
+                "text-5xl md:text-7xl lg:text-8xl font-black font-mono tracking-tighter leading-none bg-clip-text text-transparent bg-gradient-to-br",
+                balance < 0 ? "from-rose-400 to-rose-600" : "from-white to-slate-400"
               )}>
+                {formatCurrencyWithPrivacy(balance)}
+              </h2>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3 mt-4">
+              <motion.div 
+                whileHover={{ scale: 1.05 }}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-mono font-black uppercase tracking-tight backdrop-blur-xl border transition-all",
+                  projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : "bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]"
+                )}
+              >
                 {projected >= balance ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                Previsão: {formatCurrencyWithPrivacy(projected)}
-              </div>
+                <span className="opacity-60 mr-1">Projeção:</span> {formatCurrencyWithPrivacy(projected)}
+              </motion.div>
               
               {projected !== balance && (
-                <div className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   Variação de {Math.abs(((projected - balance) / (balance || 1)) * 100).toFixed(1)}%
                 </div>
               )}
@@ -317,17 +322,17 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
           </div>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 w-full lg:w-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 w-full xl:w-auto">
           <button 
             onClick={onStatClick} 
-            className="flex flex-row sm:flex-col items-center sm:items-start gap-4 p-5 sm:p-6 rounded-[32px] bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-500 group/btn active:scale-95 w-full"
+            className="flex flex-row xl:flex-col items-center xl:items-start gap-4 p-5 lg:p-7 rounded-[32px] bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-500 group/btn active:scale-95 w-full shadow-lg"
           >
-            <div className="w-10 h-10 min-w-[2.5rem] rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-              <ArrowUpCircle size={24} />
+            <div className="w-12 h-12 min-w-[3rem] rounded-[20px] bg-emerald-500 text-white flex items-center justify-center border border-emerald-400/50 shadow-[0_10px_20px_rgba(16,185,129,0.3)] group-hover/btn:rotate-12 transition-transform duration-500">
+              <ArrowUpCircle size={24} strokeWidth={2.5} />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Receitas</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-mono font-black text-emerald-400 tracking-tight truncate">
+            <div className="min-w-0 text-left">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover/btn:text-emerald-400 transition-colors">Receitas Mensais</p>
+              <p className="text-2xl lg:text-3xl font-mono font-black text-emerald-400 tracking-tight truncate">
                 {formatCurrencyWithPrivacy(income)}
               </p>
             </div>
@@ -335,14 +340,14 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
           
           <button 
             onClick={onStatClick} 
-            className="flex flex-row sm:flex-col items-center sm:items-start gap-4 p-5 sm:p-6 rounded-[32px] bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-500 group/btn active:scale-95 w-full"
+            className="flex flex-row xl:flex-col items-center xl:items-start gap-4 p-5 lg:p-7 rounded-[32px] bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-500 group/btn active:scale-95 w-full shadow-lg"
           >
-            <div className="w-10 h-10 min-w-[2.5rem] rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-400 border border-rose-500/20 shadow-[0_0_20px_rgba(244,63,94,0.2)]">
-              <ArrowDownCircle size={24} />
+            <div className="w-12 h-12 min-w-[3rem] rounded-[20px] bg-rose-500 text-white flex items-center justify-center border border-rose-400/50 shadow-[0_10px_20px_rgba(244,63,94,0.3)] group-hover/btn:-rotate-12 transition-transform duration-500">
+              <ArrowDownCircle size={24} strokeWidth={2.5} />
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Despesas</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-mono font-black text-rose-400 tracking-tight truncate">
+            <div className="min-w-0 text-left">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover/btn:text-rose-400 transition-colors">Despesas Mensais</p>
+              <p className="text-2xl lg:text-3xl font-mono font-black text-rose-400 tracking-tight truncate">
                 {formatCurrencyWithPrivacy(expense)}
               </p>
             </div>
@@ -2290,15 +2295,18 @@ export default function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto no-scrollbar relative lg:pl-[340px] h-full">
-        <div className="max-w-7xl mx-auto p-4 md:p-8 lg:py-12 pb-32 lg:pb-12">
+      <main className={cn(
+        "flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 h-full",
+        sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]"
+      )}>
+        <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 pb-32 lg:pb-12">
           {/* Header Mobile Otimizado Safari */}
           <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12 pt-safe">
             <div className="flex items-center gap-6 w-full lg:w-auto">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-2 h-6 bg-cyan-500 rounded-full" />
-                  <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">
+                  <div className="w-2 h-8 bg-cyan-500 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
+                  <h1 className="text-4xl lg:text-5xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {activeTab === 'dashboard' ? 'Visão Geral' : 
                      activeTab === 'transactions' ? 'Extrato' : 
                      activeTab === 'accounts' ? 'Patrimônio' : 
@@ -2307,50 +2315,73 @@ export default function App() {
                      'Análises'}
                   </h1>
                 </div>
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
-                </p>
+                <div className="flex items-center gap-2">
+                  <Calendar size={14} className="text-cyan-500" />
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+                    {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-3 lg:hidden">
-                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-3 rounded-2xl glass-card text-slate-600 dark:text-slate-300 relative active:scale-90">
+                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-3 rounded-2xl glass-card text-slate-600 dark:text-slate-300 relative active:scale-90 shadow-lg">
                   <Bell size={22} />
-                  {notifications.length > 0 && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-black shadow-lg"></span>}
+                  {notifications.length > 0 && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-black shadow-lg animate-pulse"></span>}
                 </button>
-                <img src={user.photoURL || ''} alt="" className="w-12 h-12 rounded-[20px] border-2 border-white dark:border-slate-800 object-cover shadow-xl" />
+                <img src={user.photoURL || ''} alt="" className="w-12 h-12 rounded-[20px] border-2 border-white dark:border-slate-800 object-cover shadow-2xl" />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
-              <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                <button onClick={exportBackup} className="p-2 rounded-xl text-slate-500 hover:text-blue-600 transition-all"><Download size={18} /></button>
-                <label className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 transition-all cursor-pointer">
+            <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
+              <div className="flex gap-1 bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200 dark:border-white/5 backdrop-blur-md">
+                <button title="Exportar Backup" onClick={exportBackup} className="p-2.5 rounded-xl text-slate-500 hover:text-cyan-500 hover:bg-white dark:hover:bg-slate-800 transition-all active:scale-90"><Download size={18} /></button>
+                <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-800 self-center mx-1" />
+                <label title="Importar Backup" className="p-2.5 rounded-xl text-slate-500 hover:text-emerald-500 hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer active:scale-90">
                   <FileUp size={18} />
                   <input type="file" accept=".json" onChange={importBackup} className="hidden" />
                 </label>
               </div>
 
               <div className="hidden lg:block relative">
-                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 relative">
+                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
                   <Bell size={20} />
-                  {notifications.length > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full"></span>}
+                  {notifications.length > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]"></span>}
                 </button>
                 <AnimatePresence>
                   {isNotificationsOpen && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 z-[100] overflow-hidden">
-                      {/* Notifications content */}
-                      <div className="p-4 border-b border-slate-100 dark:border-slate-800 font-bold">Notificações</div>
-                      <div className="max-h-96 overflow-y-auto p-4">
-                        {notifications.length === 0 && <p className="text-sm text-slate-500 text-center">Tudo limpo!</p>}
+                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 mt-4 w-96 glass-card shadow-2xl z-[100] overflow-hidden">
+                      <div className="p-6 border-b border-white/10 flex justify-between items-center">
+                        <span className="font-extrabold text-sm uppercase tracking-widest text-slate-400">Notificações</span>
+                        <span className="text-[10px] font-black bg-cyan-500 text-white px-2 py-0.5 rounded-full">{notifications.length}</span>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto p-4 space-y-4 no-scrollbar">
+                        {notifications.length === 0 ? (
+                           <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-4">
+                             <Check size={40} className="opacity-20" />
+                             <p className="text-xs font-bold uppercase tracking-widest opacity-50">Tudo limpo por aqui</p>
+                           </div>
+                        ) : (
+                          // Render real notifications if any
+                          notifications.map((n, i) => (
+                            <div key={i} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-white/5">
+                              {n.message}
+                            </div>
+                          ))
+                        )}
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+              <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className={cn(
+                "p-3.5 rounded-2xl border transition-all active:scale-95 shadow-sm",
+                isPrivacyMode 
+                  ? "bg-cyan-500 text-white border-cyan-400 shadow-cyan-200" 
+                  : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300"
+              )}>
                 {isPrivacyMode ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+              <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
                 {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
             </div>
@@ -2436,23 +2467,27 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Bento Row 1: Activity & Balances */}
-                <Card title="Atividade Recente" className="lg:col-span-3">
-                  <div className="space-y-4 max-h-[440px] overflow-y-auto no-scrollbar pr-1">
+                <Card title="Fluxo de Atividade" className="lg:col-span-3">
+                  <div className="space-y-6 max-h-[440px] overflow-y-auto no-scrollbar pr-1">
                     {dashboardTransactionsByDate.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                        <Calendar size={48} className="mb-4 opacity-10" />
-                        <p className="font-bold">Sem movimentações no período</p>
+                      <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 opacity-50">
+                          <Search size={32} className="opacity-20" />
+                        </div>
+                        <p className="font-bold text-sm uppercase tracking-widest opacity-40 text-center">Nenhuma atividade encontrada<br/>no período selecionado</p>
                       </div>
                     ) : (
                       dashboardTransactionsByDate.map(([date, dateItems]) => (
                         <div key={`dashboard-group-${date}`}>
-                          <div className="flex items-center gap-3 mb-4 sticky top-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md z-20 py-2">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500/80">
-                              {isToday(parseISO(date)) ? 'Hoje' : isYesterday(parseISO(date)) ? 'Ontem' : format(parseISO(date), "dd MMMM", { locale: ptBR })}
-                            </span>
+                          <div className="flex items-center gap-3 mb-6 sticky top-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl z-20 py-2">
+                             <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">
+                                {isToday(parseISO(date)) ? 'Hoje' : isYesterday(parseISO(date)) ? 'Ontem' : format(parseISO(date), "dd MMM", { locale: ptBR })}
+                               </span>
+                             </div>
                             <div className="h-[1px] flex-1 bg-slate-200/50 dark:bg-slate-800/50" />
                           </div>
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {dateItems.map(t => (
                               <TransactionCard 
                                 key={`dashboard-tx-${t.id}`}
@@ -2470,33 +2505,43 @@ export default function App() {
                       ))
                     )}
                   </div>
-                  <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-                    <button onClick={() => setActiveTab('transactions')} className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.2em] hover:text-cyan-600 transition-colors flex items-center gap-2">
-                      Ver Histórico Completo <ChevronRight size={14} />
+                  <div className="mt-8 pt-6 border-t border-slate-100 dark:border-white/5 flex justify-between items-center">
+                    <button onClick={() => setActiveTab('transactions')} className="text-[10px] font-black text-cyan-500 uppercase tracking-[0.2em] hover:text-cyan-600 transition-all flex items-center gap-2 group/link">
+                      Histórico Completo <ChevronRight size={14} className="group-hover/link:translate-x-1 transition-transform" />
                     </button>
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                      <Clock size={12} />
+                      <span className="uppercase tracking-widest leading-none">Atualizado agora</span>
+                    </div>
                   </div>
                 </Card>
 
                 <div className="flex flex-col gap-6">
-                  <Card title="Patrimônio" className="flex-1">
-                    <div className="space-y-4">
-                      {accounts.map(account => (
+                  <Card title="Portfólio" className="flex-1 overflow-hidden relative">
+                    <div className="space-y-4 relative z-10">
+                      {accounts.slice(0, 4).map(account => (
                         <motion.div 
                           key={`dashboard-account-${account.id}`} 
-                          whileHover={{ x: 4 }}
-                          className="flex items-center gap-4 p-4 rounded-3xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 cursor-pointer active:scale-95 transition-all"
+                          whileHover={{ x: 4, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,1)' }}
+                          className="flex items-center gap-4 p-4 rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-transparent hover:border-white/10 cursor-pointer transition-all duration-300"
                           onClick={() => {
                             setSelectedAccountForDetails(account);
                             setIsAccountDetailsVisible(true);
                           }}
                         >
-                          <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center text-cyan-500 shadow-sm">
+                          <div className={cn(
+                            "w-10 h-10 rounded-[15px] flex items-center justify-center shadow-sm transition-transform duration-500",
+                            account.type === 'checking' ? "bg-blue-500 text-white" :
+                            account.type === 'savings' ? "bg-emerald-500 text-white" :
+                            account.type === 'investment' ? "bg-indigo-500 text-white" :
+                            "bg-slate-500 text-white"
+                          )}>
                             <CreditCard size={18} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{account.name}</p>
+                            <p className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{account.name}</p>
                             <p className={cn(
-                              "text-xs font-mono font-black tracking-tight",
+                              "text-xs font-mono font-black tracking-tighter mt-0.5",
                               account.balance < 0 ? "text-rose-500" : "text-emerald-500"
                             )}>
                               {formatCurrencyWithPrivacy(account.balance)}
@@ -2504,40 +2549,69 @@ export default function App() {
                           </div>
                         </motion.div>
                       ))}
+                      {accounts.length > 4 && (
+                        <button onClick={() => setActiveTab('accounts')} className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-cyan-500 transition-colors">
+                          Ver mais {accounts.length - 4} ativos
+                        </button>
+                      )}
                     </div>
+                    {/* Visual accent */}
+                    <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-cyan-500/5 blur-3xl rounded-full" />
                   </Card>
                   
-                  <button 
+                  <motion.button 
+                    whileHover={{ scale: 1.02, y: -4 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => setIsAddTransactionModalOpen(true)}
-                    className="p-8 rounded-[32px] bg-cyan-500 text-white shadow-[0_15px_30px_rgba(6,182,212,0.3)] flex flex-col items-center justify-center gap-4 group transition-all duration-500 hover:scale-[1.02] active:scale-95"
+                    className="p-8 rounded-[40px] bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-[0_20px_40px_rgba(6,182,212,0.3)] flex flex-col items-center justify-center gap-4 group transition-all duration-500"
                   >
-                    <div className="w-14 h-14 rounded-[22px] bg-white/20 flex items-center justify-center group-hover:rotate-90 transition-transform duration-500">
-                      <Plus size={32} strokeWidth={3} />
+                    <div className="w-16 h-16 rounded-[24px] bg-white/20 flex items-center justify-center group-hover:rotate-90 transition-transform duration-700 backdrop-blur-md border border-white/20">
+                      <Plus size={36} strokeWidth={3} />
                     </div>
-                    <span className="text-xs font-black uppercase tracking-[0.2em]">Nova Transação</span>
-                  </button>
+                    <div className="text-center">
+                      <span className="block text-sm font-black uppercase tracking-[0.2em] mb-1">Novo Lançamento</span>
+                      <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Atalho: Alt + N</span>
+                    </div>
+                  </motion.button>
                 </div>
 
-                {/* Bento Row 2: Analytics Grid */}
-                <Card title="Fluxo de Caixa" className="lg:col-span-2">
-                  <div className="h-72">
+                {/* Bento Row 2: Big Charts & Insights */}
+                <Card title="Dinâmica Mensal" className="lg:col-span-2 overflow-hidden">
+                  <div className="h-72 mt-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData}>
                         <defs>
                           <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
                             <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                           </linearGradient>
                           <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1}/>
+                            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2}/>
                             <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.2} />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                          dy={10}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                        />
                         <Tooltip 
-                          contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', background: 'rgba(255,255,255,0.9)' }}
+                          contentStyle={{ 
+                            borderRadius: '24px', 
+                            border: 'none', 
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', 
+                            background: isDarkMode ? '#1e293b' : '#ffffff',
+                            padding: '16px'
+                          }}
+                          itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                         />
                         <Area type="monotone" dataKey="income" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorIncome)" />
                         <Area type="monotone" dataKey="expense" stroke="#f43f5e" strokeWidth={4} fillOpacity={1} fill="url(#colorExpense)" />
@@ -2547,27 +2621,29 @@ export default function App() {
                 </Card>
 
                 <Card 
-                  title="Alocação por Categoria" 
+                  title="Alocação Monetária" 
                   className="lg:col-span-2"
                   extra={dashboardDrillDownCategory && (
-                    <button onClick={() => setDashboardDrillDownCategory(null)} className="text-[10px] font-black text-cyan-500 uppercase flex items-center gap-1">
+                    <button onClick={() => setDashboardDrillDownCategory(null)} className="text-[10px] font-black text-cyan-500 bg-cyan-500/10 px-3 py-1.5 rounded-full uppercase flex items-center gap-2 hover:bg-cyan-500 hover:text-white transition-all">
                       <ChevronLeft size={14} /> Voltar
                     </button>
                   )}
                 >
-                  <div className="h-72 flex items-center justify-center">
+                  <div className="h-72 flex items-center justify-center relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={pieData}
-                          innerRadius={70}
-                          outerRadius={95}
-                          paddingAngle={8}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={80}
+                          outerRadius={105}
+                          paddingAngle={6}
                           dataKey="value"
                           stroke="none"
                         >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          {pieData.map((_entry, index) => (
+                            <Cell key={`cell-${index}`} fill={pieData[index].color} />
                           ))}
                         </Pie>
                         <Tooltip 
@@ -2576,6 +2652,10 @@ export default function App() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest tracking-[0.2em]">Total Gasto</span>
+                      <span className="text-2xl font-mono font-black text-slate-900 dark:text-white">{formatCurrencyWithPrivacy(totalExpense)}</span>
+                    </div>
                   </div>
                 </Card>
               </div>
