@@ -765,7 +765,15 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [amountValue, setAmountValue] = useState('');
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
-  const [displayDensity, setDisplayDensity] = useState<'super-compact' | 'compact' | 'normal' | 'relaxed' | 'super-relaxed'>('normal');
+  const [displayDensity, setDisplayDensity] = useState<DensityType>(() => {
+    const saved = localStorage.getItem('displayDensity');
+    return (saved as DensityType) || 'normal';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('displayDensity', displayDensity);
+  }, [displayDensity]);
+
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -2641,7 +2649,7 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Bento Row 1: Activity & Balances */}
-                <Card title="Fluxo de Atividade" className="lg:col-span-3">
+                <Card title="Fluxo de Atividade" className="lg:col-span-3" density={displayDensity}>
                   <div className="space-y-6 max-h-[440px] overflow-y-auto no-scrollbar pr-1">
                     {dashboardTransactionsByDate.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -2692,7 +2700,7 @@ export default function App() {
                 </Card>
 
                 <div className="flex flex-col gap-6">
-                  <Card title="Portfólio" className="flex-1 overflow-hidden relative">
+                  <Card title="Portfólio" className="flex-1 overflow-hidden relative" density={displayDensity}>
                     <div className="space-y-4 relative z-10">
                       {accounts.slice(0, 4).map(account => (
                         <motion.div 
@@ -2751,7 +2759,7 @@ export default function App() {
                 </div>
 
                 {/* Bento Row 2: Big Charts & Insights */}
-                <Card title="Dinâmica Mensal" className="lg:col-span-2 overflow-hidden">
+                <Card title="Dinâmica Mensal" className="lg:col-span-2 overflow-hidden" density={displayDensity}>
                   <div className="h-72 mt-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData}>
@@ -2798,6 +2806,7 @@ export default function App() {
                 <Card 
                   title="Alocação Monetária" 
                   className="lg:col-span-2"
+                  density={displayDensity}
                   extra={dashboardDrillDownCategory && (
                     <button onClick={() => setDashboardDrillDownCategory(null)} className="text-[10px] font-black text-cyan-500 bg-cyan-500/10 px-3 py-1.5 rounded-full uppercase flex items-center gap-2 hover:bg-cyan-500 hover:text-white transition-all">
                       <ChevronLeft size={14} /> Voltar
@@ -2846,7 +2855,7 @@ export default function App() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <Card title="Nova Transação">
+              <Card title="Nova Transação" density={displayDensity}>
                 <form onSubmit={handleAddTransaction} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <select 
                     name="type" 
@@ -3016,7 +3025,7 @@ export default function App() {
                 </form>
               </Card>
 
-              <Card title="Histórico">
+              <Card title="Histórico" density={displayDensity}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                   <div className="flex-1 flex flex-col md:flex-row gap-3">
                     <div className="relative flex-1">
@@ -3240,7 +3249,7 @@ export default function App() {
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Gerenciar Contas</h2>
               </div>
 
-              <Card title="Nova Conta">
+              <Card title="Nova Conta" density={displayDensity}>
                 <form onSubmit={handleAddAccount} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <input name="name" type="text" placeholder="Nome da Conta" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required />
                   <select name="type" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
@@ -3349,7 +3358,7 @@ export default function App() {
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Centros de Custo e Categorias</h2>
               </div>
 
-              <Card title="Novo Centro de Custo ou Categoria">
+              <Card title="Novo Centro de Custo ou Categoria" density={displayDensity}>
                 <form onSubmit={handleAddCategory} className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Nome</label>
@@ -3600,7 +3609,7 @@ export default function App() {
 
               {/* Gráficos Principais */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card title="Tendência de Saldo (Período)">
+                <Card title="Tendência de Saldo (Período)" density={displayDensity}>
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={trendSummary}>
@@ -3728,7 +3737,7 @@ export default function App() {
                   </div>
                 </Card>
 
-                <Card title="Resumo do Período">
+                <Card title="Resumo do Período" density={displayDensity}>
                   <div className="space-y-6">
                     <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl">
                       <p className="text-sm text-slate-500 mb-1">Média por Transação</p>
@@ -3789,7 +3798,7 @@ export default function App() {
                   </div>
                 </Card>
 
-                <Card title="Distribuição de Gastos">
+                <Card title="Distribuição de Gastos" density={displayDensity}>
                   <div className="space-y-4">
                     <p className="text-sm text-slate-500">O gráfico ao lado destaca os meses com gastos acima da média anual, permitindo identificar sazonalidade e picos atípicos.</p>
                     <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -3810,7 +3819,7 @@ export default function App() {
                 </Card>
               </div>
 
-              <Card title="Transações Detalhadas">
+              <Card title="Transações Detalhadas" density={displayDensity}>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -3866,7 +3875,7 @@ export default function App() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <Card title="Nova Transação Recorrente">
+              <Card title="Nova Transação Recorrente" density={displayDensity}>
                 <form onSubmit={handleAddRecurring} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <select name="type" className="p-3 rounded-xl border border-slate-200 outline-none" required>
                     <option value="expense">Despesa Fixa</option>
