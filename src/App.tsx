@@ -60,7 +60,10 @@ import {
   AlertCircle,
   Zap,
   Check,
-  Clock
+  Clock,
+  Layout,
+  Settings,
+  Sliders
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
 import { GroupedVirtuoso } from 'react-virtuoso';
@@ -97,6 +100,88 @@ import { PDF_IMPORT_DATA, ImportTransaction } from './services/pdfImportData';
 import { parseExcelFile, downloadExcelTemplate } from './services/excelImportService';
 import { ACCOUNT_IMPORT_DATA, ImportAccount } from './services/accountImportData';
 import { Transaction, Account, Category, TransactionType, AccountType, RecurringTransaction, Frequency } from './types';
+
+// --- Constants & Types ---
+
+type DensityType = 'super-compact' | 'compact' | 'normal' | 'relaxed' | 'super-relaxed';
+
+const DISPLAY_DENSITIES = {
+  'super-compact': {
+    cardP: 'p-2',
+    cardGap: 'gap-2',
+    iconSize: 18,
+    iconWrapper: 'w-8 h-8 rounded-lg',
+    heroP: 'p-3 pt-4 pb-5',
+    heroGap: 'gap-3',
+    heroText: 'text-3xl md:text-4xl',
+    heroSubText: 'text-[8px]',
+    textDescription: 'text-[11px]',
+    textCategory: 'text-[9px]',
+    textAmount: 'text-sm',
+    sidebarP: 'py-2 px-3',
+    sidebarGap: 'gap-2',
+  },
+  'compact': {
+    cardP: 'p-3',
+    cardGap: 'gap-3',
+    iconSize: 20,
+    iconWrapper: 'w-10 h-10 rounded-xl',
+    heroP: 'p-4 pt-6 pb-8',
+    heroGap: 'gap-4',
+    heroText: 'text-4xl md:text-5xl',
+    heroSubText: 'text-[9px]',
+    textDescription: 'text-xs',
+    textCategory: 'text-[10px]',
+    textAmount: 'text-base',
+    sidebarP: 'py-3 px-4',
+    sidebarGap: 'gap-3',
+  },
+  'normal': {
+    cardP: 'p-4',
+    cardGap: 'gap-4',
+    iconSize: 22,
+    iconWrapper: 'w-12 h-12 rounded-[22px]',
+    heroP: 'p-6 pt-8 pb-10',
+    heroGap: 'gap-4',
+    heroText: 'text-5xl md:text-6xl',
+    heroSubText: 'text-[10px]',
+    textDescription: 'text-sm',
+    textCategory: 'text-[10px]',
+    textAmount: 'text-base',
+    sidebarP: 'py-4 px-4',
+    sidebarGap: 'gap-4',
+  },
+  'relaxed': {
+    cardP: 'p-6',
+    cardGap: 'gap-6',
+    iconSize: 26,
+    iconWrapper: 'w-14 h-14 rounded-[28px]',
+    heroP: 'p-10 pt-12 pb-16',
+    heroGap: 'gap-8',
+    heroText: 'text-6xl md:text-7xl',
+    heroSubText: 'text-[12px]',
+    textDescription: 'text-base',
+    textCategory: 'text-xs',
+    textAmount: 'text-xl',
+    sidebarP: 'py-5 px-6',
+    sidebarGap: 'gap-6',
+  },
+  'super-relaxed': {
+    cardP: 'p-8',
+    cardGap: 'gap-8',
+    iconSize: 32,
+    iconWrapper: 'w-16 h-16 rounded-[32px]',
+    heroP: 'p-12 pt-16 pb-20',
+    heroGap: 'gap-10',
+    heroText: 'text-7xl md:text-8xl',
+    heroSubText: 'text-[14px]',
+    textDescription: 'text-lg',
+    textCategory: 'text-base',
+    textAmount: 'text-2xl',
+    sidebarP: 'py-6 px-8',
+    sidebarGap: 'gap-8',
+  }
+};
 
 import { LandingPage } from './components/LandingPage';
 
@@ -149,37 +234,43 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Components ---
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed }: { icon: any, label: string, active: boolean, onClick: () => void, collapsed?: boolean }) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      "w-full flex items-center justify-center lg:justify-start gap-4 px-4 py-4 rounded-[24px] transition-all duration-500 group relative overflow-hidden",
-      active 
-        ? "bg-cyan-500 text-white shadow-[0_10px_30px_rgba(6,182,212,0.3)] scale-[1.02]" 
-        : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80"
-    )}
-    title={collapsed ? label : undefined}
-  >
-    <div className={cn(
-      "relative z-10 p-1 rounded-xl transition-all duration-500",
-      active ? "bg-white/20" : "bg-transparent"
-    )}>
-      <Icon size={20} strokeWidth={active ? 2.5 : 2} className={cn("transition-transform group-active:scale-90", active && "animate-pulse")} />
-    </div>
-    <span className={cn(
-      "text-sm font-bold transition-all duration-500 truncate relative z-10",
-      collapsed ? "lg:hidden opacity-0 w-0" : "opacity-100 w-auto"
-    )}>
-      {label}
-    </span>
-    {active && (
-      <motion.div 
-        layoutId="sidebarGlow"
-        className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-cyan-400 pointer-events-none"
-      />
-    )}
-  </button>
-);
+const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 'normal' }: { icon: any, label: string, active: boolean, onClick: () => void, collapsed?: boolean, density?: DensityType }) => {
+  const d = DISPLAY_DENSITIES[density];
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center justify-center lg:justify-start rounded-[24px] transition-all duration-500 group relative overflow-hidden",
+        d.sidebarP,
+        d.sidebarGap,
+        active 
+          ? "bg-cyan-500 text-white shadow-[0_10px_30px_rgba(6,182,212,0.3)] scale-[1.02]" 
+          : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+      )}
+      title={collapsed ? label : undefined}
+    >
+      <div className={cn(
+        "relative z-10 p-1 rounded-xl transition-all duration-500",
+        active ? "bg-white/20" : "bg-transparent"
+      )}>
+        <Icon size={d.iconSize - 2} strokeWidth={active ? 2.5 : 2} className={cn("transition-transform group-active:scale-90", active && "animate-pulse")} />
+      </div>
+      <span className={cn(
+        "font-bold transition-all duration-500 truncate relative z-10",
+        density === 'super-compact' ? "text-xs" : density === 'super-relaxed' ? "text-lg" : "text-sm",
+        collapsed ? "lg:hidden opacity-0 w-0" : "opacity-100 w-auto"
+      )}>
+        {label}
+      </span>
+      {active && (
+        <motion.div 
+          layoutId="sidebarGlow"
+          className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-cyan-400 pointer-events-none"
+        />
+      )}
+    </button>
+  );
+};
 
 const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, active: boolean, label: string, onClick: () => void }) => (
   <button
@@ -204,42 +295,48 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, acti
   </button>
 );
 
-const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string }) => {
+const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency, density = 'normal' }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string, density?: DensityType }) => {
   const category = categories.find(c => c.id === (t.categoryId || t.costCenterId));
   const account = accounts.find(a => a.id === t.accountId);
+  const d = DISPLAY_DENSITIES[density];
   
   return (
     <motion.div 
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       whileHover={{ scale: 1.01 }}
-      className="group flex items-center justify-between p-4 rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 hover:bg-white/80 dark:hover:bg-slate-800 shadow-sm hover:shadow-md transition-all duration-300"
+      className={cn(
+        "group flex items-center justify-between rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 hover:bg-white/80 dark:hover:bg-slate-800 shadow-sm hover:shadow-md transition-all duration-300",
+        d.cardP
+      )}
     >
-      <div className="flex items-center gap-4 min-w-0">
+      <div className={cn("flex items-center min-w-0", d.cardGap)}>
         <div className={cn(
-          "w-12 h-12 min-w-[3rem] rounded-[22px] flex items-center justify-center transition-all duration-500 group-hover:rotate-12",
+          "flex items-center justify-center transition-all duration-500 group-hover:rotate-12",
+          d.iconWrapper,
           t.type === 'income' ? "bg-emerald-500/10 text-emerald-500" : 
           t.type === 'expense' ? "bg-rose-500/10 text-rose-500" : 
           "bg-cyan-500/10 text-cyan-500"
         )}>
-          {t.type === 'income' ? <TrendingUp size={22} /> : t.type === 'expense' ? <TrendingDown size={22} /> : <ArrowRightLeft size={22} />}
+          {t.type === 'income' ? <TrendingUp size={d.iconSize} /> : t.type === 'expense' ? <TrendingDown size={d.iconSize} /> : <ArrowRightLeft size={d.iconSize} />}
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <p className="text-sm font-extrabold text-slate-900 dark:text-white truncate">{t.description}</p>
+            <p className={cn("font-extrabold text-slate-900 dark:text-white truncate", d.textDescription)}>{t.description}</p>
             {t.attachmentUrl && <Paperclip size={12} className="text-slate-400" />}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{account?.name || '---'}</span>
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-600 truncate">{category?.name}</span>
+            <span className={cn("font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full", d.textCategory)}>{account?.name || '---'}</span>
+            <span className={cn("font-bold text-slate-400 dark:text-slate-600 truncate", d.textCategory)}>{category?.name}</span>
           </div>
         </div>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className={cn("flex items-center", d.cardGap)}>
         <div className="text-right">
           <p className={cn(
-            "text-base font-mono font-black tracking-tight",
+            "font-mono font-black tracking-tight",
+            d.textAmount,
             t.type === 'income' ? "text-emerald-500" : 
             t.type === 'expense' ? "text-rose-500" : 
             "text-cyan-500"
@@ -250,7 +347,8 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
             <button 
               onClick={() => onToggleConsolidation(t)}
               className={cn(
-                "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-all",
+                "font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-all",
+                density === 'super-compact' ? "text-[7px]" : "text-[9px]",
                 t.consolidated 
                   ? "text-emerald-500/60 bg-emerald-500/5" 
                   : "bg-amber-500/10 text-amber-500"
@@ -274,84 +372,97 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
   );
 };
 
-const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void }) => (
-  <div className="bg-slate-900 dark:bg-slate-900 rounded-[40px] p-6 pt-8 pb-10 border border-white/5 shadow-2xl overflow-hidden relative group">
-    {/* Background Glow */}
-    <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/20 transition-colors duration-1000" />
-    
-    <div className="relative z-10 flex flex-col items-center text-center">
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4">Balanço do Mês</p>
+const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick, density = 'normal' }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void, density?: DensityType }) => {
+  const d = DISPLAY_DENSITIES[density];
+  return (
+    <div className={cn("bg-slate-900 dark:bg-slate-900 rounded-[40px] border border-white/5 shadow-2xl overflow-hidden relative group", d.heroP)}>
+      {/* Background Glow */}
+      <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/20 transition-colors duration-1000" />
       
-      <h2 className={cn(
-        "text-5xl md:text-6xl font-black font-mono tracking-tighter leading-none mb-2",
-        balance < 0 ? "text-rose-500" : "text-white"
-      )}>
-        {formatCurrencyWithPrivacy(balance)}
-      </h2>
+      <div className="relative z-10 flex flex-col items-center text-center">
+        <p className={cn("font-black text-slate-400 uppercase tracking-[0.3em]", d.heroSubText, density === 'super-compact' ? 'mb-2' : 'mb-4')}>Balanço do Mês</p>
+        
+        <h2 className={cn(
+          "font-black font-mono tracking-tighter leading-none mb-2",
+          d.heroText,
+          balance < 0 ? "text-rose-500" : "text-white"
+        )}>
+          {formatCurrencyWithPrivacy(balance)}
+        </h2>
 
-      <motion.div 
-        whileHover={{ scale: 1.05 }}
-        className={cn(
-          "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-8 border",
-          projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-        )}
-      >
-        {projected >= balance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-        Projeção: {formatCurrencyWithPrivacy(projected)}
-      </motion.div>
+        <motion.div 
+          whileHover={{ scale: 1.05 }}
+          className={cn(
+            "inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-black uppercase tracking-wider border",
+            d.heroSubText,
+            density === 'super-compact' ? 'mb-4' : 'mb-8',
+            projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+          )}
+        >
+          {projected >= balance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+          Projeção: {formatCurrencyWithPrivacy(projected)}
+        </motion.div>
 
-      <div className="grid grid-cols-2 gap-4 w-full">
-        <button onClick={onStatClick} className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all">
-          <p className="text-[9px] font-black text-emerald-500/80 uppercase tracking-widest">Entradas</p>
-          <p className="text-lg font-mono font-black text-emerald-400">{formatCurrencyWithPrivacy(income)}</p>
-        </button>
-        <button onClick={onStatClick} className="flex flex-col items-center gap-2 p-4 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all">
-          <p className="text-[9px] font-black text-rose-500/80 uppercase tracking-widest">Saídas</p>
-          <p className="text-lg font-mono font-black text-rose-500">{formatCurrencyWithPrivacy(expense)}</p>
-        </button>
+        <div className={cn("grid grid-cols-2 w-full", d.heroGap)}>
+          <button onClick={onStatClick} className={cn("flex flex-col items-center gap-2 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all", density === 'super-compact' ? 'p-2' : 'p-4')}>
+            <p className={cn("font-black text-emerald-500/80 uppercase tracking-widest", d.heroSubText)}>Entradas</p>
+            <p className={cn("font-mono font-black text-emerald-400", density === 'super-compact' ? 'text-sm' : 'text-lg')}>{formatCurrencyWithPrivacy(income)}</p>
+          </button>
+          <button onClick={onStatClick} className={cn("flex flex-col items-center gap-2 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all", density === 'super-compact' ? 'p-2' : 'p-4')}>
+            <p className={cn("font-black text-rose-500/80 uppercase tracking-widest", d.heroSubText)}>Saídas</p>
+            <p className={cn("font-mono font-black text-rose-500", density === 'super-compact' ? 'text-sm' : 'text-lg')}>{formatCurrencyWithPrivacy(expense)}</p>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
-const Card = ({ children, className, title, onClick, extra }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void, extra?: React.ReactNode }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    onClick={onClick}
-    className={cn(
-      "glass-card rounded-[32px] p-6 group/card",
-      onClick && "cursor-pointer active:scale-[0.98]",
-      className
-    )}
-  >
-    {title && (
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
-          {title}
-        </h3>
-        {extra}
-      </div>
-    )}
-    {children}
-  </motion.div>
-);
+const Card = ({ children, className, title, onClick, extra, density = 'normal' }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void, extra?: React.ReactNode, density?: DensityType }) => {
+  const pSize = density === 'super-compact' ? 'p-3' : density === 'compact' ? 'p-4' : density === 'super-relaxed' ? 'p-10' : 'p-6';
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={onClick}
+      className={cn(
+        "glass-card rounded-[32px] group/card",
+        pSize,
+        onClick && "cursor-pointer active:scale-[0.98]",
+        className
+      )}
+    >
+      {title && (
+        <div className={cn("flex justify-between items-center", density === 'super-compact' ? 'mb-3' : 'mb-6')}>
+          <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
+            {title}
+          </h3>
+          {extra}
+        </div>
+      )}
+      {children}
+    </motion.div>
+  );
+};
 
-const StatCard = ({ title, value, icon: Icon, color, trend, valueColor, onClick }: { title: string, value: string, icon: any, color: string, trend?: string, valueColor?: string, onClick?: () => void }) => (
+const StatCard = ({ title, value, icon: Icon, color, trend, valueColor, onClick, density = 'normal' }: { title: string, value: string, icon: any, color: string, trend?: string, valueColor?: string, onClick?: () => void, density?: DensityType }) => (
   <Card 
     className={cn(
-      "flex flex-col gap-4 transition-all duration-500 overflow-hidden relative", 
-      onClick && "hover:border-cyan-500/50"
+      "flex flex-col transition-all duration-500 overflow-hidden relative", 
+      onClick && "hover:border-cyan-500/50",
+      density === 'super-compact' ? 'gap-2' : 'gap-4'
     )}
     onClick={onClick}
+    density={density}
   >
     <div className="flex justify-between items-start relative z-10">
-      <div className={cn("p-3 rounded-2xl shadow-lg", color)}>
-        <Icon size={20} className="text-white" />
+      <div className={cn("rounded-2xl shadow-lg", color, density === 'super-compact' ? 'p-2' : 'p-3')}>
+        <Icon size={density === 'super-compact' ? 16 : 20} className="text-white" />
       </div>
       {trend && (
         <span className={cn(
-          "text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest", 
+          "font-black px-2.5 py-1 rounded-full uppercase tracking-widest", 
+          density === 'super-compact' ? 'text-[8px]' : 'text-[10px]',
           trend.startsWith('+') ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
         )}>
           {trend}
@@ -360,7 +471,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend, valueColor, onClick 
     </div>
     <div className="relative z-10">
       <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">{title}</p>
-      <p className={cn("text-3xl font-mono font-black tracking-tighter", valueColor || "text-slate-900 dark:text-white")}>{value}</p>
+      <p className={cn("font-mono font-black tracking-tighter", valueColor || "text-slate-900 dark:text-white", density === 'super-compact' ? 'text-xl' : 'text-3xl')}>{value}</p>
     </div>
     <div className={cn("absolute -bottom-6 -right-6 w-24 h-24 blur-3xl rounded-full opacity-20 pointer-events-none transition-all duration-500 group-hover/card:scale-150", color)} />
   </Card>
@@ -508,6 +619,122 @@ const ConfirmationModal = ({
   </div>
 );
 
+const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity }: { isOpen: boolean, onClose: () => void, displayDensity: DensityType, setDisplayDensity: (d: DensityType) => void }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <AnimatePresence>
+      <motion.div 
+        key="settings-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md"
+        onClick={onClose}
+      >
+        <motion.div 
+          key="settings-modal"
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden border border-slate-200 dark:border-white/5"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="p-8 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-500 rounded-2xl text-white shadow-lg shadow-blue-500/20">
+                <Settings size={23} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Configurações</h2>
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-cyan-500" />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Personalize sua interface</p>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={onClose}
+              className="p-3 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-2xl transition-all active:scale-90 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          <div className="p-8 space-y-8">
+            {/* Visualização Section */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-500">
+                  <Layout size={18} />
+                </div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                  Visualização
+                </h3>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {[
+                  { id: 'super-compact' as const, label: 'Super Compact', desc: 'Densidade máxima' },
+                  { id: 'compact' as const, label: 'Compact', desc: 'Espaçamento reduzido' },
+                  { id: 'normal' as const, label: 'Normal', desc: 'Padrão do sistema' },
+                  { id: 'relaxed' as const, label: 'Relaxed', desc: 'Mais respiro' },
+                  { id: 'super-relaxed' as const, label: 'Super Relaxed', desc: 'Imersão total' },
+                ].map((density) => (
+                  <button
+                    key={density.id}
+                    onClick={() => setDisplayDensity(density.id)}
+                    className={cn(
+                      "p-4 rounded-[28px] border-2 transition-all flex flex-col gap-1 items-start text-left group relative overflow-hidden",
+                      displayDensity === density.id
+                        ? "bg-cyan-500/5 border-cyan-500 shadow-xl shadow-cyan-500/10"
+                        : "bg-slate-100/30 dark:bg-white/5 border-transparent hover:border-slate-200 dark:hover:border-white/10 active:scale-95"
+                    )}
+                  >
+                    <div className="flex justify-between items-center w-full relative z-10">
+                      <span className={cn(
+                        "text-[9px] font-black uppercase tracking-widest",
+                        displayDensity === density.id ? "text-cyan-500" : "text-slate-400 dark:text-slate-500"
+                      )}>
+                        {density.id.replace('-', ' ')}
+                      </span>
+                      {displayDensity === density.id && (
+                        <motion.div layoutId="active-dot" className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-sm font-black tracking-tight relative z-10",
+                      displayDensity === density.id ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"
+                    )}>
+                      {density.label}
+                    </span>
+                    <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-tighter relative z-10">
+                      {density.desc}
+                    </span>
+                    
+                    {displayDensity === density.id && (
+                      <div className="absolute top-0 right-0 w-12 h-12 bg-cyan-500/10 blur-2xl rounded-full" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-[32px] border border-slate-100 dark:border-white/5 flex items-start gap-4">
+              <div className="mt-1 p-2 bg-blue-500/10 rounded-lg text-blue-500">
+                <Sliders size={14} />
+              </div>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 leading-relaxed uppercase tracking-wider">
+                A densidade visual altera o espaçamento, tamanho de ícones e fontes em todo o aplicativo, permitindo que você visualize mais informações ou tenha uma interface mais limpa.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
@@ -538,6 +765,8 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [amountValue, setAmountValue] = useState('');
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+  const [displayDensity, setDisplayDensity] = useState<'super-compact' | 'compact' | 'normal' | 'relaxed' | 'super-relaxed'>('normal');
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     if (saved !== null) return saved === 'true';
@@ -2229,12 +2458,12 @@ export default function App() {
         </div>
 
         <nav className="flex-1 px-4 py-2 space-y-2">
-          <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={sidebarCollapsed} />
-          <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} collapsed={sidebarCollapsed} />
-          <SidebarItem icon={CreditCard} label="Patrimônio" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} collapsed={sidebarCollapsed} />
-          <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} collapsed={sidebarCollapsed} />
-          <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => setActiveTab('recurring')} collapsed={sidebarCollapsed} />
-          <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} collapsed={sidebarCollapsed} />
+          <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={CreditCard} label="Patrimônio" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => setActiveTab('recurring')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} collapsed={sidebarCollapsed} density={displayDensity} />
         </nav>
 
         <div className="p-4 mt-auto">
@@ -2361,6 +2590,10 @@ export default function App() {
               <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
                 {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
+
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
+                <Settings size={20} />
+              </button>
             </div>
           </header>
 
@@ -2403,6 +2636,7 @@ export default function App() {
                 expense={totalExpense}
                 formatCurrencyWithPrivacy={formatCurrencyWithPrivacy}
                 onStatClick={handleStatCardClick}
+                density={displayDensity}
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -2438,6 +2672,7 @@ export default function App() {
                                 onDelete={handleDeleteTransactionWithConfirm}
                                 onToggleConsolidation={handleToggleConsolidation}
                                 formatCurrency={formatCurrency}
+                                density={displayDensity}
                               />
                             ))}
                           </div>
@@ -2851,7 +3086,17 @@ export default function App() {
                         if (!t) return null;
 
                         return (
-                          <div key={`virtuoso-item-${t.id}`} className="flex items-center px-4 group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-50 dark:border-slate-800/50 h-[72px]">
+                          <div 
+                            key={`virtuoso-item-${t.id}`} 
+                            className={cn(
+                              "flex items-center px-4 group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800/50 transition-[height]",
+                              displayDensity === 'super-compact' ? 'h-[44px]' : 
+                              displayDensity === 'compact' ? 'h-[56px]' : 
+                              displayDensity === 'normal' ? 'h-[72px]' : 
+                              displayDensity === 'relaxed' ? 'h-[96px]' : 
+                              'h-[120px]'
+                            )}
+                          >
                             <div className="w-16 text-sm text-slate-400 font-mono">{t.date.substring(8, 10)}</div>
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
@@ -2967,6 +3212,7 @@ export default function App() {
                             onDelete={handleDeleteTransactionWithConfirm}
                             onToggleConsolidation={handleToggleConsolidation}
                             formatCurrency={formatCurrencyWithPrivacy}
+                            density={displayDensity}
                           />
                         ))}
                       </div>
@@ -4881,6 +5127,7 @@ export default function App() {
                           }, () => handleDeleteTransaction(trans));
                         }}
                         onToggleConsolidation={handleToggleConsolidation}
+                        density={displayDensity}
                       />
                     ))
                   ) : (
@@ -4972,15 +5219,16 @@ export default function App() {
                   <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Recorrência</span>
                 </button>
                 <button 
-                  onClick={() => { setIsPrivacyMode(!isPrivacyMode); setIsMobileMenuOpen(false); }}
+                  onClick={() => { setIsSettingsModalOpen(true); setIsMobileMenuOpen(false); }}
                   className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                 >
                   <div className="p-3 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-blue-600 dark:text-blue-400">
-                    {isPrivacyMode ? <EyeOff size={24} /> : <Eye size={24} />}
+                    <Settings size={24} />
                   </div>
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Privacidade</span>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Ajustes</span>
                 </button>
               </div>
+
               <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
                 <button 
                   onClick={logout}
@@ -5010,6 +5258,17 @@ export default function App() {
             </div>
             <span className="font-bold tracking-tight">Adicionar Transação</span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSettingsModalOpen && (
+          <SettingsModal 
+            isOpen={isSettingsModalOpen} 
+            onClose={() => setIsSettingsModalOpen(false)} 
+            displayDensity={displayDensity} 
+            setDisplayDensity={setDisplayDensity} 
+          />
         )}
       </AnimatePresence>
 
