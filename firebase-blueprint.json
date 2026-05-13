@@ -62,6 +62,7 @@
         "type": { "type": "string", "enum": ["income", "expense"] },
         "userId": { "type": "string" },
         "parentId": { "type": "string" },
+        "monthlyBudget": { "type": "number", "description": "Optional monthly budget for the category" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "type", "userId"]

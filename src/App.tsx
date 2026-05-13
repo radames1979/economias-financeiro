@@ -99,9 +99,19 @@ import { cn, formatCurrency, formatDate } from './lib/utils';
 import { PDF_IMPORT_DATA, ImportTransaction } from './services/pdfImportData';
 import { parseExcelFile, downloadExcelTemplate } from './services/excelImportService';
 import { ACCOUNT_IMPORT_DATA, ImportAccount } from './services/accountImportData';
+import { processRecurringTransactions } from './services/recurringTransactionService';
 import { Transaction, Account, Category, TransactionType, AccountType, RecurringTransaction, Frequency } from './types';
 
 // --- Constants & Types ---
+
+interface Notification {
+  id: string;
+  type: 'info' | 'warning' | 'danger';
+  title: string;
+  message: string;
+  date?: string;
+  categoryId?: string;
+}
 
 type DensityType = 'super-compact' | 'compact' | 'normal' | 'relaxed' | 'super-relaxed';
 
@@ -784,7 +794,6 @@ export default function App() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [calcValue, setCalcValue] = useState('');
   const [activeCalcField, setActiveCalcField] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>('all');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -971,6 +980,75 @@ export default function App() {
       unsubRecurring();
     };
   }, [user]);
+
+  // Process recurring transactions
+  useEffect(() => {
+    if (user && recurringTransactions.length > 0) {
+      processRecurringTransactions(user.uid, recurringTransactions);
+    }
+  }, [user?.uid, recurringTransactions]);
+
+  const notifications = useMemo(() => {
+    const alerts: Notification[] = [];
+    const today = startOfDay(new Date());
+    const threeDaysFromNow = addDays(today, 3);
+    const firstDayOfMonth = startOfMonth(today);
+    const lastDayOfMonth = endOfMonth(today);
+
+    // 1. Recurring Transactions Alert (Next 3 Days)
+    recurringTransactions.forEach(rt => {
+      if (!rt.active) return;
+
+      let lastDate = rt.lastProcessedDate ? parseISO(rt.lastProcessedDate) : parseISO(rt.startDate);
+      let nextDate = rt.frequency === 'weekly' ? addWeeks(lastDate, 1) : addMonths(lastDate, 1);
+
+      // Simple check for next occurrence
+      if (nextDate >= addDays(today, 1) && nextDate <= threeDaysFromNow) {
+        alerts.push({
+          id: `rt-${rt.id}-${nextDate.toISOString()}`,
+          type: 'info',
+          title: 'Transação Recorrente Próxima',
+          message: `"${rt.description}" de ${formatCurrency(rt.amount)} vence em ${format(nextDate, 'dd/MM')}.`,
+          date: format(nextDate, 'yyyy-MM-dd')
+        });
+      }
+    });
+
+    // 2. Excessive Spending Alert
+    const currentMonthExpenses = transactions.filter(t => 
+      t.type === 'expense' && 
+      isWithinInterval(parseISO(t.date), { start: firstDayOfMonth, end: lastDayOfMonth })
+    );
+
+    categories.forEach(cat => {
+      if (cat.monthlyBudget && cat.monthlyBudget > 0) {
+        // Calculate spent in this category (including subcategories if it's a cost center)
+        const spentInCategory = currentMonthExpenses
+          .filter(t => t.categoryId === cat.id || t.costCenterId === cat.id)
+          .reduce((acc, curr) => acc + curr.amount, 0);
+
+        if (spentInCategory > cat.monthlyBudget) {
+          alerts.push({
+            id: `budget-exceeded-${cat.id}`,
+            type: 'danger',
+            title: 'Orçamento Excedido',
+            message: `Você gastou ${formatCurrency(spentInCategory)} em "${cat.name}", superando o limite de ${formatCurrency(cat.monthlyBudget)}.`,
+            categoryId: cat.id
+          });
+        } else if (spentInCategory > cat.monthlyBudget * 0.8) {
+          alerts.push({
+            id: `budget-warning-${cat.id}`,
+            type: 'warning',
+            title: 'Atenção ao Orçamento',
+            message: `Você já utilizou ${(spentInCategory / cat.monthlyBudget * 100).toFixed(0)}% do orçamento de "${cat.name}".`,
+            categoryId: cat.id
+          });
+        }
+      }
+    });
+
+    return alerts;
+  }, [recurringTransactions, transactions, categories, formatCurrency]);
 
   const totalBalance = useMemo(() => accounts.reduce((acc, curr) => acc + curr.balance, 0), [accounts]);
   
@@ -1184,58 +1262,6 @@ export default function App() {
       .map(([date, totals]) => ({ date, ...totals }))
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [dashboardTransactions]);
-
-  useEffect(() => {
-    if (!user || recurringTransactions.length === 0) return;
-
-    const checkReminders = () => {
-      const today = startOfDay(new Date());
-      const next3Days = addDays(today, 3);
-      const newNotifications: any[] = [];
-
-      recurringTransactions.forEach(rt => {
-        if (!rt.active) return;
-
-        const nextDate = rt.lastProcessedDate ? addMonths(parseISO(rt.lastProcessedDate), rt.frequency === 'monthly' ? 1 : 0) : parseISO(rt.startDate);
-        if (isBefore(nextDate, next3Days)) {
-          newNotifications.push({
-            id: `notif-reminder-${rt.id}-${nextDate.getTime()}`,
-            title: 'Lembrete de Transação',
-            message: `A transação "${rt.description}" está próxima do vencimento (${formatDate(nextDate.toISOString())})`,
-            type: 'reminder',
-            date: nextDate.toISOString()
-          });
-        }
-      });
-
-      // Check budgets
-      const expenseByCategory = categories
-        .filter(c => c.type === 'expense' && !c.parentId)
-        .map(c => {
-          const total = dashboardTransactions
-            .filter(t => t.costCenterId === c.id)
-            .reduce((acc, curr) => acc + curr.amount, 0);
-          return { id: c.id, name: c.name, total };
-        });
-
-      // Simple alert if any category is high (mocking budget logic since we don't have explicit budgets yet)
-      expenseByCategory.forEach(cat => {
-        if (cat.total > 1000) { // Arbitrary threshold for demo
-          newNotifications.push({
-            id: `notif-budget-${cat.id}-${new Date().toDateString()}`,
-            title: 'Alerta de Orçamento',
-            message: `Gastos em ${cat.name} ultrapassaram R$ 1.000,00`,
-            type: 'alert',
-            date: new Date().toISOString()
-          });
-        }
-      });
-
-      setNotifications(newNotifications);
-    };
-
-    checkReminders();
-  }, [user, recurringTransactions, dashboardTransactions, categories]);
 
   const totalIncome = useMemo(() => dashboardTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0), [dashboardTransactions]);
   const totalExpense = useMemo(() => dashboardTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0), [dashboardTransactions]);
@@ -2210,7 +2236,8 @@ export default function App() {
       icon: 'Tag',
       color: '#3b82f6',
       userId: user.uid,
-      parentId: parentId || null
+      parentId: parentId || null,
+      monthlyBudget: formData.get('monthlyBudget') ? Number(formData.get('monthlyBudget')) : 0
     };
 
     try {
@@ -2232,7 +2259,8 @@ export default function App() {
       icon: 'Tag',
       color: '#3b82f6',
       userId: user.uid,
-      parentId: parentId || null
+      parentId: parentId || null,
+      monthlyBudget: formData.get('monthlyBudget') ? Number(formData.get('monthlyBudget')) : 0
     };
 
     try {
@@ -2424,6 +2452,7 @@ export default function App() {
           name,
           type,
           parentId: parentId || null,
+          monthlyBudget: formData.get('monthlyBudget') ? Number(formData.get('monthlyBudget')) : 0,
           updatedAt: serverTimestamp()
         });
         setIsEditCategoryModalOpen(false);
@@ -2576,8 +2605,41 @@ export default function App() {
                         ) : (
                           // Render real notifications if any
                           notifications.map((n, i) => (
-                            <div key={i} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-white/5">
-                              {n.message}
+                            <div key={n.id} className={cn(
+                              "p-4 rounded-2xl border flex flex-col gap-1 transition-all hover:scale-[1.02]",
+                              n.type === 'danger' ? "bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20" :
+                              n.type === 'warning' ? "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20" :
+                              "bg-cyan-50 dark:bg-cyan-500/10 border-cyan-100 dark:border-cyan-500/20"
+                            )}>
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                  {n.type === 'danger' ? <AlertCircle size={16} className="text-rose-500" /> :
+                                   n.type === 'warning' ? <Zap size={16} className="text-amber-500" /> :
+                                   <Clock size={16} className="text-cyan-500" />}
+                                  <span className={cn(
+                                    "text-xs font-black uppercase tracking-widest",
+                                    n.type === 'danger' ? "text-rose-600" :
+                                    n.type === 'warning' ? "text-amber-600" :
+                                    "text-cyan-600"
+                                  )}>{n.title}</span>
+                                </div>
+                                {n.date && <span className="text-[9px] font-bold text-slate-400 capitalize">{formatDate(n.date)}</span>}
+                              </div>
+                              <p className="text-xs font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                                {n.message}
+                              </p>
+                              {n.categoryId && (
+                                <button 
+                                  onClick={() => {
+                                    setCategoryToEdit(categories.find(c => c.id === n.categoryId) || null);
+                                    setIsEditCategoryModalOpen(true);
+                                    setIsNotificationsOpen(false);
+                                  }}
+                                  className="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-cyan-500 transition-colors w-fit"
+                                >
+                                  Ajustar Orçamento
+                                </button>
+                              )}
                             </div>
                           ))
                         )}
@@ -2646,6 +2708,49 @@ export default function App() {
                 onStatClick={handleStatCardClick}
                 density={displayDensity}
               />
+
+              {notifications.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 mb-8">
+                  {notifications.filter(n => n.type === 'danger' || n.type === 'warning').map(alert => (
+                    <motion.div 
+                      key={`dashboard-alert-${alert.id}`}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className={cn(
+                        "p-4 rounded-[24px] border flex items-center justify-between gap-6 shadow-sm",
+                        alert.type === 'danger' ? "bg-rose-50 border-rose-100 text-rose-800" : "bg-amber-50 border-amber-100 text-amber-800"
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                          alert.type === 'danger' ? "bg-rose-500 text-white" : "bg-amber-500 text-white"
+                        )}>
+                          {alert.type === 'danger' ? <AlertCircle size={20} /> : <Zap size={20} />}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-widest">{alert.title}</h3>
+                          <p className="text-xs font-medium opacity-80">{alert.message}</p>
+                        </div>
+                      </div>
+                      {alert.categoryId && (
+                        <button 
+                          onClick={() => {
+                            setCategoryToEdit(categories.find(c => c.id === alert.categoryId) || null);
+                            setIsEditCategoryModalOpen(true);
+                          }}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+                            alert.type === 'danger' ? "bg-rose-500 text-white hover:bg-rose-600 shadow-lg shadow-rose-200" : "bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-200"
+                          )}
+                        >
+                          Ajustar
+                        </button>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Bento Row 1: Activity & Balances */}
@@ -3394,7 +3499,7 @@ export default function App() {
                     <div className="flex items-center gap-2 mb-1">
                       <div className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider rounded">Centro de Custo</div>
                     </div>
-                    <Card className="flex items-center justify-between p-4 border-l-4 border-l-blue-500 hover:shadow-md transition-shadow group">
+                    <Card className="flex items-center justify-between p-4 border-l-4 border-l-blue-500 hover:shadow-md transition-shadow group" density={displayDensity}>
                       <div className="flex items-center gap-4">
                         <div className={cn("p-2 rounded-xl text-white", root.type === 'income' ? "bg-emerald-500" : "bg-blue-500")}>
                           <Tags size={20} />
@@ -3440,7 +3545,7 @@ export default function App() {
                     <div className="ml-8 space-y-2 border-l-2 border-slate-100 dark:border-slate-800 pl-4">
                       {categories.filter(c => c.parentId === root.id).length > 0 ? (
                         categories.filter(c => c.parentId === root.id).map((child) => (
-                          <Card key={`category-tab-child-${child.id}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group">
+                          <Card key={`category-tab-child-${child.id}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group" density={displayDensity}>
                             <div className="flex items-center gap-3">
                               <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{child.name}</p>
@@ -3527,7 +3632,7 @@ export default function App() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <Card className="bg-slate-50/50 dark:bg-slate-800/20 border-blue-100/50 dark:border-blue-900/20">
+                    <Card className="bg-slate-50/50 dark:bg-slate-800/20 border-blue-100/50 dark:border-blue-900/20" density={displayDensity}>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-1">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">De</label>
@@ -3559,7 +3664,7 @@ export default function App() {
               </AnimatePresence>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card className="hover:shadow-md transition-shadow">
+                <Card className="hover:shadow-md transition-shadow" density={displayDensity}>
                   <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-2">Entradas</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {formatCurrency(filteredTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0))}
@@ -3574,7 +3679,7 @@ export default function App() {
                   </div>
                 </Card>
 
-                <Card className="hover:shadow-md transition-shadow">
+                <Card className="hover:shadow-md transition-shadow" density={displayDensity}>
                   <p className="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em] mb-2">Saídas</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {formatCurrency(filteredTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0))}
@@ -3589,7 +3694,7 @@ export default function App() {
                   </div>
                 </Card>
 
-                <Card className="hover:shadow-md transition-shadow">
+                <Card className="hover:shadow-md transition-shadow" density={displayDensity}>
                   <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-2">Líquido</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
                     {formatCurrency(
@@ -3600,7 +3705,7 @@ export default function App() {
                   <p className="text-[10px] font-bold text-slate-400 mt-2">No período selecionado</p>
                 </Card>
 
-                <Card className="hover:shadow-md transition-shadow">
+                <Card className="hover:shadow-md transition-shadow" density={displayDensity}>
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Operações</p>
                   <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">{filteredTransactions.length}</p>
                   <p className="text-[10px] font-bold text-slate-400 mt-2">Total de registros</p>
@@ -3634,6 +3739,7 @@ export default function App() {
 
                 <Card 
                   title="Despesas por Categoria"
+                  density={displayDensity}
                   extra={reportDrillDownCategory && (
                     <motion.button 
                       initial={{ opacity: 0, x: 10 }}
@@ -3699,7 +3805,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card title="Desempenho Mensal (Ano)" className="lg:col-span-2">
+                <Card title="Desempenho Mensal (Ano)" className="lg:col-span-2" density={displayDensity}>
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-sm text-slate-500">Clique em uma barra para filtrar o período</p>
                     <select 
@@ -3762,7 +3868,7 @@ export default function App() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card title="Análise de Picos de Despesas" className="lg:col-span-2">
+                <Card title="Análise de Picos de Despesas" className="lg:col-span-2" density={displayDensity}>
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-sm text-slate-500">
                       Média mensal: <span className="font-bold text-slate-700 dark:text-slate-200">{formatCurrency(expenseAnalysis.average)}</span>
@@ -3957,7 +4063,7 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {recurringTransactions.map((rt) => (
-                  <Card key={rt.id} className="relative">
+                  <Card key={rt.id} className="relative" density={displayDensity}>
                     <div className="flex justify-between items-start mb-4">
                       <div className={cn("p-2 rounded-lg", rt.type === 'income' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
                         <RefreshCw size={20} />
@@ -4431,6 +4537,17 @@ export default function App() {
                       ))}
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Orçamento Mensal (Opcional)</label>
+                    <input 
+                      name="monthlyBudget"
+                      type="number" 
+                      step="0.01"
+                      defaultValue={categoryToEdit.monthlyBudget || 0} 
+                      placeholder="Ex: 500.00"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                   <div className="flex gap-4 pt-4">
                     <button
                       type="button"
@@ -4488,6 +4605,16 @@ export default function App() {
                       <option value="expense">Despesa</option>
                       <option value="income">Receita</option>
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Orçamento Mensal (Opcional)</label>
+                    <input 
+                      name="monthlyBudget"
+                      type="number" 
+                      step="0.01"
+                      placeholder="Ex: 500.00"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Centro de Custo (Pai)</label>

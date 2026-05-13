@@ -101,7 +101,7 @@ service cloud.firestore {
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidCategory(incoming(), userId);
         allow update: if isOwner(userId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon', 'color', 'parentId', 'type', 'updatedAt']) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon', 'color', 'parentId', 'type', 'monthlyBudget', 'updatedAt']) &&
           incoming().userId == existing().userId &&
           incoming().updatedAt == request.time
         ) || isAdmin();

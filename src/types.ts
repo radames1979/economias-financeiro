@@ -45,6 +45,7 @@ export interface Category {
   type: TransactionType;
   userId: string;
   parentId?: string;
+  monthlyBudget?: number;
 }
 
 export type Frequency = 'weekly' | 'monthly';
