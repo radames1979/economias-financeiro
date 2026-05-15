@@ -3055,7 +3055,7 @@ export default function App() {
                               <option value="">Selecione o Centro de Custo</option>
                               {categories
                                 .filter(c => !c.parentId && c.type === transactionType)
-                                .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                                .map(c => <option key={`quick-add-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
                               }
                             </select>
                             <button 
@@ -3081,7 +3081,7 @@ export default function App() {
                               <option value="">Selecione a Categoria</option>
                               {categories
                                 .filter(c => c.parentId === selectedCostCenterId)
-                                .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                                .map(c => <option key={`quick-add-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
                               }
                             </select>
                             <button 
@@ -3152,7 +3152,7 @@ export default function App() {
                     >
                       <option value="all">🏦 Todas as Contas</option>
                       {accounts.map(account => (
-                        <option key={account.id} value={account.id}>{account.name}</option>
+                        <option key={`filter-acc-opt-${account.id}`} value={account.id}>{account.name}</option>
                       ))}
                     </select>
                   </div>
@@ -3483,7 +3483,7 @@ export default function App() {
                     <select name="parentId" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Nenhum (Será um Centro de Custo)</option>
                       {categories.filter(c => !c.parentId).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={`cc-mgmt-parent-opt-${c.id}`} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -4015,7 +4015,7 @@ export default function App() {
                             <option value="">Selecione o Centro de Custo</option>
                             {categories
                               .filter(c => !c.parentId)
-                              .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                              .map(c => <option key={`recurring-add-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                           <button 
@@ -4041,7 +4041,7 @@ export default function App() {
                             <option value="">Selecione a Categoria</option>
                             {categories
                               .filter(c => c.parentId === selectedRecurringCostCenterId)
-                              .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                              .map(c => <option key={`recurring-add-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                           <button 
@@ -4065,7 +4065,7 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {recurringTransactions.map((rt) => (
-                  <Card key={rt.id} className="relative" density={displayDensity}>
+                  <Card key={`recurring-tx-card-${rt.id}`} className="relative" density={displayDensity}>
                     <div className="flex justify-between items-start mb-4">
                       <div className={cn("p-2 rounded-lg", rt.type === 'income' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
                         <RefreshCw size={20} />
@@ -4535,7 +4535,7 @@ export default function App() {
                     >
                       <option value="">Nenhum (Será um Centro de Custo)</option>
                       {categories.filter(c => !c.parentId && c.id !== categoryToEdit.id).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={`edit-cat-parent-opt-${c.id}`} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -4626,7 +4626,7 @@ export default function App() {
                     >
                       <option value="">Nenhum (Será um Centro de Custo)</option>
                       {categories.filter(c => !c.parentId && c.type === transactionType).map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={`quick-add-parent-opt-${c.id}`} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -5091,7 +5091,7 @@ export default function App() {
                           <option value="">Selecione o Centro de Custo</option>
                           {categories
                             .filter(c => !c.parentId && c.type === transactionType)
-                            .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                            .map(c => <option key={`quick-add-tr-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
@@ -5106,7 +5106,7 @@ export default function App() {
                           <option value="">Selecione a Categoria</option>
                           {categories
                             .filter(c => c.parentId === selectedCostCenterId)
-                            .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                            .map(c => <option key={`quick-add-tr-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
