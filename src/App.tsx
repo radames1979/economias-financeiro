@@ -1971,16 +1971,18 @@ export default function App() {
     e.preventDefault();
     if (!user || !accountToEdit) return;
     const formData = new FormData(e.currentTarget);
+    const newName = formData.get('name') as string;
     const newBalance = Number(formData.get('balance'));
 
     confirmAction({
-      title: 'Ajustar Saldo',
-      message: `Deseja realmente alterar o saldo da conta "${accountToEdit.name}" para ${formatCurrency(newBalance)}?`,
+      title: 'Editar Conta',
+      message: `Deseja atualizar as informações da conta "${accountToEdit.name}"?`,
       variant: 'info',
-      confirmText: 'Confirmar Ajuste'
+      confirmText: 'Salvar Alterações'
     }, async () => {
       try {
         await updateDoc(doc(db, `users/${user.uid}/accounts`, accountToEdit.id), {
+          name: newName,
           balance: newBalance,
           updatedAt: serverTimestamp()
         });
@@ -2605,7 +2607,7 @@ export default function App() {
                         ) : (
                           // Render real notifications if any
                           notifications.map((n, i) => (
-                            <div key={n.id} className={cn(
+                            <div key={`notif-item-${n.id || i}`} className={cn(
                               "p-4 rounded-2xl border flex flex-col gap-1 transition-all hover:scale-[1.02]",
                               n.type === 'danger' ? "bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20" :
                               n.type === 'warning' ? "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20" :
@@ -2711,9 +2713,9 @@ export default function App() {
 
               {notifications.length > 0 && (
                 <div className="grid grid-cols-1 gap-4 mb-8">
-                  {notifications.filter(n => n.type === 'danger' || n.type === 'warning').map(alert => (
+                  {notifications.filter(n => n.type === 'danger' || n.type === 'warning').map((alert, idx) => (
                     <motion.div 
-                      key={`dashboard-alert-${alert.id}`}
+                      key={`dashboard-alert-${alert.id}-${idx}`}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       className={cn(
@@ -2775,9 +2777,9 @@ export default function App() {
                             <div className="h-[1px] flex-1 bg-slate-200/50 dark:bg-slate-800/50" />
                           </div>
                           <div className="space-y-3">
-                            {dateItems.map(t => (
+                            {dateItems.map((t, tIdx) => (
                               <TransactionCard 
-                                key={`dashboard-tx-${t.id}`}
+                                key={`dashboard-tx-${t.id}-${tIdx}`}
                                 t={t}
                                 accounts={accounts}
                                 categories={categories}
@@ -3101,13 +3103,13 @@ export default function App() {
 
                   <select name="accountId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                     <option value="">{transactionType === 'transfer' ? 'Conta de Origem' : 'Conta'}</option>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {accounts.map(a => <option key={`acc-opt-1-${a.id}`} value={a.id}>{a.name}</option>)}
                   </select>
 
                   {transactionType === 'transfer' && (
                     <select name="toAccountId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                       <option value="">Conta de Destino</option>
-                      {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      {accounts.map(a => <option key={`acc-opt-2-${a.id}`} value={a.id}>{a.name}</option>)}
                     </select>
                   )}
 
@@ -3996,7 +3998,7 @@ export default function App() {
                   <input name="startDate" type="date" className="p-3 rounded-xl border border-slate-200 outline-none" required />
                   <select name="accountId" className="p-3 rounded-xl border border-slate-200 outline-none" required>
                     <option value="">Conta</option>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {accounts.map(a => <option key={`recurring-add-acc-opt-${a.id}`} value={a.id}>{a.name}</option>)}
                   </select>
                   <div className="flex flex-col gap-4 md:col-span-2 lg:col-span-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -4438,7 +4440,7 @@ export default function App() {
                 className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900">Editar Saldo</h2>
+                  <h2 className="text-2xl font-bold text-slate-900">Editar Conta</h2>
                   <button onClick={() => setIsEditAccountModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                     <X size={24} />
                   </button>
@@ -4446,16 +4448,17 @@ export default function App() {
 
                 <form onSubmit={handleUpdateAccountBalance} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Conta</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Conta</label>
                     <input 
+                      name="name"
                       type="text" 
-                      value={accountToEdit.name} 
-                      disabled 
-                      className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-500 outline-none"
+                      defaultValue={accountToEdit.name} 
+                      className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                      required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Novo Saldo</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Saldo Atual</label>
                     <input 
                       name="balance" 
                       type="number" 
@@ -4464,7 +4467,6 @@ export default function App() {
                       placeholder="Valor do Saldo" 
                       className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" 
                       required 
-                      autoFocus
                     />
                   </div>
                   <div className="flex gap-4 pt-4">
@@ -5059,7 +5061,7 @@ export default function App() {
                       required
                     >
                       <option value="">Selecione a Conta</option>
-                      {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      {accounts.map(a => <option key={`recurring-edit-acc-opt-${a.id}`} value={a.id}>{a.name}</option>)}
                     </select>
                   </div>
 
@@ -5072,7 +5074,7 @@ export default function App() {
                         required
                       >
                         <option value="">Selecione a Conta Destino</option>
-                        {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        {accounts.map(a => <option key={`recurring-edit-to-acc-opt-${a.id}`} value={a.id}>{a.name}</option>)}
                       </select>
                     </div>
                   ) : (
