@@ -38,6 +38,7 @@ import {
   TrendingDown,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
   PieChart as PieChartIcon,
@@ -279,6 +280,58 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 
         />
       )}
     </button>
+  );
+};
+
+const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTabChange: (tab: any) => void }) => {
+  const tabs = [
+    { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Extrato', icon: ArrowUpCircle },
+    { id: 'accounts', label: 'Contas', icon: CreditCard },
+    { id: 'categories', label: 'Categorias', icon: Tags },
+    { id: 'reports', label: 'Análises', icon: PieChartIcon },
+    { id: 'recurring', label: 'Agendados', icon: RefreshCw },
+  ];
+
+  return (
+    <div className="sticky top-[84px] lg:top-0 z-[60] bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-2 overflow-x-auto no-scrollbar">
+      <div className="max-w-7xl mx-auto flex items-center lg:justify-center">
+        <div className="flex items-center gap-1 py-1 lg:py-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className={cn(
+                  "relative flex items-center gap-2.5 px-6 py-3 rounded-2xl transition-all duration-300 group",
+                  isActive 
+                    ? "text-cyan-500 bg-cyan-500/5" 
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5"
+                )}
+              >
+                <Icon size={18} className={cn("transition-transform duration-300 group-hover:scale-110", isActive ? "stroke-[2.5px]" : "stroke-2")} />
+                <span className={cn(
+                  "text-xs font-black uppercase tracking-widest whitespace-nowrap",
+                  isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100"
+                )}>
+                  {tab.label}
+                </span>
+                
+                {isActive && (
+                  <motion.div 
+                    layoutId="top-nav-indicator"
+                    className="absolute bottom-0 left-6 right-6 h-0.5 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -753,7 +806,14 @@ export default function App() {
   const [isAccountDetailsVisible, setIsAccountDetailsVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<{ isPremium?: boolean } | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>(() => {
+    const saved = localStorage.getItem('activeTab');
+    return (saved as any) || 'dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -839,6 +899,11 @@ export default function App() {
   // Dashboard Date State
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(new Date());
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setVisibleTransactionsCount(20);
+  }, [searchQuery, selectedAccountFilter, dashboardDate]);
   const [dashboardDrillDownCategory, setDashboardDrillDownCategory] = useState<string | null>(null);
   const [dashboardFilterMode, setDashboardFilterMode] = useState<'to-today' | 'full-month' | 'tomorrow'>('to-today');
 
@@ -1082,15 +1147,19 @@ export default function App() {
     });
   }, [transactions, dashboardDate, searchQuery, categories, accounts]);
 
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactionsByDashboard.slice(0, visibleTransactionsCount);
+  }, [filteredTransactionsByDashboard, visibleTransactionsCount]);
+
   const groupedTransactionsByMonth = useMemo(() => {
     const groups: Record<string, Transaction[]> = {};
-    filteredTransactionsByDashboard.forEach(t => {
+    paginatedTransactions.forEach(t => {
       const month = t.date.substring(0, 7); // yyyy-MM
       if (!groups[month]) groups[month] = [];
       groups[month].push(t);
     });
     return groups;
-  }, [filteredTransactionsByDashboard]);
+  }, [paginatedTransactions]);
 
   const sortedMonths = useMemo(() => {
     return Object.keys(groupedTransactionsByMonth).sort((a, b) => b.localeCompare(a));
@@ -2499,7 +2568,7 @@ export default function App() {
         <nav className="flex-1 px-4 py-2 space-y-2">
           <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={sidebarCollapsed} density={displayDensity} />
           <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} collapsed={sidebarCollapsed} density={displayDensity} />
-          <SidebarItem icon={CreditCard} label="Patrimônio" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} collapsed={sidebarCollapsed} density={displayDensity} />
           <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} collapsed={sidebarCollapsed} density={displayDensity} />
           <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => setActiveTab('recurring')} collapsed={sidebarCollapsed} density={displayDensity} />
           <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} collapsed={sidebarCollapsed} density={displayDensity} />
@@ -2543,6 +2612,8 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        <TopNavigationBar activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 pb-32 lg:pb-12">
           {/* Header Desktop */}
@@ -2949,6 +3020,62 @@ export default function App() {
                     </div>
                   </div>
                 </Card>
+
+                {/* Bento Row 3: Long term evolution */}
+                <Card title="Evolução Anual de Despesas" className="lg:col-span-4" density={displayDensity}>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm text-slate-500">Fluxo de gastos mensais em {reportYear}</p>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Mês de Pico</p>
+                      <p className="text-sm font-black text-rose-600 uppercase">{expenseAnalysis.peakMonth || 'N/A'} ({formatCurrencyWithPrivacy(expenseAnalysis.max)})</p>
+                    </div>
+                  </div>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={annualSummary.monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.2} />
+                        <XAxis 
+                          dataKey="month" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                          dy={10}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            borderRadius: '24px', 
+                            border: 'none', 
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', 
+                            background: isDarkMode ? '#1e293b' : '#ffffff',
+                            padding: '16px'
+                          }}
+                          itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                          formatter={(value: number) => [formatCurrencyWithPrivacy(value), 'Despesa']}
+                        />
+                        <Bar 
+                          dataKey="expense" 
+                          radius={[10, 10, 0, 0]}
+                          animationDuration={1500}
+                        >
+                          {annualSummary.monthlyData.map((entry, index) => (
+                            <Cell 
+                              key={`dashboard-annual-cell-${index}`} 
+                              fill={entry.expense > 0 && entry.expense === expenseAnalysis.max ? '#f43f5e' : (isDarkMode ? '#334155' : '#cbd5e1')} 
+                              style={{ 
+                                filter: entry.expense > 0 && entry.expense === expenseAnalysis.max ? 'drop-shadow(0 0 8px rgba(244, 63, 94, 0.4))' : 'none'
+                              }}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
               </div>
 
             </motion.div>
@@ -3171,6 +3298,11 @@ export default function App() {
                   <div className="hidden md:block" style={{ height: '600px' }}>
                     <GroupedVirtuoso
                       groupCounts={groupCounts}
+                      endReached={() => {
+                        if (visibleTransactionsCount < filteredTransactionsByDashboard.length) {
+                          setVisibleTransactionsCount(prev => prev + 20);
+                        }
+                      }}
                       groupContent={(index) => {
                         const month = sortedMonths[index];
                         return (
@@ -3333,6 +3465,18 @@ export default function App() {
                         ))}
                       </div>
                     ))}
+
+                    {visibleTransactionsCount < filteredTransactionsByDashboard.length && (
+                      <div className="py-4">
+                        <button 
+                          onClick={() => setVisibleTransactionsCount(prev => prev + 20)}
+                          className="w-full py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
+                        >
+                          <ChevronDown size={18} />
+                          Carregar mais transações
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {filteredTransactionsByDashboard.length === 0 && (
@@ -5285,20 +5429,22 @@ export default function App() {
 
       {/* Mobile Bottom Navigation */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-slate-950/95">
-        <nav className="bg-slate-950/95 backdrop-blur-3xl border-t border-white/5 flex justify-around items-center px-2 pt-3 pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+        <nav className="bg-slate-950/95 backdrop-blur-3xl border-t border-white/5 flex justify-around items-center px-1 pt-3 pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
           <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => setActiveTab('dashboard')} />
           <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => setActiveTab('transactions')} />
+          <MobileNavItem icon={Tags} active={activeTab === 'categories'} label="Categorias" onClick={() => setActiveTab('categories')} />
           
           <div className="relative -top-6">
             <button 
               onClick={() => setIsAddTransactionModalOpen(true)}
-              className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[22px] flex items-center justify-center text-white shadow-[0_15px_30px_rgba(6,182,212,0.4)] active:scale-90 transition-all border-4 border-slate-950"
+              className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[20px] flex items-center justify-center text-white shadow-[0_15px_30px_rgba(6,182,212,0.4)] active:scale-90 transition-all border-4 border-slate-950"
             >
-              <Plus size={32} strokeWidth={3} />
+              <Plus size={28} strokeWidth={3} />
             </button>
           </div>
 
-          <MobileNavItem icon={Calendar} active={activeTab === 'recurring'} label="Agendados" onClick={() => setActiveTab('recurring')} />
+          <MobileNavItem icon={RefreshCw} active={activeTab === 'recurring'} label="Agendados" onClick={() => setActiveTab('recurring')} />
+          <MobileNavItem icon={PieChartIcon} active={activeTab === 'reports'} label="Análises" onClick={() => setActiveTab('reports')} />
           <MobileNavItem 
             icon={Menu} 
             active={isMobileMenuOpen} 
