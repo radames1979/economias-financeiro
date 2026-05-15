@@ -82,6 +82,8 @@ import {
   Legend,
   AreaChart,
   Area,
+  LineChart,
+  Line,
   ReferenceLine,
   Label
 } from 'recharts';
@@ -4011,6 +4013,56 @@ export default function App() {
                   </div>
                 </Card>
               </div>
+
+              <Card title="Fluxo de Caixa Diário (Saldo)" density={displayDensity}>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Evolução do Saldo Consolidado no Período</p>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Saldo</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trendSummary}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }} 
+                        dy={10}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }} 
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: 'none', 
+                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+                          padding: '12px'
+                        }}
+                        formatter={(value: number) => [formatCurrency(value), 'Saldo']}
+                      />
+                      <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="3 3" />
+                      <Line 
+                        type="monotone" 
+                        dataKey="balance" 
+                        stroke="#3b82f6" 
+                        strokeWidth={4} 
+                        dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 6, strokeWidth: 0 }} 
+                        animationDuration={1500}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card title="Desempenho Mensal (Ano)" className="lg:col-span-2" density={displayDensity}>
