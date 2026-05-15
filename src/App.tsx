@@ -88,7 +88,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, isWithinInterval, parseISO, addWeeks, addMonths, subMonths, addDays, isSameMonth, isBefore, isAfter, startOfDay, isToday, isYesterday, compareDesc } from 'date-fns';
+import { format, startOfYear, endOfYear, startOfMonth, endOfMonth, isWithinInterval, parseISO, addWeeks, addMonths, subMonths, addDays, addYears, subYears, isSameMonth, isBefore, isAfter, startOfDay, isToday, isYesterday, compareDesc } from 'date-fns';
 import { 
   ref as storageRef, 
   uploadBytes, 
@@ -891,6 +891,7 @@ export default function App() {
   const [transactionType, setTransactionType] = useState<TransactionType>('expense');
   const [isEditTransactionModalOpen, setIsEditTransactionModalOpen] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
+  const [defaultAccountIdForModal, setDefaultAccountIdForModal] = useState<string>('');
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [shouldRemoveAttachment, setShouldRemoveAttachment] = useState(false);
   const [visibleTransactionsCount, setVisibleTransactionsCount] = useState(20);
@@ -899,11 +900,12 @@ export default function App() {
   // Dashboard Date State
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(new Date());
+  const [dashboardPeriod, setDashboardPeriod] = useState<'month' | 'year'>('month');
 
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleTransactionsCount(20);
-  }, [searchQuery, selectedAccountFilter, dashboardDate]);
+  }, [searchQuery, selectedAccountFilter, dashboardDate, dashboardPeriod]);
   const [dashboardDrillDownCategory, setDashboardDrillDownCategory] = useState<string | null>(null);
   const [dashboardFilterMode, setDashboardFilterMode] = useState<'to-today' | 'full-month' | 'tomorrow'>('to-today');
 
@@ -1170,6 +1172,13 @@ export default function App() {
   }, [sortedMonths, groupedTransactionsByMonth]);
 
   const dashboardRange = useMemo(() => {
+    if (dashboardPeriod === 'year') {
+      return {
+        start: format(startOfYear(dashboardDate), 'yyyy-MM-dd'),
+        end: format(endOfYear(dashboardDate), 'yyyy-MM-dd')
+      };
+    }
+    
     const start = startOfMonth(dashboardDate);
     const endOfMonthDate = endOfMonth(dashboardDate);
     const today = new Date();
@@ -1193,7 +1202,7 @@ export default function App() {
         end: format(tomorrow, 'yyyy-MM-dd') 
       };
     }
-  }, [dashboardDate, dashboardFilterMode]);
+  }, [dashboardDate, dashboardFilterMode, dashboardPeriod]);
 
   const futureRecurringImpact = useMemo(() => {
     const impact: Record<string, number> = {};
@@ -2749,27 +2758,80 @@ export default function App() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Dashboard Date Controls */}
-              <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-2 rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md mb-8">
-                <button 
-                  onClick={() => setDashboardDate(subMonths(dashboardDate, 1))}
-                  className="p-3 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                
-                <div className="flex flex-col items-center">
-                  <span className="text-base font-black text-slate-900 dark:text-white capitalize tracking-tight">
-                    {dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                  </span>
+              {/* Dashboard Period & Date Controls */}
+              <div className="flex flex-col md:flex-row gap-4 mb-8">
+                {/* Period Selector */}
+                <div className="flex-1 flex items-center gap-1 p-1.5 bg-slate-100 dark:bg-white/5 rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md">
+                  <button 
+                    onClick={() => {
+                      setDashboardDate(new Date());
+                      setDashboardPeriod('month');
+                    }}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300",
+                      dashboardPeriod === 'month' && isSameMonth(dashboardDate, new Date()) 
+                        ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm border border-slate-200/50 dark:border-white/10" 
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                    )}
+                  >
+                    Mês Atual
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setDashboardDate(subMonths(new Date(), 1));
+                      setDashboardPeriod('month');
+                    }}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300",
+                      dashboardPeriod === 'month' && isSameMonth(dashboardDate, subMonths(new Date(), 1)) 
+                        ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm border border-slate-200/50 dark:border-white/10" 
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                    )}
+                  >
+                    Mês Anterior
+                  </button>
+                  <button 
+                    onClick={() => setDashboardPeriod('year')}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300",
+                      dashboardPeriod === 'year' 
+                        ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm border border-slate-200/50 dark:border-white/10" 
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                    )}
+                  >
+                    Ano Atual
+                  </button>
                 </div>
 
-                <button 
-                  onClick={() => setDashboardDate(addMonths(dashboardDate, 1))}
-                  className="p-3 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
-                >
-                  <ChevronRight size={20} />
-                </button>
+                {/* Date Navigator */}
+                <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-1.5 rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md min-w-[240px]">
+                  <button 
+                    onClick={() => {
+                      setDashboardDate(dashboardPeriod === 'year' ? subYears(dashboardDate, 1) : subMonths(dashboardDate, 1));
+                    }}
+                    className="p-2.5 hover:bg-white dark:hover:bg-slate-800 rounded-[14px] transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  
+                  <div className="flex flex-col items-center px-4">
+                    <span className="text-sm font-black text-slate-900 dark:text-white capitalize tracking-tight">
+                      {dashboardPeriod === 'year' 
+                        ? dashboardDate.getFullYear()
+                        : dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                      }
+                    </span>
+                  </div>
+  
+                  <button 
+                    onClick={() => {
+                      setDashboardDate(dashboardPeriod === 'year' ? addYears(dashboardDate, 1) : addMonths(dashboardDate, 1));
+                    }}
+                    className="p-2.5 hover:bg-white dark:hover:bg-slate-800 rounded-[14px] transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
               </div>
 
               <SummaryHero 
@@ -2923,7 +2985,7 @@ export default function App() {
                   <motion.button 
                     whileHover={{ scale: 1.02, y: -4 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setIsAddTransactionModalOpen(true)}
+                    onClick={() => { setDefaultAccountIdForModal(''); setIsAddTransactionModalOpen(true); }}
                     className="p-8 rounded-[40px] bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-[0_20px_40px_rgba(6,182,212,0.3)] flex flex-col items-center justify-center gap-4 group transition-all duration-500"
                   >
                     <div className="w-16 h-16 rounded-[24px] bg-white/20 flex items-center justify-center group-hover:rotate-90 transition-transform duration-700 backdrop-blur-md border border-white/20">
@@ -3285,7 +3347,7 @@ export default function App() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button 
-                      onClick={() => setIsAddTransactionModalOpen(true)}
+                      onClick={() => { setDefaultAccountIdForModal(''); setIsAddTransactionModalOpen(true); }}
                       className="flex items-center gap-2 bg-blue-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors text-sm"
                     >
                       <Plus size={18} />
@@ -4393,7 +4455,7 @@ export default function App() {
 
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-slate-500 ml-1">{transactionType === 'transfer' ? 'Conta de Origem' : 'Conta'}</label>
-                      <select name="accountId" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
+                      <select name="accountId" defaultValue={defaultAccountIdForModal} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
                         <option value="">Selecione a Conta</option>
                         {accounts.map(a => <option key={`add-tx-acc-from-opt-${a.id}`} value={a.id}>{a.name}</option>)}
                       </select>
@@ -5337,87 +5399,149 @@ export default function App() {
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70]"
             />
             <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 top-12 lg:top-20 lg:left-auto lg:right-0 lg:w-[450px] bg-white dark:bg-slate-900 rounded-t-[32px] lg:rounded-l-[32px] lg:rounded-tr-none p-6 z-[80] shadow-2xl flex flex-col overflow-hidden pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+              className="fixed bottom-0 left-0 right-0 top-12 lg:top-0 lg:left-auto lg:right-0 lg:w-[500px] bg-white dark:bg-slate-950 rounded-t-[40px] lg:rounded-l-[40px] lg:rounded-tr-none z-[80] shadow-2xl flex flex-col overflow-hidden pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
             >
-              <div className="w-12 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6 lg:hidden" />
+              <div className="w-12 h-1 bg-slate-200 dark:bg-slate-800 rounded-full mx-auto mt-4 mb-4 lg:hidden" />
               
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl">
-                    <CreditCard size={24} />
+              {/* Header */}
+              <div className="px-6 pt-2 pb-6 border-b border-slate-100 dark:border-white/5 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
+                      <CreditCard size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                        {selectedAccountForDetails.name}
+                      </h3>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        Extrato Detalhado
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
-                      {selectedAccountForDetails.name}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-                      Extrato do Mês
+                  <button 
+                    onClick={() => setIsAccountDetailsVisible(false)}
+                    className="p-2.5 bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all active:scale-90"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-4 border border-slate-100 dark:border-white/5">
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Saldo Atual</p>
+                    <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">
+                      {formatCurrencyWithPrivacy(selectedAccountForDetails.balance)}
                     </p>
                   </div>
+                  <button 
+                    onClick={() => {
+                      setDefaultAccountIdForModal(selectedAccountForDetails.id);
+                      setIsAddTransactionModalOpen(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl p-4 transition-all flex flex-col justify-center items-center gap-1 shadow-lg shadow-blue-500/20 active:scale-95"
+                  >
+                    <Plus size={20} />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Novo Lançamento</span>
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setIsAccountDetailsVisible(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  <X size={24} />
-                </button>
+
+                {/* Internal Month Selector */}
+                <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
+                  <button 
+                    onClick={() => setDashboardDate(subMonths(dashboardDate, 1))}
+                    className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all text-slate-500 hover:text-cyan-500"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                    {dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                  </span>
+                  <button 
+                    onClick={() => setDashboardDate(addMonths(dashboardDate, 1))}
+                    className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all text-slate-500 hover:text-cyan-500"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 mb-6 border border-slate-100 dark:border-slate-800">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-bold text-slate-500 dark:text-slate-400">Saldo Atual</span>
-                  <span className="text-lg font-black text-slate-900 dark:text-white">
-                    {formatCurrency(selectedAccountForDetails.balance)}
+              {/* Stats Bar */}
+              <div className="px-6 py-4 flex gap-4 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Receitas:</span>
+                  <span className="text-xs font-black text-emerald-600">
+                    {formatCurrency(accountTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0))}
                   </span>
                 </div>
-                <button 
-                  onClick={() => {
-                    setIsAddTransactionModalOpen(true);
-                  }}
-                  className="w-full mt-4 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
-                >
-                  <Plus size={16} />
-                  Fazer Lançamento
-                </button>
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Despesas:</span>
+                  <span className="text-xs font-black text-rose-600">
+                    {formatCurrency(accountTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0))}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar">
-                <div className="space-y-1">
+              <div className="flex-1 overflow-y-auto px-4 py-6 no-scrollbar h-full">
+                <div className="space-y-4">
                   {accountTransactions.length > 0 ? (
-                    accountTransactions.map((t) => (
-                      <TransactionCard 
-                        key={`account-details-item-${t.id}`}
-                        t={t}
-                        accounts={accounts}
-                        categories={categories}
-                        formatCurrency={formatCurrency}
-                        onEdit={(trans) => {
-                          setTransactionToEdit(trans);
-                          setIsEditTransactionModalOpen(true);
-                          setIsAccountDetailsVisible(false);
-                        }}
-                        onDelete={(trans) => {
-                          confirmAction({
-                            title: 'Excluir Transação',
-                            message: `Deseja realmente excluir a transação "${trans.description}"? Os saldos das contas serão atualizados se ela estiver consolidada.`,
-                            variant: 'danger',
-                            confirmText: 'Excluir'
-                          }, () => handleDeleteTransaction(trans));
-                        }}
-                        onToggleConsolidation={handleToggleConsolidation}
-                        density={displayDensity}
-                      />
-                    ))
+                    (() => {
+                      // Group entries within the panel
+                      const days: Record<string, Transaction[]> = {};
+                      accountTransactions.forEach(t => {
+                        const day = format(new Date(t.date), 'dd/MM/yyyy');
+                        if (!days[day]) days[day] = [];
+                        days[day].push(t);
+                      });
+
+                      return Object.keys(days).map(day => (
+                        <div key={`account-details-day-${day}`} className="space-y-2">
+                          <div className="flex items-center gap-3 px-2">
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{day}</span>
+                            <div className="flex-1 h-px bg-slate-100 dark:bg-white/5" />
+                          </div>
+                          <div className="space-y-1">
+                            {days[day].map((t) => (
+                              <TransactionCard 
+                                key={`account-details-item-${t.id}`}
+                                t={t}
+                                accounts={accounts}
+                                categories={categories}
+                                formatCurrency={formatCurrency}
+                                onEdit={(trans) => {
+                                  setTransactionToEdit(trans);
+                                  setIsEditTransactionModalOpen(true);
+                                  setIsAccountDetailsVisible(false);
+                                }}
+                                onDelete={(trans) => {
+                                  confirmAction({
+                                    title: 'Excluir Transação',
+                                    message: `Deseja realmente excluir a transação "${trans.description}"? Os saldos das contas serão atualizados se ela estiver consolidada.`,
+                                    variant: 'danger',
+                                    confirmText: 'Excluir'
+                                  }, () => handleDeleteTransaction(trans));
+                                }}
+                                onToggleConsolidation={handleToggleConsolidation}
+                                density={displayDensity}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ));
+                    })()
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                      <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-4">
-                        <ArrowUpCircle size={32} />
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                      <div className="w-20 h-20 bg-slate-50 dark:bg-white/5 rounded-[32px] flex items-center justify-center mb-6">
+                        <ArrowUpCircle size={40} className="opacity-20" />
                       </div>
-                      <p className="font-bold">Nenhuma movimentação este mês</p>
+                      <p className="font-black text-sm uppercase tracking-widest text-slate-300 dark:text-slate-600">Sem movimentações</p>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase">Para este período selecionado</p>
                     </div>
                   )}
                 </div>
@@ -5436,7 +5560,7 @@ export default function App() {
           
           <div className="relative -top-6">
             <button 
-              onClick={() => setIsAddTransactionModalOpen(true)}
+              onClick={() => { setDefaultAccountIdForModal(''); setIsAddTransactionModalOpen(true); }}
               className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[20px] flex items-center justify-center text-white shadow-[0_15px_30px_rgba(6,182,212,0.4)] active:scale-90 transition-all border-4 border-slate-950"
             >
               <Plus size={28} strokeWidth={3} />
@@ -5534,7 +5658,7 @@ export default function App() {
             initial={{ scale: 0, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0, opacity: 0, y: 20 }}
-            onClick={() => setIsAddTransactionModalOpen(true)}
+            onClick={() => { setDefaultAccountIdForModal(''); setIsAddTransactionModalOpen(true); }}
             className="fixed bottom-8 right-8 hidden lg:flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-2xl shadow-2xl shadow-blue-500/20 dark:shadow-blue-900/40 transition-all z-50 group"
           >
             <div className="bg-white/20 p-1 rounded-lg group-hover:rotate-90 transition-transform duration-300">
