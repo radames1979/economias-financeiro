@@ -2524,7 +2524,7 @@ export default function App() {
         sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]"
       )}>
         {/* Sticky Header Mobile */}
-        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-slate-950/90 backdrop-blur-2xl border-b border-white/5 px-6 py-4 flex justify-between items-center pt-safe shadow-lg">
+        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-slate-950/90 backdrop-blur-2xl border-b border-white/5 px-6 pb-4 flex justify-between items-center shadow-lg pt-[calc(1rem+env(safe-area-inset-top))]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
               <Zap size={22} strokeWidth={3} />
@@ -5197,7 +5197,7 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 top-12 lg:top-20 lg:left-auto lg:right-0 lg:w-[450px] bg-white dark:bg-slate-900 rounded-t-[32px] lg:rounded-l-[32px] lg:rounded-tr-none p-6 z-[80] shadow-2xl flex flex-col overflow-hidden"
+              className="fixed bottom-0 left-0 right-0 top-12 lg:top-20 lg:left-auto lg:right-0 lg:w-[450px] bg-white dark:bg-slate-900 rounded-t-[32px] lg:rounded-l-[32px] lg:rounded-tr-none p-6 z-[80] shadow-2xl flex flex-col overflow-hidden pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
             >
               <div className="w-12 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6 lg:hidden" />
               
@@ -5284,7 +5284,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100]">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-slate-950/95">
         <nav className="bg-slate-950/95 backdrop-blur-3xl border-t border-white/5 flex justify-around items-center px-2 pt-3 pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
           <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => setActiveTab('dashboard')} />
           <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => setActiveTab('transactions')} />
@@ -5324,7 +5324,7 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 rounded-t-[32px] p-6 pb-24 z-[60] shadow-2xl"
+              className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 rounded-t-[32px] p-6 z-[60] shadow-2xl pb-[calc(6rem+env(safe-area-inset-bottom))]"
             >
               <div className="w-12 h-1 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6" />
               <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Ações e Menus</h3>

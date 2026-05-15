@@ -37,8 +37,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 overflow-x-hidden selection:bg-blue-100">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 pt-safe">
+        <div className="max-w-7xl mx-auto px-6 h-16 md:h-20 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Wallet size={22} className="text-white" />
@@ -56,7 +56,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="pt-32 md:pt-40 pb-20 px-6">
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
           <div className="flex-1 text-center lg:text-left">
             <motion.div
@@ -315,7 +315,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-6">
+      <footer className="py-12 px-6 pb-[calc(3rem+env(safe-area-inset-bottom))]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
