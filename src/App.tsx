@@ -1121,58 +1121,6 @@ export default function App() {
 
   const totalBalance = useMemo(() => accounts.reduce((acc, curr) => acc + curr.balance, 0), [accounts]);
   
-  const filteredTransactionsByDashboard = useMemo(() => {
-    return transactions.filter(t => {
-      const tDate = parseISO(t.date);
-      const isInInterval = isWithinInterval(tDate, { 
-        start: startOfMonth(dashboardDate), 
-        end: endOfMonth(dashboardDate) 
-      });
-
-      if (!isInInterval) return false;
-
-      if (selectedAccountFilter !== 'all' && t.accountId !== selectedAccountFilter) return false;
-
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const categoryName = categories.find(c => c.id === t.categoryId)?.name?.toLowerCase() || '';
-        const accountName = accounts.find(a => a.id === t.accountId)?.name?.toLowerCase() || '';
-        
-        return (
-          t.description.toLowerCase().includes(query) ||
-          t.amount.toString().includes(query) ||
-          (t.notes || '').toLowerCase().includes(query) ||
-          categoryName.includes(query) ||
-          accountName.includes(query)
-        );
-      }
-
-      return true;
-    });
-  }, [transactions, dashboardDate, searchQuery, categories, accounts]);
-
-  const paginatedTransactions = useMemo(() => {
-    return filteredTransactionsByDashboard.slice(0, visibleTransactionsCount);
-  }, [filteredTransactionsByDashboard, visibleTransactionsCount]);
-
-  const groupedTransactionsByMonth = useMemo(() => {
-    const groups: Record<string, Transaction[]> = {};
-    paginatedTransactions.forEach(t => {
-      const month = t.date.substring(0, 7); // yyyy-MM
-      if (!groups[month]) groups[month] = [];
-      groups[month].push(t);
-    });
-    return groups;
-  }, [paginatedTransactions]);
-
-  const sortedMonths = useMemo(() => {
-    return Object.keys(groupedTransactionsByMonth).sort((a, b) => b.localeCompare(a));
-  }, [groupedTransactionsByMonth]);
-
-  const groupCounts = useMemo(() => {
-    return sortedMonths.map(month => groupedTransactionsByMonth[month].length);
-  }, [sortedMonths, groupedTransactionsByMonth]);
-
   const dashboardRange = useMemo(() => {
     if (dashboardPeriod === 'year') {
       return {
@@ -1205,6 +1153,58 @@ export default function App() {
       };
     }
   }, [dashboardDate, dashboardFilterMode, dashboardPeriod]);
+
+  const filteredTransactionsByDashboard = useMemo(() => {
+    return transactions.filter(t => {
+      const tDate = parseISO(t.date);
+      const isInInterval = isWithinInterval(tDate, { 
+        start: parseISO(dashboardRange.start), 
+        end: parseISO(dashboardRange.end) 
+      });
+
+      if (!isInInterval) return false;
+
+      if (selectedAccountFilter !== 'all' && t.accountId !== selectedAccountFilter) return false;
+
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const categoryName = categories.find(c => c.id === t.categoryId)?.name?.toLowerCase() || '';
+        const accountName = accounts.find(a => a.id === t.accountId)?.name?.toLowerCase() || '';
+        
+        return (
+          t.description.toLowerCase().includes(query) ||
+          t.amount.toString().includes(query) ||
+          (t.notes || '').toLowerCase().includes(query) ||
+          categoryName.includes(query) ||
+          accountName.includes(query)
+        );
+      }
+
+      return true;
+    });
+  }, [transactions, dashboardRange, searchQuery, categories, accounts, selectedAccountFilter]);
+
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactionsByDashboard.slice(0, visibleTransactionsCount);
+  }, [filteredTransactionsByDashboard, visibleTransactionsCount]);
+
+  const groupedTransactionsByMonth = useMemo(() => {
+    const groups: Record<string, Transaction[]> = {};
+    paginatedTransactions.forEach(t => {
+      const month = t.date.substring(0, 7); // yyyy-MM
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(t);
+    });
+    return groups;
+  }, [paginatedTransactions]);
+
+  const sortedMonths = useMemo(() => {
+    return Object.keys(groupedTransactionsByMonth).sort((a, b) => b.localeCompare(a));
+  }, [groupedTransactionsByMonth]);
+
+  const groupCounts = useMemo(() => {
+    return sortedMonths.map(month => groupedTransactionsByMonth[month].length);
+  }, [sortedMonths, groupedTransactionsByMonth]);
 
   const futureRecurringImpact = useMemo(() => {
     const impact: Record<string, number> = {};
@@ -3817,6 +3817,13 @@ export default function App() {
                 </div>
                 
                 <div className="flex flex-wrap gap-2">
+                   <button 
+                      onClick={() => setActiveTab('transactions')}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-transform"
+                    >
+                    <ArrowRightLeft size={16} />
+                    Ver no Extrato
+                  </button>
                    <button 
                       onClick={() => setIsReportFiltersOpen(!isReportFiltersOpen)}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-transform"
