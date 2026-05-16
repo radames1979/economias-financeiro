@@ -1,6 +1,17 @@
-export const APP_VERSION = "1.3.4";
+export const APP_VERSION = "1.4.0";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.4.0",
+    date: "2026-05-16",
+    changes: [
+      "Auditoria de segurança completa e endurecimento de regras do Firestore",
+      "Remoção de logs de depuração e limpeza de código legado",
+      "Validação rigorosa de esquemas para Transações Recorrentes",
+      "Branding consolidado: AsterBank - Private Wealth Management",
+      "Otimização final de performance e renderização mobile"
+    ]
+  },
   {
     version: "1.3.4",
     date: "2026-05-16",

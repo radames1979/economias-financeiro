@@ -1,5 +1,8 @@
 {
-  "name": "Economias - Gestão Financeira Inteligente",
-  "description": "Domine seus gastos, planeje seu futuro e alcance a liberdade financeira com a plataforma de gestão mais intuitiva e poderosa do mercado.",
-  "requestFramePermissions": []
+  "name": "AsterBank - Private Wealth Management",
+  "description": "Plataforma premium de gestão financeira pessoal e corporativa. Domine seus fluxos, planeje seu futuro e gerencie seu patrimônio com a máxima segurança e elegância.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

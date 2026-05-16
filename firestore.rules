@@ -63,6 +63,19 @@ service cloud.firestore {
              data.type in ['income', 'expense', 'transfer'];
     }
 
+    function isValidRecurringTransaction(data, userId) {
+      return data.keys().hasAll(['active', 'description', 'amount', 'type', 'accountId', 'userId', 'frequency', 'startDate', 'createdAt']) &&
+             data.userId == userId &&
+             data.active is bool &&
+             data.description is string && data.description.size() <= 200 &&
+             data.amount is number &&
+             data.type in ['income', 'expense'] &&
+             data.accountId is string && data.accountId.size() <= 128 &&
+             data.frequency in ['weekly', 'monthly'] &&
+             data.startDate is string && data.startDate.size() <= 32 &&
+             data.createdAt == request.time;
+    }
+
     // Rules matching blueprint paths
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
@@ -111,9 +124,10 @@ service cloud.firestore {
       match /recurring_transactions/{recurringId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && isSignedIn(); // Add validation helper if needed
+        allow create: if isOwner(userId) && isValidRecurringTransaction(incoming(), userId);
         allow update: if isOwner(userId) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['active', 'lastProcessedDate', 'description', 'amount', 'type', 'accountId', 'categoryId', 'costCenterId', 'frequency', 'startDate', 'updatedAt']) &&
+          incoming().userId == existing().userId &&
           incoming().updatedAt == request.time
         ) || isAdmin();
         allow delete: if isOwner(userId) || isAdmin();

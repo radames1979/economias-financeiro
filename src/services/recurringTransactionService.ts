@@ -78,7 +78,6 @@ export const processRecurringTransactions = async (userId: string, recurringTran
           });
         });
         
-        console.log(`Processed recurring transaction: ${rt.description} for date ${dateString}`);
       } catch (error) {
         console.error(`Error processing recurring transaction ${rt.id}:`, error);
         // Break the while loop for this specific recurring transaction if it fails
