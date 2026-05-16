@@ -98,6 +98,8 @@ import {
   deleteObject 
 } from 'firebase/storage';
 import { auth, db, storage, signInWithGoogle, logout } from './firebase';
+import { APP_VERSION, VERSION_HISTORY } from './version';
+import { VersionHistoryModal } from './components/VersionHistoryModal';
 import { cn, formatCurrency, formatDate } from './lib/utils';
 import { PDF_IMPORT_DATA, ImportTransaction } from './services/pdfImportData';
 import { parseExcelFile, downloadExcelTemplate } from './services/excelImportService';
@@ -858,6 +860,7 @@ export default function App() {
   const [activeCalcField, setActiveCalcField] = useState<string | null>(null);
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>('all');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
 
@@ -2586,12 +2589,26 @@ export default function App() {
         </nav>
 
         <div className="p-4 mt-auto">
-          <div className="glass-card bg-slate-50/50 dark:bg-white/5 rounded-[32px] p-4 flex items-center gap-4">
-            <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-2xl object-cover shadow-lg" />
+          <div className="flex flex-col gap-3">
+            <div className="glass-card bg-slate-50/50 dark:bg-white/5 rounded-[32px] p-4 flex items-center gap-4">
+              <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-2xl object-cover shadow-lg" />
+              {!sidebarCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.displayName}</p>
+                  <button onClick={logout} className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 transition-colors">Sair</button>
+                </div>
+              )}
+            </div>
+            
             {!sidebarCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.displayName}</p>
-                <button onClick={logout} className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 transition-colors">Sair</button>
+              <div className="px-4 flex items-center justify-between">
+                <span 
+                  onClick={() => setIsVersionHistoryOpen(true)}
+                  className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em] cursor-pointer hover:text-cyan-500 transition-colors"
+                >
+                  v{APP_VERSION}
+                </span>
+                <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">© 2026 AsterBank</span>
               </div>
             )}
           </div>
@@ -5741,15 +5758,27 @@ export default function App() {
 
               {/* Sidebar Footer */}
               <div className="p-6 mt-auto">
-                <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-[24px] flex items-center gap-4">
-                  <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-xl object-cover shadow-lg" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.displayName}</p>
-                    <button onClick={logout} className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 transition-colors">Encerrar Sessão</button>
+                <div className="flex flex-col gap-4">
+                  <div className="p-4 bg-slate-50 dark:bg-white/5 rounded-[24px] flex items-center gap-4">
+                    <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-xl object-cover shadow-lg" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.displayName}</p>
+                      <button onClick={logout} className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600 transition-colors">Encerrar Sessão</button>
+                    </div>
+                    <button onClick={logout} className="p-2 text-slate-400">
+                      <LogOut size={18} />
+                    </button>
                   </div>
-                  <button onClick={logout} className="p-2 text-slate-400">
-                    <LogOut size={18} />
-                  </button>
+                  
+                  <div className="px-4 flex items-center justify-between">
+                    <span 
+                      onClick={() => { setIsVersionHistoryOpen(true); setIsMobileMenuOpen(false); }}
+                      className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em] transition-colors"
+                    >
+                      v{APP_VERSION}
+                    </span>
+                    <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">© 2026 AsterBank</span>
+                  </div>
                 </div>
               </div>
 
@@ -5797,6 +5826,11 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      <VersionHistoryModal 
+        isOpen={isVersionHistoryOpen} 
+        onClose={() => setIsVersionHistoryOpen(false)} 
+      />
     </div>
   );
 }
