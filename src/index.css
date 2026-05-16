@@ -55,6 +55,8 @@
   
   .glass-nav {
     @apply bg-white/80 dark:bg-black/80 backdrop-blur-2xl border-t border-white/20 dark:border-white/5;
+    /* Para a barra de navegação inferior */
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .no-scrollbar::-webkit-scrollbar {

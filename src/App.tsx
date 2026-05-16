@@ -1191,23 +1191,55 @@ export default function App() {
     return filteredTransactionsByDashboard.slice(0, visibleTransactionsCount);
   }, [filteredTransactionsByDashboard, visibleTransactionsCount]);
 
-  const groupedTransactionsByMonth = useMemo(() => {
-    const groups: Record<string, Transaction[]> = {};
-    paginatedTransactions.forEach(t => {
-      const month = t.date.substring(0, 7); // yyyy-MM
-      if (!groups[month]) groups[month] = [];
-      groups[month].push(t);
+  const dayGroups = useMemo(() => {
+    const groups: {
+      dayKey: string;
+      monthKey: string;
+      transactions: Transaction[];
+      income: number;
+      expense: number;
+      isFirstInMonth: boolean;
+    }[] = [];
+
+    const days: Record<string, typeof groups[number]> = {};
+    let lastMonth = '';
+
+    // paginatedTransactions are already sorted descending by date usually, but let's ensure
+    const sorted = [...paginatedTransactions].sort((a, b) => b.date.localeCompare(a.date));
+
+    sorted.forEach(t => {
+      const dKey = t.date;
+      const mKey = t.date.substring(0, 7);
+
+      if (!days[dKey]) {
+        days[dKey] = {
+          dayKey: dKey,
+          monthKey: mKey,
+          transactions: [],
+          income: 0,
+          expense: 0,
+          isFirstInMonth: false
+        };
+        groups.push(days[dKey]);
+      }
+      
+      days[dKey].transactions.push(t);
+      if (t.type === 'income') days[dKey].income += t.amount;
+      else if (t.type === 'expense') days[dKey].expense += t.amount;
     });
+
+    let currentMonth = '';
+    groups.forEach(g => {
+      if (g.monthKey !== currentMonth) {
+        g.isFirstInMonth = true;
+        currentMonth = g.monthKey;
+      }
+    });
+
     return groups;
   }, [paginatedTransactions]);
 
-  const sortedMonths = useMemo(() => {
-    return Object.keys(groupedTransactionsByMonth).sort((a, b) => b.localeCompare(a));
-  }, [groupedTransactionsByMonth]);
-
-  const groupCounts = useMemo(() => {
-    return sortedMonths.map(month => groupedTransactionsByMonth[month].length);
-  }, [sortedMonths, groupedTransactionsByMonth]);
+  const dayGroupCounts = useMemo(() => dayGroups.map(g => g.transactions.length), [dayGroups]);
 
   const futureRecurringImpact = useMemo(() => {
     const impact: Record<string, number> = {};
@@ -3405,39 +3437,61 @@ export default function App() {
                   {/* Desktop Table View */}
                   <div className="hidden md:block" style={{ height: '600px' }}>
                     <GroupedVirtuoso
-                      groupCounts={groupCounts}
+                      groupCounts={dayGroupCounts}
                       endReached={() => {
                         if (visibleTransactionsCount < filteredTransactionsByDashboard.length) {
                           setVisibleTransactionsCount(prev => prev + 20);
                         }
                       }}
                       groupContent={(index) => {
-                        const month = sortedMonths[index];
+                        const dayGroup = dayGroups[index];
+                        if (!dayGroup) return null;
+
                         return (
-                          <div key={`virtuoso-group-${month}`} className="bg-white dark:bg-slate-900 py-4">
-                            <div className="flex items-center gap-4 px-2">
-                              <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
-                              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                {format(parseISO(`${month}-01`), 'MMMM yyyy', { locale: ptBR })}
-                              </h4>
-                              <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
-                            </div>
-                            <div className="flex items-center px-4 mt-4 border-b border-slate-100 dark:border-slate-800 text-slate-500 text-sm font-medium pb-2">
-                              <div className="w-16">Dia</div>
-                              <div className="flex-1">Descrição</div>
-                              <div className="w-32">Categoria</div>
-                              <div className="w-32">Status</div>
-                              <div className="w-32 text-right">Valor</div>
-                              <div className="w-24 text-right">Ações</div>
+                          <div key={`virtuoso-group-${dayGroup.dayKey}`} className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                            {dayGroup.isFirstInMonth && (
+                              <div className="flex items-center gap-4 px-2 py-4">
+                                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                                  {format(parseISO(`${dayGroup.monthKey}-01`), 'MMMM yyyy', { locale: ptBR })}
+                                </h4>
+                                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center justify-between px-6 py-3 bg-slate-50/50 dark:bg-white/5">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">
+                                  <Calendar size={14} className="text-slate-400" />
+                                </div>
+                                <div>
+                                  <h5 className="text-sm font-black text-slate-700 dark:text-slate-300">
+                                    {format(parseISO(dayGroup.dayKey), "dd 'de' MMMM", { locale: ptBR })}
+                                  </h5>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{format(parseISO(dayGroup.dayKey), 'eeee', { locale: ptBR })}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-6">
+                                <div className="text-right">
+                                  <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest leading-none mb-1 text-center">Créditos</p>
+                                  <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{formatCurrencyWithPrivacy(dayGroup.income)}</p>
+                                </div>
+                                <div className="w-px h-6 bg-slate-200 dark:bg-slate-700"></div>
+                                <div className="text-right">
+                                  <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest leading-none mb-1 text-center">Débitos</p>
+                                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400">{formatCurrencyWithPrivacy(dayGroup.expense)}</p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
                       }}
                       itemContent={(index, groupIndex) => {
-                        const month = sortedMonths[groupIndex];
-                        const groupStart = groupCounts.slice(0, groupIndex).reduce((a, b) => a + b, 0);
+                        const dayGroup = dayGroups[groupIndex];
+                        const groupStart = dayGroupCounts.slice(0, groupIndex).reduce((a, b) => a + b, 0);
                         const itemInGroupIndex = index - groupStart;
-                        const t = groupedTransactionsByMonth[month][itemInGroupIndex];
+                        const t = dayGroup.transactions[itemInGroupIndex];
                         
                         if (!t) return null;
 
@@ -3541,17 +3595,41 @@ export default function App() {
                   </div>
 
                   {/* Mobile Card View */}
-                  <div className="md:hidden space-y-4">
-                    {sortedMonths.map(month => (
-                      <div key={`mobile-group-${month}`} className="space-y-3">
-                        <div className="flex items-center gap-4 py-2">
-                          <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
-                          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                            {format(parseISO(`${month}-01`), 'MMMM yyyy', { locale: ptBR })}
-                          </h4>
-                          <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                  <div className="md:hidden space-y-6">
+                    {dayGroups.map((group, idx) => (
+                      <div key={`mobile-day-group-${group.dayKey}`} className="space-y-3">
+                        {group.isFirstInMonth && (
+                          <div className="flex items-center gap-4 py-2 mt-4 first:mt-0">
+                            <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              {format(parseISO(`${group.monthKey}-01`), 'MMMM yyyy', { locale: ptBR })}
+                            </h4>
+                            <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between px-2 pt-2">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-lg font-black text-slate-900 dark:text-white">
+                              {format(parseISO(group.dayKey), 'dd')}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              {format(parseISO(group.dayKey), 'EEEE', { locale: ptBR })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest leading-none mb-0.5">Receita</span>
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{formatCurrencyWithPrivacy(group.income)}</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest leading-none mb-0.5">Despesa</span>
+                              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{formatCurrencyWithPrivacy(group.expense)}</span>
+                            </div>
+                          </div>
                         </div>
-                        {groupedTransactionsByMonth[month].map(t => (
+
+                        {group.transactions.map(t => (
                           <TransactionCard 
                             key={`mobile-list-${t.id}`}
                             t={t}
