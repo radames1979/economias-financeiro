@@ -1,6 +1,34 @@
-export const APP_VERSION = "1.3.1";
+export const APP_VERSION = "1.3.4";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.3.4",
+    date: "2026-05-16",
+    changes: [
+      "Remoção da barra de navegação secundária no mobile por redundância",
+      "Limpeza do topo do layout para melhor visibilidade do Balanço Mensal",
+      "Otimização do espaçamento vertical (header fixo vs conteúdo)"
+    ]
+  },
+  {
+    version: "1.3.3",
+    date: "2026-05-16",
+    changes: [
+      "Correção de erro de referência (density) no painel de atividades",
+      "Melhoria na estabilidade do Dashboard em diferentes modos de visualização"
+    ]
+  },
+  {
+    version: "1.3.2",
+    date: "2026-05-16",
+    changes: [
+      "Otimização massiva de espaço em dispositivos móveis",
+      "Navegação por abas e seletor de datas mais compactos",
+      "Refinamento dos cartões de resumo (Balanço) para melhor aproveitamento vertical",
+      "Redução de paddings e gaps em grids mobile",
+      "Melhoria na legibilidade do fluxo de atividade em telas pequenas"
+    ]
+  },
   {
     version: "1.3.1",
     date: "2026-05-16",

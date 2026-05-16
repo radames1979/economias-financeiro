@@ -297,9 +297,9 @@ const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTab
   ];
 
   return (
-    <div className="sticky top-[84px] lg:top-0 z-[60] bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-2 overflow-x-auto no-scrollbar">
+    <div className={cn("hidden lg:flex sticky top-0 z-[60] bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-1 md:px-2 overflow-x-auto no-scrollbar")}>
       <div className="max-w-7xl mx-auto flex items-center lg:justify-center">
-        <div className="flex items-center gap-1 py-1 lg:py-2">
+        <div className="flex items-center gap-0.5 md:gap-1 py-1 lg:py-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -309,15 +309,15 @@ const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTab
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={cn(
-                  "relative flex items-center gap-2.5 px-6 py-3 rounded-2xl transition-all duration-300 group",
+                  "relative flex items-center gap-2 px-4 py-2.5 md:px-6 md:py-3 rounded-xl md:rounded-2xl transition-all duration-300 group",
                   isActive 
                     ? "text-cyan-500 bg-cyan-500/5" 
                     : "text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5"
                 )}
               >
-                <Icon size={18} className={cn("transition-transform duration-300 group-hover:scale-110", isActive ? "stroke-[2.5px]" : "stroke-2")} />
+                <Icon size={16} md:size={18} className={cn("transition-transform duration-300 group-hover:scale-110", isActive ? "stroke-[2.5px]" : "stroke-2")} />
                 <span className={cn(
-                  "text-xs font-black uppercase tracking-widest whitespace-nowrap",
+                  "text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap",
                   isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100"
                 )}>
                   {tab.label}
@@ -326,7 +326,7 @@ const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTab
                 {isActive && (
                   <motion.div 
                     layoutId="top-nav-indicator"
-                    className="absolute bottom-0 left-6 right-6 h-0.5 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                    className="absolute bottom-0 left-4 right-4 md:left-6 md:right-6 h-0.5 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"
                   />
                 )}
               </button>
@@ -448,15 +448,15 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
 const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick, density = 'normal' }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void, density?: DensityType }) => {
   const d = DISPLAY_DENSITIES[density];
   return (
-    <div className={cn("bg-slate-900 dark:bg-slate-900 rounded-[40px] border border-white/5 shadow-2xl overflow-hidden relative group", d.heroP)}>
+    <div className={cn("bg-slate-900 dark:bg-slate-900 rounded-[32px] md:rounded-[40px] border border-white/5 shadow-2xl overflow-hidden relative group", d.heroP)}>
       {/* Background Glow */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/20 transition-colors duration-1000" />
       
       <div className="relative z-10 flex flex-col items-center text-center">
-        <p className={cn("font-black text-slate-400 uppercase tracking-[0.3em]", d.heroSubText, density === 'super-compact' ? 'mb-2' : 'mb-4')}>Balanço do Mês</p>
+        <p className={cn("font-black text-slate-400 uppercase tracking-[0.3em] mb-2 md:mb-4", d.heroSubText)}>Balanço do Mês</p>
         
         <h2 className={cn(
-          "font-black font-mono tracking-tighter leading-none mb-2",
+          "font-black font-mono tracking-tighter leading-none mb-1 md:mb-2",
           d.heroText,
           balance < 0 ? "text-rose-500" : "text-white"
         )}>
@@ -466,9 +466,8 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
         <motion.div 
           whileHover={{ scale: 1.05 }}
           className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-black uppercase tracking-wider border",
+            "inline-flex items-center gap-2 px-3 py-1 rounded-full font-black uppercase tracking-wider border mb-4 md:mb-8",
             d.heroSubText,
-            density === 'super-compact' ? 'mb-4' : 'mb-8',
             projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
           )}
         >
@@ -476,14 +475,14 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
           Projeção: {formatCurrencyWithPrivacy(projected)}
         </motion.div>
 
-        <div className={cn("grid grid-cols-2 w-full", d.heroGap)}>
-          <button onClick={onStatClick} className={cn("flex flex-col items-center gap-2 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all", density === 'super-compact' ? 'p-2' : 'p-4')}>
-            <p className={cn("font-black text-emerald-500/80 uppercase tracking-widest", d.heroSubText)}>Entradas</p>
-            <p className={cn("font-mono font-black text-emerald-400", density === 'super-compact' ? 'text-sm' : 'text-lg')}>{formatCurrencyWithPrivacy(income)}</p>
+        <div className={cn("grid grid-cols-2 w-full gap-2 md:gap-4", density === 'super-compact' ? 'mt-2' : '')}>
+          <button onClick={onStatClick} className={cn("flex flex-col items-center justify-center rounded-2xl md:rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all p-3 md:p-4")}>
+            <p className={cn("font-black text-emerald-500/80 uppercase tracking-widest leading-none mb-1 md:mb-2", d.heroSubText)}>Entradas</p>
+            <p className={cn("font-mono font-black text-emerald-400", density === 'super-compact' ? 'text-xs' : 'text-sm md:text-lg text-emerald-400')}>{formatCurrencyWithPrivacy(income)}</p>
           </button>
-          <button onClick={onStatClick} className={cn("flex flex-col items-center gap-2 rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all", density === 'super-compact' ? 'p-2' : 'p-4')}>
-            <p className={cn("font-black text-rose-500/80 uppercase tracking-widest", d.heroSubText)}>Saídas</p>
-            <p className={cn("font-mono font-black text-rose-500", density === 'super-compact' ? 'text-sm' : 'text-lg')}>{formatCurrencyWithPrivacy(expense)}</p>
+          <button onClick={onStatClick} className={cn("flex flex-col items-center justify-center rounded-2xl md:rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all p-3 md:p-4")}>
+            <p className={cn("font-black text-rose-500/80 uppercase tracking-widest leading-none mb-1 md:mb-2", d.heroSubText)}>Saídas</p>
+            <p className={cn("font-mono font-black text-rose-500", density === 'super-compact' ? 'text-xs' : 'text-sm md:text-lg text-rose-500')}>{formatCurrencyWithPrivacy(expense)}</p>
           </button>
         </div>
       </div>
@@ -492,22 +491,22 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
 };
 
 const Card = ({ children, className, title, onClick, extra, density = 'normal' }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void, extra?: React.ReactNode, density?: DensityType }) => {
-  const pSize = density === 'super-compact' ? 'p-3' : density === 'compact' ? 'p-4' : density === 'super-relaxed' ? 'p-10' : 'p-6';
+  const pSize = density === 'super-compact' ? 'p-3' : density === 'compact' ? 'p-4' : density === 'super-relaxed' ? 'p-10' : 'p-4 md:p-6';
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       onClick={onClick}
       className={cn(
-        "glass-card rounded-[32px] group/card",
+        "glass-card rounded-[24px] md:rounded-[32px] group/card",
         pSize,
         onClick && "cursor-pointer active:scale-[0.98]",
         className
       )}
     >
       {title && (
-        <div className={cn("flex justify-between items-center", density === 'super-compact' ? 'mb-3' : 'mb-6')}>
-          <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
+        <div className={cn("flex justify-between items-center", density === 'super-compact' ? 'mb-2 md:mb-3' : 'mb-4 md:mb-6')}>
+          <h3 className="text-[10px] md:text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
             {title}
           </h3>
           {extra}
@@ -2657,7 +2656,7 @@ export default function App() {
       <main className={cn(
         "flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 h-full",
         sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]",
-        "pt-[calc(76px+env(safe-area-inset-top))] lg:pt-0"
+        "pt-[calc(72px+env(safe-area-inset-top))] lg:pt-0"
       )}>
         {/* Fixed Header Mobile - Premium Adaptive Glass */}
         <header className="lg:hidden fixed top-0 left-0 right-1 lg:right-0 z-[100] bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 px-6 pb-4 flex justify-between items-center shadow-lg pt-[calc(1rem+env(safe-area-inset-top))]">
@@ -2850,16 +2849,16 @@ export default function App() {
               className="space-y-6"
             >
               {/* Dashboard Period & Date Controls */}
-              <div className="flex flex-col md:flex-row gap-4 mb-8">
+              <div className="flex flex-col lg:flex-row gap-2 md:gap-4 mb-4 md:mb-8">
                 {/* Period Selector */}
-                <div className="flex-1 flex items-center gap-1 p-1.5 bg-slate-100 dark:bg-white/5 rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md">
+                <div className="flex-1 flex items-center gap-1 p-1 bg-slate-100 dark:bg-white/5 rounded-xl md:rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md">
                   <button 
                     onClick={() => {
                       setDashboardDate(new Date());
                       setDashboardPeriod('month');
                     }}
                     className={cn(
-                      "flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300",
+                      "flex-1 px-3 py-2 md:px-4 md:py-2.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-all duration-300",
                       dashboardPeriod === 'month' && isSameMonth(dashboardDate, new Date()) 
                         ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm border border-slate-200/50 dark:border-white/10" 
                         : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
@@ -2873,7 +2872,7 @@ export default function App() {
                       setDashboardPeriod('month');
                     }}
                     className={cn(
-                      "flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300",
+                      "flex-1 px-3 py-2 md:px-4 md:py-2.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-all duration-300",
                       dashboardPeriod === 'month' && isSameMonth(dashboardDate, subMonths(new Date(), 1)) 
                         ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm border border-slate-200/50 dark:border-white/10" 
                         : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
@@ -2884,7 +2883,7 @@ export default function App() {
                   <button 
                     onClick={() => setDashboardPeriod('year')}
                     className={cn(
-                      "flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300",
+                      "flex-1 px-3 py-2 md:px-4 md:py-2.5 rounded-lg md:rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-all duration-300",
                       dashboardPeriod === 'year' 
                         ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm border border-slate-200/50 dark:border-white/10" 
                         : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
@@ -2894,19 +2893,19 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Date Navigator */}
-                <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-1.5 rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md min-w-[240px]">
+                               {/* Date Navigator */}
+                <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-1 rounded-xl md:rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md min-w-[200px] md:min-w-[240px]">
                   <button 
                     onClick={() => {
                       setDashboardDate(dashboardPeriod === 'year' ? subYears(dashboardDate, 1) : subMonths(dashboardDate, 1));
                     }}
-                    className="p-2.5 hover:bg-white dark:hover:bg-slate-800 rounded-[14px] transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
+                    className="p-1 px-3 md:p-2.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg md:rounded-[14px] transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
                   >
-                    <ChevronLeft size={20} />
+                    <ChevronLeft size={16} className="md:w-5 md:h-5" />
                   </button>
                   
-                  <div className="flex flex-col items-center px-4">
-                    <span className="text-sm font-black text-slate-900 dark:text-white capitalize tracking-tight">
+                  <div className="flex flex-col items-center px-1 md:px-4">
+                    <span className="text-[11px] md:text-sm font-black text-slate-900 dark:text-white capitalize tracking-tight whitespace-nowrap">
                       {dashboardPeriod === 'year' 
                         ? dashboardDate.getFullYear()
                         : dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
@@ -2918,9 +2917,9 @@ export default function App() {
                     onClick={() => {
                       setDashboardDate(dashboardPeriod === 'year' ? addYears(dashboardDate, 1) : addMonths(dashboardDate, 1));
                     }}
-                    className="p-2.5 hover:bg-white dark:hover:bg-slate-800 rounded-[14px] transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
+                    className="p-1 px-3 md:p-2.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg md:rounded-[14px] transition-all text-slate-500 hover:text-cyan-500 active:scale-90"
                   >
-                    <ChevronRight size={20} />
+                    <ChevronRight size={16} className="md:w-5 md:h-5" />
                   </button>
                 </div>
               </div>
@@ -2978,23 +2977,23 @@ export default function App() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {/* Bento Row 1: Activity & Balances */}
                 <Card title="Fluxo de Atividade" className="lg:col-span-3" density={displayDensity}>
-                  <div className="space-y-6 max-h-[440px] overflow-y-auto no-scrollbar pr-1">
+                  <div className="space-y-4 md:space-y-6 max-h-[440px] overflow-y-auto no-scrollbar pr-1">
                     {dashboardTransactionsByDate.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 opacity-50">
-                          <Search size={32} className="opacity-20" />
+                      <div className="flex flex-col items-center justify-center py-10 md:py-16 text-slate-400">
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 md:mb-6 opacity-50">
+                          <Search size={displayDensity === 'super-compact' ? 24 : 32} className="opacity-20" />
                         </div>
-                        <p className="font-bold text-sm uppercase tracking-widest opacity-40 text-center">Nenhuma atividade encontrada<br/>no período selecionado</p>
+                        <p className="font-bold text-[10px] md:text-sm uppercase tracking-widest opacity-40 text-center">Nenhuma atividade encontrada<br/>no período selecionado</p>
                       </div>
                     ) : (
                       dashboardTransactionsByDate.map(([date, dateItems]) => (
                         <div key={`dashboard-group-${date}`}>
-                          <div className="flex items-center gap-3 mb-6 sticky top-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl z-20 py-2">
-                             <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">
+                          <div className="flex items-center gap-3 mb-4 md:mb-6 sticky top-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl z-20 py-2">
+                             <div className="px-2 md:px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                               <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">
                                 {isToday(parseISO(date)) ? 'Hoje' : isYesterday(parseISO(date)) ? 'Ontem' : format(parseISO(date), "dd MMM", { locale: ptBR })}
                                </span>
                              </div>
