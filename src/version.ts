@@ -1,6 +1,16 @@
-export const APP_VERSION = "1.5.0";
+export const APP_VERSION = "1.5.1";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.5.1",
+    date: "2026-05-16",
+    changes: [
+      "Novo Sistema de Monitoramento de Orçamentos no Dashboard",
+      "Indicadores visuais de progresso (80% e 100%) por categoria",
+      "Alertas inteligentes com barras de progresso nas notificações",
+      "Otimização da lógica de cálculo de gastos mensais por centro de custo"
+    ]
+  },
   {
     version: "1.5.0",
     date: "2026-05-16",

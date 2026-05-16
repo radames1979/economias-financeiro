@@ -29,6 +29,7 @@ import {
   RefreshCw,
   CreditCard, 
   Tags, 
+  Tag,
   LogOut, 
   Plus, 
   Trash2, 
@@ -64,7 +65,59 @@ import {
   Clock,
   Layout,
   Settings,
-  Sliders
+  Sliders,
+  Home,
+  Utensils,
+  Car,
+  HeartPulse,
+  GraduationCap,
+  Palmtree,
+  Shirt,
+  Phone,
+  Banknote,
+  Sparkles,
+  Dog,
+  HelpCircle,
+  ShoppingBag,
+  Coffee,
+  Wifi,
+  Lightbulb,
+  Droplets,
+  Flame,
+  Hammer,
+  Sofa,
+  ShieldCheck,
+  Heart,
+  Stethoscope,
+  Pill,
+  Activity,
+  Book,
+  Clapperboard,
+  Music,
+  Gamepad2,
+  Plane,
+  GlassWater,
+  Landmark,
+  HandCoins,
+  Receipt,
+  User as UserIcon,
+  Smile,
+  Gift,
+  Users,
+  Scale,
+  CarFront,
+  Bus,
+  TrainFront,
+  Smartphone,
+  Tv,
+  Monitor,
+  Dumbbell,
+  Pizza,
+  ShoppingBasket,
+  Coffee as CoffeeIcon,
+  Wine,
+  Camera,
+  Scissors
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
 import { GroupedVirtuoso } from 'react-virtuoso';
@@ -116,6 +169,7 @@ interface Notification {
   message: string;
   date?: string;
   categoryId?: string;
+  percent?: number;
 }
 
 type DensityType = 'super-compact' | 'compact' | 'normal' | 'relaxed' | 'super-relaxed';
@@ -286,7 +340,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 
   );
 };
 
-const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTabChange: (tab: any) => void }) => {
+const TopNavigationBar = ({ activeTab, onTabChange, notificationsCount, onOpenNotifications }: { activeTab: string, onTabChange: (tab: any) => void, notificationsCount: number, onOpenNotifications: () => void }) => {
   const tabs = [
     { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
     { id: 'transactions', label: 'Extrato', icon: ArrowUpCircle },
@@ -298,7 +352,7 @@ const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTab
 
   return (
     <div className={cn("hidden lg:flex sticky top-0 z-[60] bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-1 md:px-2 overflow-x-auto no-scrollbar")}>
-      <div className="max-w-7xl mx-auto flex items-center lg:justify-center">
+      <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
         <div className="flex items-center gap-0.5 md:gap-1 py-1 lg:py-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -315,7 +369,7 @@ const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTab
                     : "text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5"
                 )}
               >
-                <Icon size={16} md:size={18} className={cn("transition-transform duration-300 group-hover:scale-110", isActive ? "stroke-[2.5px]" : "stroke-2")} />
+                <Icon size={18} className={cn("transition-transform duration-300 group-hover:scale-110", isActive ? "stroke-[2.5px]" : "stroke-2")} />
                 <span className={cn(
                   "text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap",
                   isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100"
@@ -333,12 +387,24 @@ const TopNavigationBar = ({ activeTab, onTabChange }: { activeTab: string, onTab
             );
           })}
         </div>
+        
+        <div className="flex items-center gap-2 py-1 lg:py-2">
+          <button 
+            onClick={onOpenNotifications}
+            className="p-3 rounded-2xl relative text-slate-400 hover:text-cyan-500 hover:bg-cyan-500/5 transition-all group active:scale-95"
+          >
+            <Bell size={18} className="transition-transform group-hover:rotate-12" />
+            {notificationsCount > 0 && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, active: boolean, label: string, onClick: () => void }) => (
+const MobileNavItem = ({ icon: Icon, active, label, onClick, hasNotification }: { icon: any, active: boolean, label: string, onClick: () => void, hasNotification?: boolean }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -348,10 +414,13 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, acti
     )}
   >
     <div className={cn(
-      "transition-all duration-300 flex items-center justify-center",
+      "transition-all duration-300 flex items-center justify-center relative",
       active ? "transform -translate-y-0.5 scale-110" : "scale-100"
     )}>
       <Icon size={22} strokeWidth={active ? 3 : 2} />
+      {hasNotification && (
+        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-slate-950 shadow-sm animate-pulse" />
+      )}
     </div>
     <span className={cn(
       "text-[9px] font-black uppercase tracking-[0.15em] transition-all duration-300",
@@ -391,7 +460,7 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
           t.type === 'expense' ? "bg-rose-500/10 text-rose-500" : 
           "bg-cyan-500/10 text-cyan-500"
         )}>
-          {t.type === 'income' ? <TrendingUp size={d.iconSize} /> : t.type === 'expense' ? <TrendingDown size={d.iconSize} /> : <ArrowRightLeft size={d.iconSize} />}
+          {t.type === 'transfer' ? <ArrowRightLeft size={d.iconSize} /> : <CategoryIcon iconName={category?.icon || ''} size={d.iconSize} />}
         </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
@@ -488,6 +557,44 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
       </div>
     </div>
   );
+};
+
+// Helper to render dynamic Lucide icons
+const CategoryIcon = ({ iconName, size = 20, className }: { iconName: string, size?: number, className?: string }) => {
+  const icons: Record<string, any> = {
+    Home, Utensils, Car, HeartPulse, GraduationCap, Palmtree, Shirt, Phone, Banknote, Sparkles, Dog, HelpCircle,
+    Wallet, ShoppingBag, Coffee, Wifi, Lightbulb, Droplets, Flame, Hammer, Sofa, ShieldCheck, Heart, Stethoscope,
+    Pill, Activity, Book, Clapperboard, Music, Gamepad2, Plane, GlassWater, Landmark, HandCoins, Receipt, 
+    User: UserIcon, Smile, Gift, Users, Scale, CarFront, Bus, TrainFront, Smartphone, Tv, Monitor, Dumbbell, Pizza,
+    ShoppingBasket, CoffeeIcon, Wine, Camera, Scissors, Tag, Tags, TrendingUp, TrendingDown, LayoutDashboard,
+    ArrowUpCircle, ArrowDownCircle, ArrowRightLeft, RefreshCw, CreditCard
+  };
+  
+  const Icon = icons[iconName] || icons.Tags;
+  return <Icon size={size} className={className} />;
+};
+
+// Helper to find relevant icon based on name
+const findBestIcon = (name: string): string => {
+  const lowerName = name.toLowerCase();
+  const iconMapping: Record<string, string> = {
+    'salário': 'Wallet', 'receita': 'TrendingUp', 'vendas': 'ShoppingBag', 'freelance': 'Monitor', 'rendimentos': 'Banknote', 'investimentos': 'TrendingUp',
+    'moradia': 'Home', 'casa': 'Home', 'aluguel': 'Home', 'condomínio': 'Landmark', 'luz': 'Lightbulb', 'energia': 'Lightbulb', 'água': 'Droplets', 'gás': 'Flame', 'internet': 'Wifi', 'tv': 'Tv', 'manutenção': 'Hammer', 'reparos': 'Hammer',
+    'alimentação': 'Utensils', 'restaurante': 'Coffee', 'supermercado': 'ShoppingBasket', 'mercado': 'ShoppingBasket', 'feiras': 'ShoppingBasket', 'delivery': 'Pizza', 'lanche': 'Coffee', 'comida': 'Utensils',
+    'transporte': 'Car', 'veículo': 'CarFront', 'carro': 'CarFront', 'combustível': 'Car', 'gasolina': 'Car', 'estacionamento': 'Car', 'pedágio': 'Car', 'ônibus': 'Bus', 'metrô': 'TrainFront', 'viagem': 'Plane', 'aplicativo': 'Smartphone', 'uber': 'Smartphone',
+    'saúde': 'HeartPulse', 'plano': 'ShieldCheck', 'médico': 'User', 'dentista': 'Smile', 'exame': 'Activity', 'academia': 'Dumbbell', 'farmácia': 'Pill', 'remédio': 'Pill',
+    'educação': 'GraduationCap', 'escola': 'Book', 'faculdade': 'GraduationCap', 'cursos': 'Book', 'livros': 'Book',
+    'lazer': 'Palmtree', 'entretenimento': 'Clapperboard', 'cinema': 'Clapperboard', 'shows': 'Music', 'jogos': 'Gamepad2', 'hobby': 'Gamepad2',
+    'vestuário': 'Shirt', 'roupas': 'Shirt', 'calçados': 'Shirt',
+    'pessoais': 'Sparkles', 'higiene': 'Sparkles', 'beleza': 'Scissors', 'perfume': 'Sparkles',
+    'pets': 'Dog', 'animais': 'Dog', 'ração': 'Dog',
+    'presentes': 'Gift', 'doações': 'Heart', 'diversos': 'HelpCircle', 'outros': 'HelpCircle', 'financeiro': 'Banknote', 'cartão': 'CreditCard', 'imposto': 'Receipt', 'multas': 'Scale',
+  };
+
+  for (const [key, icon] of Object.entries(iconMapping)) {
+    if (lowerName === key || lowerName.includes(key)) return icon;
+  }
+  return 'Tag';
 };
 
 const Card = ({ children, className, title, onClick, extra, density = 'normal' }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void, extra?: React.ReactNode, density?: DensityType }) => {
@@ -891,6 +998,7 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [transactionsToImport, setTransactionsToImport] = useState<ImportTransaction[]>([]);
@@ -950,7 +1058,7 @@ export default function App() {
   const [reportFilterAccount, setReportFilterAccount] = useState('');
   const [reportFilterType, setReportFilterType] = useState('all');
   const [reportFilterSearch, setReportFilterSearch] = useState('');
-  const [reportFilterStatus, setReportFilterStatus] = useState('all');
+  const [reportFilterStatus, setReportFilterStatus] = useState<'all' | 'consolidated' | 'pending'>('all');
   const [isReportFiltersOpen, setIsReportFiltersOpen] = useState(false);
 
   // Connection Test
@@ -1127,7 +1235,8 @@ export default function App() {
             type: 'danger',
             title: 'Orçamento Excedido',
             message: `Você gastou ${formatCurrency(spentInCategory)} em "${cat.name}", superando o limite de ${formatCurrency(cat.monthlyBudget)}.`,
-            categoryId: cat.id
+            categoryId: cat.id,
+            percent: (spentInCategory / cat.monthlyBudget) * 100
           });
         } else if (spentInCategory > cat.monthlyBudget * 0.8) {
           alerts.push({
@@ -1135,7 +1244,8 @@ export default function App() {
             type: 'warning',
             title: 'Atenção ao Orçamento',
             message: `Você já utilizou ${(spentInCategory / cat.monthlyBudget * 100).toFixed(0)}% do orçamento de "${cat.name}".`,
-            categoryId: cat.id
+            categoryId: cat.id,
+            percent: (spentInCategory / cat.monthlyBudget) * 100
           });
         }
       }
@@ -1145,6 +1255,33 @@ export default function App() {
   }, [recurringTransactions, transactions, categories, formatCurrency]);
 
   const totalBalance = useMemo(() => accounts.reduce((acc, curr) => acc + curr.balance, 0), [accounts]);
+
+  const budgetMonitoring = useMemo(() => {
+    const today = new Date();
+    const firstDayOfMonth = startOfMonth(today);
+    const lastDayOfMonth = endOfMonth(today);
+
+    const currentMonthExpenses = transactions.filter(t => 
+      t.type === 'expense' && 
+      isWithinInterval(parseISO(t.date), { start: firstDayOfMonth, end: lastDayOfMonth })
+    );
+
+    return categories
+      .filter(cat => cat.monthlyBudget && cat.monthlyBudget > 0)
+      .map(cat => {
+        const spent = currentMonthExpenses
+          .filter(t => t.categoryId === cat.id || t.costCenterId === cat.id)
+          .reduce((acc, curr) => acc + curr.amount, 0);
+        
+        const percent = (spent / cat.monthlyBudget) * 100;
+        return {
+          ...cat,
+          spent,
+          percent
+        };
+      })
+      .sort((a, b) => b.percent - a.percent);
+  }, [transactions, categories]);
   
   const dashboardRange = useMemo(() => {
     if (dashboardPeriod === 'year') {
@@ -2279,7 +2416,16 @@ export default function App() {
     const incomeDiff = prevIncome === 0 ? (currentIncome > 0 ? 100 : 0) : ((currentIncome - prevIncome) / prevIncome) * 100;
     const expenseDiff = prevExpense === 0 ? (currentExpense > 0 ? 100 : 0) : ((currentExpense - prevExpense) / prevExpense) * 100;
     
-    return { incomeDiff, expenseDiff, prevIncome, prevExpense };
+    return { 
+      incomeDiff, 
+      expenseDiff, 
+      currentIncome, 
+      currentExpense, 
+      prevIncome, 
+      prevExpense,
+      prevPeriodStart: format(prevStart, 'dd/MM/yy'),
+      prevPeriodEnd: format(prevEnd, 'dd/MM/yy')
+    };
   }, [transactions, filteredTransactions, reportStartDate, reportEndDate]);
 
   const expenseAnalysis = useMemo(() => {
@@ -2391,11 +2537,12 @@ export default function App() {
     e.preventDefault();
     if (!user) return;
     const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
     const parentId = formData.get('parentId') as string;
     const data = {
-      name: formData.get('name') as string,
+      name: name,
       type: formData.get('type') as TransactionType,
-      icon: 'Tag',
+      icon: findBestIcon(name),
       color: '#3b82f6',
       userId: user.uid,
       parentId: parentId || null,
@@ -2481,66 +2628,79 @@ export default function App() {
       {
         name: "Entradas",
         type: "income",
+        icon: "TrendingUp",
         subcategories: ["Salário", "Freelance", "Rendimentos", "Outras Receitas"]
       },
       {
         name: "Moradia",
         type: "expense",
+        icon: "Home",
         subcategories: ["Aluguel / Financiamento", "Condomínio", "IPTU / Impostos prediais", "Água", "Luz / Energia elétrica", "Gás", "Manutenção e Reparos", "Mobília e Eletrodomésticos", "Seguro residencial"]
       },
       {
         name: "Alimentação",
         type: "expense",
+        icon: "Utensils",
         subcategories: ["Supermercado / Feira", "Restaurantes / Delivery", "Lanches / Café fora", "Água mineral / Bebidas", "Alimentação no trabalho"]
       },
       {
         name: "Transporte",
         type: "expense",
+        icon: "Car",
         subcategories: ["Combustível", "Transporte público / Apps", "Manutenção do veículo", "IPVA / Licenciamento", "Seguro do veículo", "Estacionamento / Pedágio", "Táxi / Aplicativos"]
       },
       {
         name: "Saúde",
         type: "expense",
+        icon: "HeartPulse",
         subcategories: ["Plano de saúde / Convênio", "Consulta médica / Dentista", "Medicamentos / Farmácia", "Exames laboratoriais", "Academia / Atividade física", "Terapias"]
       },
       {
         name: "Educação",
         type: "expense",
+        icon: "GraduationCap",
         subcategories: ["Mensalidade escolar / Faculdade", "Cursos online / Idiomas", "Material escolar / Livros", "Uniforme", "Palestras e Workshops"]
       },
       {
         name: "Lazer e Entretenimento",
         type: "expense",
+        icon: "Palmtree",
         subcategories: ["Cinema / Teatro / Shows", "Streaming (Netflix, Spotify etc)", "Jogos / Videogames / Hobbies", "Viagens de lazer", "Restaurantes e bares (lazer)", "Clubes / Associações"]
       },
       {
         name: "Vestuário",
         type: "expense",
+        icon: "Shirt",
         subcategories: ["Roupas", "Calçados", "Acessórios", "Lavanderia / Costura"]
       },
       {
         name: "Comunicações",
         type: "expense",
+        icon: "Phone",
         subcategories: ["Internet fixa", "Celular", "TV por assinatura", "Telefonia"]
       },
       {
         name: "Finanças Pessoais",
         type: "expense",
+        icon: "Banknote",
         subcategories: ["Cartão de crédito", "Empréstimos / Financiamentos", "Imposto de Renda", "Seguros de vida / Previdência", "Investimentos (aporte)", "Juros e multas"]
       },
       {
         name: "Cuidados Pessoais",
         type: "expense",
+        icon: "Sparkles",
         subcategories: ["Produtos de higiene", "Salão de beleza / Barbearia", "Perfumes / Cosméticos", "Spa / Massagem"]
       },
       {
         name: "Animais de Estimação",
         type: "expense",
+        icon: "Dog",
         subcategories: ["Ração", "Veterinário / Vacinas", "Higiene e banho", "Brinquedos e acessórios"]
       },
       {
         name: "Outros / Imprevistos",
         type: "expense",
+        icon: "HelpCircle",
         subcategories: ["Presentes", "Doações / Igreja", "Despesas com família", "Multas", "Despesas não classificadas"]
       }
     ];
@@ -2551,7 +2711,7 @@ export default function App() {
           name: item.name,
           type: item.type,
           userId: user.uid,
-          icon: 'Tag',
+          icon: item.icon,
           color: '#3b82f6'
         });
 
@@ -2561,7 +2721,7 @@ export default function App() {
             type: item.type,
             userId: user.uid,
             parentId: rootRef.id,
-            icon: 'Tag',
+            icon: item.icon, // Inherit from parent by default
             color: '#3b82f6'
           });
         }
@@ -2569,6 +2729,29 @@ export default function App() {
       alert('Estrutura de categorias importada com sucesso!');
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, `users/${user.uid}/categories`);
+    }
+  };
+
+  const handleAIPropagateIcons = async () => {
+    if (!user || categories.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      for (const cat of categories) {
+        const matchedIcon = findBestIcon(cat.name);
+
+        if (matchedIcon && matchedIcon !== cat.icon) {
+          await updateDoc(doc(db, `users/${user.uid}/categories`, cat.id), {
+            icon: matchedIcon,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+      alert('Ícones atualizados com sucesso através da análise de nomes!');
+    } catch (error) {
+       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/categories`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -2729,7 +2912,12 @@ export default function App() {
           }}
         />
 
-        <TopNavigationBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <TopNavigationBar 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+          notificationsCount={notifications.length}
+          onOpenNotifications={() => setIsNotificationsOpen(!isNotificationsOpen)} 
+        />
 
         <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 pb-32 lg:pb-12">
           {/* Header Desktop */}
@@ -2973,6 +3161,20 @@ export default function App() {
                         <div>
                           <h3 className="text-sm font-black uppercase tracking-widest">{alert.title}</h3>
                           <p className="text-xs font-medium opacity-80">{alert.message}</p>
+                          {alert.percent !== undefined && (
+                            <div className="mt-2 w-48 max-w-full">
+                              <div className="h-1.5 w-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${Math.min(alert.percent, 100)}%` }}
+                                  className={cn(
+                                    "h-full rounded-full",
+                                    alert.type === 'danger' ? "bg-rose-500" : "bg-amber-500"
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                       {alert.categoryId && (
@@ -3189,6 +3391,63 @@ export default function App() {
                     </div>
                   </div>
                 </Card>
+
+                {budgetMonitoring.length > 0 && (
+                  <Card title="Monitoramento de Orçamentos" className="lg:col-span-4" density={displayDensity}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {budgetMonitoring.map(cat => (
+                        <div key={`budget-card-${cat.id}`} className="p-4 rounded-3xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 group hover:border-cyan-500/30 transition-all">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm text-slate-400 group-hover:text-cyan-500 transition-colors">
+                                <Zap size={18} />
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-black uppercase tracking-tight text-slate-700 dark:text-slate-200">{cat.name}</h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Orçamento Mensal</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={cn(
+                                "text-xs font-black px-2 py-0.5 rounded-full uppercase tracking-tighter",
+                                cat.percent >= 100 ? "bg-rose-500/10 text-rose-500" : cat.percent >= 80 ? "bg-amber-500/10 text-amber-500" : "bg-cyan-500/10 text-cyan-500"
+                              )}>
+                                {cat.percent.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gasto: {formatCurrency(cat.spent)}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Limite: {formatCurrency(cat.monthlyBudget || 0)}</span>
+                          </div>
+
+                          <div className="h-2 w-full bg-slate-200/50 dark:bg-slate-800/50 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(cat.percent, 100)}%` }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                              className={cn(
+                                "h-full rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]",
+                                cat.percent >= 100 ? "bg-rose-500" : cat.percent >= 80 ? "bg-amber-500" : "bg-cyan-500"
+                              )}
+                            />
+                          </div>
+                          
+                          {cat.percent >= 80 && (
+                            <p className={cn(
+                              "text-[9px] font-bold uppercase tracking-widest mt-3 flex items-center gap-1.5",
+                              cat.percent >= 100 ? "text-rose-500" : "text-amber-500"
+                            )}>
+                              <AlertCircle size={10} />
+                              {cat.percent >= 100 ? 'Limite excedido! Reduza gastos.' : 'Atenção: Próximo ao limite.'}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
 
                 {/* Bento Row 3: Long term evolution */}
                 <Card title="Evolução Anual de Despesas" className="lg:col-span-4" density={displayDensity}>
@@ -3822,6 +4081,14 @@ export default function App() {
             >
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Centros de Custo e Categorias</h2>
+                <button 
+                  onClick={handleAIPropagateIcons}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all text-xs font-black uppercase tracking-widest disabled:opacity-50"
+                >
+                  <Zap size={14} className={cn(isLoading && "animate-pulse")} />
+                  Gerar Ícones com IA
+                </button>
               </div>
 
               <Card title="Novo Centro de Custo ou Categoria" density={displayDensity}>
@@ -3863,7 +4130,7 @@ export default function App() {
                     <Card className="flex items-center justify-between p-4 border-l-4 border-l-blue-500 hover:shadow-md transition-shadow group" density={displayDensity}>
                       <div className="flex items-center gap-4">
                         <div className={cn("p-2 rounded-xl text-white", root.type === 'income' ? "bg-emerald-500" : "bg-blue-500")}>
-                          <Tags size={20} />
+                          <CategoryIcon iconName={root.icon} size={20} />
                         </div>
                         <div>
                           <p className="font-bold text-slate-800 dark:text-slate-100">{root.name}</p>
@@ -3908,7 +4175,7 @@ export default function App() {
                         categories.filter(c => c.parentId === root.id).map((child) => (
                           <Card key={`category-tab-child-${child.id}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group" density={displayDensity}>
                             <div className="flex items-center gap-3">
-                              <div className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+                              <CategoryIcon iconName={child.icon} size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{child.name}</p>
                             </div>
                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -4010,7 +4277,18 @@ export default function App() {
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Para</label>
                           <input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold" />
                         </div>
-                        {/* Add more filter fields here as needed */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+                          <select 
+                            value={reportFilterStatus} 
+                            onChange={(e) => setReportFilterStatus(e.target.value as 'all' | 'consolidated' | 'pending')} 
+                            className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold"
+                          >
+                            <option value="all">Todos</option>
+                            <option value="consolidated">Consolidados</option>
+                            <option value="pending">Pendentes</option>
+                          </select>
+                        </div>
                         <div className="flex items-end lg:col-span-2">
                            <button 
                               onClick={() => {
@@ -4171,6 +4449,86 @@ export default function App() {
                   </div>
                 </Card>
               </div>
+
+              {/* Comparativo de Período */}
+              <Card title="Comparativo: Período Atual vs Anterior" density={displayDensity}>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Base de Comparação</p>
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      {comparisonStats.prevPeriodStart} — {comparisonStats.prevPeriodEnd}
+                    </p>
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-blue-500" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase">Atual</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded bg-slate-200 dark:bg-slate-700" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase">Anterior</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-64 min-h-0 min-w-0">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={0}>
+                    <BarChart 
+                      data={[
+                        { name: 'Entradas', current: comparisonStats.currentIncome, prev: comparisonStats.prevIncome },
+                        { name: 'Saídas', current: comparisonStats.currentExpense, prev: comparisonStats.prevExpense },
+                      ]} 
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} 
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }} 
+                        tickFormatter={(value) => `R$ ${value >= 1000 ? (value/1000).toFixed(1) + 'k' : value}`}
+                      />
+                      <Tooltip 
+                        cursor={{ fill: 'transparent' }}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number) => [formatCurrency(value), '']}
+                      />
+                      <Bar dataKey="prev" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Período Anterior" barSize={40} />
+                      <Bar dataKey="current" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Período Atual" barSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Variação Entradas</p>
+                    <div className="flex items-center gap-2">
+                       <span className={cn(
+                         "text-lg font-black tracking-tighter",
+                         comparisonStats.incomeDiff >= 0 ? "text-emerald-600" : "text-rose-600"
+                       )}>
+                         {comparisonStats.incomeDiff >= 0 ? '+' : ''}{comparisonStats.incomeDiff.toFixed(1)}%
+                       </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1 border-l border-slate-100 dark:border-slate-800 pl-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Variação Saídas</p>
+                    <div className="flex items-center gap-2">
+                       <span className={cn(
+                         "text-lg font-black tracking-tighter",
+                         comparisonStats.expenseDiff <= 0 ? "text-emerald-600" : "text-rose-600"
+                       )}>
+                         {comparisonStats.expenseDiff >= 0 ? '+' : ''}{comparisonStats.expenseDiff.toFixed(1)}%
+                       </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
 
               <Card title="Fluxo de Caixa Diário (Saldo)" density={displayDensity}>
                 <div className="flex items-center justify-between mb-4">
@@ -4353,18 +4711,19 @@ export default function App() {
                         <th className="pb-4 font-medium">Categoria</th>
                         <th className="pb-4 font-medium">Conta</th>
                         <th className="pb-4 font-medium text-right">Valor</th>
+                        <th className="pb-4 font-medium text-right">Ações</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                       {filteredTransactions.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-slate-400">
+                          <td colSpan={6} className="py-8 text-center text-slate-400">
                             Nenhuma transação encontrada com os filtros selecionados.
                           </td>
                         </tr>
                       ) : (
                         filteredTransactions.map((t) => (
-                          <tr key={`report-row-${t.id}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <tr key={`report-row-${t.id}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                             <td className="py-4 text-sm text-slate-600 dark:text-slate-400">{formatDate(t.date)}</td>
                             <td className="py-4">
                               <div className="font-medium text-slate-800 dark:text-white">{t.description}</div>
@@ -4380,6 +4739,29 @@ export default function App() {
                             </td>
                             <td className={cn("py-4 text-right font-bold", t.type === 'income' ? "text-emerald-600" : t.type === 'expense' ? "text-rose-600" : "text-blue-600")}>
                               {formatCurrency(t.amount)}
+                            </td>
+                            <td className="py-4 text-right">
+                              <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={() => {
+                                    setTransactionToEdit(t);
+                                    setSelectedCostCenterId(t.costCenterId || '');
+                                    setTransactionType(t.type);
+                                    setSelectedFile(null);
+                                    setShouldRemoveAttachment(false);
+                                    setIsEditTransactionModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteTransactionWithConfirm(t)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -4799,7 +5181,7 @@ export default function App() {
 
                 <div className="flex-1 overflow-y-auto mb-6 pr-2">
                   <p className="text-slate-600 mb-4">
-                    Identificamos {transactionsToImport.length} lançamentos no seu {importSource === 'pdf' ? 'relatório "Minha Gestão"' : 'arquivo Excel'}.                      Deseja importar estes dados para sua conta?
+                    Identificamos {transactionsToImport.length} lançamentos no seu {importSource === 'pdf' ? 'relatório "Minha Gestão"' : 'arquivo Excel'}.                     Deseja importar estes dados para sua conta?
                   </p>
                   
                   <div className="space-y-2">
@@ -5235,6 +5617,19 @@ export default function App() {
                   </div>
 
                   <div className="flex gap-4 pt-4 md:col-span-2">
+                    {transactionToEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditTransactionModalOpen(false);
+                          handleDeleteTransactionWithConfirm(transactionToEdit);
+                        }}
+                        className="p-3 rounded-xl border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors"
+                        title="Excluir Transação"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setIsEditTransactionModalOpen(false)}
@@ -5244,7 +5639,7 @@ export default function App() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors"
+                      className="flex-2 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors"
                     >
                       Salvar Alterações
                     </button>
@@ -5785,6 +6180,7 @@ export default function App() {
               active={isMobileMenuOpen} 
               label="Menu" 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+              hasNotification={notifications.length > 0}
             />
           </div>
         </nav>
