@@ -2627,7 +2627,7 @@ export default function App() {
           </div>
           {!sidebarCollapsed && (
             <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="cursor-pointer">
-              <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">Aster<span className="text-cyan-500">Bank</span></h2>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">Conta <span className="text-cyan-500">Raiz</span></h2>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Gestão Patrimonial</p>
             </motion.div>
           )}
@@ -2662,7 +2662,7 @@ export default function App() {
                 >
                   v{APP_VERSION}
                 </span>
-                <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">© 2026 AsterBank</span>
+                <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">© 2026 Conta Raiz</span>
               </div>
             )}
           </div>
@@ -2689,7 +2689,7 @@ export default function App() {
                 <Zap size={20} strokeWidth={3} />
               </div>
               <div className="flex flex-col">
-                <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter leading-none lowercase capitalize">AsterBank</h1>
+                <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter leading-none lowercase capitalize">Conta Raiz</h1>
                 <span className="text-[8px] font-black text-cyan-500 uppercase tracking-widest mt-1">Private Wealth</span>
               </div>
             </div>
@@ -4799,8 +4799,7 @@ export default function App() {
 
                 <div className="flex-1 overflow-y-auto mb-6 pr-2">
                   <p className="text-slate-600 mb-4">
-                    Identificamos {transactionsToImport.length} lançamentos no seu {importSource === 'pdf' ? 'relatório "Minhas Economias"' : 'arquivo Excel'}. 
-                    Deseja importar estes dados para sua conta?
+                    Identificamos {transactionsToImport.length} lançamentos no seu {importSource === 'pdf' ? 'relatório "Minha Gestão"' : 'arquivo Excel'}.                      Deseja importar estes dados para sua conta?
                   </p>
                   
                   <div className="space-y-2">
@@ -5822,7 +5821,7 @@ export default function App() {
                     <Zap className="text-white" size={20} strokeWidth={3} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter leading-none">AsterBank</h2>
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter leading-none">Conta Raiz</h2>
                     <p className="text-[8px] font-black text-cyan-500 uppercase tracking-widest mt-1">Private Wealth</p>
                   </div>
                 </div>
@@ -5887,7 +5886,7 @@ export default function App() {
                     >
                       v{APP_VERSION}
                     </span>
-                    <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">© 2026 AsterBank</span>
+                    <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">© 2026 Conta Raiz</span>
                   </div>
                 </div>
               </div>

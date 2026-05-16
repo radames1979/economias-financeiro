@@ -1,6 +1,16 @@
-export const APP_VERSION = "1.4.2";
+export const APP_VERSION = "1.5.0";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.5.0",
+    date: "2026-05-16",
+    changes: [
+      "Rebranding oficial: O aplicativo agora se chama Conta Raiz - Sua Base Financeira",
+      "Novo logotipo e identidade visual consolidada",
+      "Otimização de SEO e Meta Tags para a nova identidade",
+      "Padronização de termos e nomenclaturas em toda a interface"
+    ]
+  },
   {
     version: "1.4.2",
     date: "2026-05-16",
@@ -28,7 +38,7 @@ export const VERSION_HISTORY = [
       "Auditoria de segurança completa e endurecimento de regras do Firestore",
       "Remoção de logs de depuração e limpeza de código legado",
       "Validação rigorosa de esquemas para Transações Recorrentes",
-      "Branding consolidado: AsterBank - Private Wealth Management",
+      "Branding consolidado: Conta Raiz - Gestão Financeira Essencial",
       "Otimização final de performance e renderização mobile"
     ]
   },

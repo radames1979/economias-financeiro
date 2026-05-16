@@ -43,7 +43,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Wallet size={22} className="text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Economias</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Conta Raiz</span>
           </div>
           <button 
             onClick={onSignIn}
@@ -286,7 +286,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12">
           <div className="flex-1">
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-6 max-w-md">Pronto para dar o próximo passo financeiro?</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-lg">Junte-se a centenas de usuários que já transformaram sua relação com o dinheiro através do Economias.</p>
+            <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-lg">Junte-se a centenas de usuários que já transformaram sua relação com o dinheiro através do Conta Raiz.</p>
             <div className="flex items-center gap-4">
               <div className="flex -space-x-3 overflow-hidden">
                 {[1, 2, 3, 4].map(i => (
@@ -321,14 +321,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSignIn }) => {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Wallet size={18} className="text-white" />
             </div>
-            <span className="font-bold text-slate-900 dark:text-white">Economias</span>
+            <span className="font-bold text-slate-900 dark:text-white">Conta Raiz</span>
           </div>
           <div className="flex items-center gap-8 text-sm font-medium text-slate-500">
             <a href="#" className="hover:text-blue-600 transition-colors">Termos</a>
             <a href="#" className="hover:text-blue-600 transition-colors">Privacidade</a>
             <a href="#" className="hover:text-blue-600 transition-colors">Suporte</a>
           </div>
-          <p className="text-sm text-slate-400">© 2026 Economias. Todos os direitos reservados.</p>
+          <p className="text-sm text-slate-400">© 2026 Conta Raiz. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>

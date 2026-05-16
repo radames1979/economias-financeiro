@@ -1,6 +1,6 @@
 {
-  "name": "AsterBank - Private Wealth Management",
-  "description": "Plataforma premium de gestão financeira pessoal e corporativa. Domine seus fluxos, planeje seu futuro e gerencie seu patrimônio com a máxima segurança e elegância.",
+  "name": "Conta Raiz - Gestão Financeira Essencial",
+  "description": "A base sólida para suas finanças. Uma plataforma intuitiva e poderosa para quem busca controle total, clareza e crescimento patrimonial.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
