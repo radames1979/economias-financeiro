@@ -1,6 +1,17 @@
-export const APP_VERSION = "1.2.7";
+export const APP_VERSION = "1.3.0";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.3.0",
+    date: "2026-05-16",
+    changes: [
+      "Lançamento do Layout Premium Mobile-First (específico iOS PWA)",
+      "Nova 'Bottom Navigation Bar' adaptativa com suporte a Safe Areas",
+      "Micro-interações de escala e feedback tátil em todos os botões",
+      "Sistema de glass-morphism aprimorado para light e dark mode",
+      "Tipografia e geometria (rounded-3xl) otimizadas para apps bancários modernos"
+    ]
+  },
   {
     version: "1.2.7",
     date: "2026-05-16",

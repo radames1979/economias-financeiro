@@ -255,11 +255,11 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center justify-center lg:justify-start rounded-[24px] transition-all duration-500 group relative overflow-hidden",
+        "w-full flex items-center justify-center lg:justify-start rounded-[24px] transition-all duration-500 group relative overflow-hidden active:scale-95",
         d.sidebarP,
         d.sidebarGap,
         active 
-          ? "bg-cyan-500 text-white shadow-[0_10px_30px_rgba(6,182,212,0.3)] scale-[1.02]" 
+          ? "bg-cyan-500 text-white shadow-[0_12px_24px_rgba(6,182,212,0.3)] scale-[1.02]" 
           : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80"
       )}
       title={collapsed ? label : undefined}
@@ -271,8 +271,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 
         <Icon size={d.iconSize - 2} strokeWidth={active ? 2.5 : 2} className={cn("transition-transform group-active:scale-90", active && "animate-pulse")} />
       </div>
       <span className={cn(
-        "font-bold transition-all duration-500 truncate relative z-10",
-        density === 'super-compact' ? "text-xs" : density === 'super-relaxed' ? "text-lg" : "text-sm",
+        "font-bold transition-all duration-500 truncate relative z-10 uppercase tracking-widest text-[10px]",
         collapsed ? "lg:hidden opacity-0 w-0" : "opacity-100 w-auto"
       )}>
         {label}
@@ -343,22 +342,29 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick }: { icon: any, acti
   <button
     onClick={onClick}
     className={cn(
-      "flex flex-col items-center justify-center gap-1 flex-1 py-1 active:scale-90 transition-all",
-      active ? "text-white" : "text-slate-500 dark:text-slate-400"
+      "flex flex-col items-center justify-center gap-1.5 flex-1 py-2 transition-all duration-300 relative",
+      "active:scale-90 touch-none select-none",
+      active ? "text-cyan-500" : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
     )}
   >
     <div className={cn(
-      "mb-1.5 transition-all duration-300",
-      active && "text-cyan-400"
+      "transition-all duration-300 flex items-center justify-center",
+      active ? "transform -translate-y-0.5 scale-110" : "scale-100"
     )}>
-      <Icon size={24} strokeWidth={active ? 3 : 2} />
+      <Icon size={22} strokeWidth={active ? 3 : 2} />
     </div>
     <span className={cn(
-      "text-[8px] font-black uppercase tracking-[0.2em]",
-      active ? "text-cyan-400" : "text-slate-400"
+      "text-[9px] font-black uppercase tracking-[0.15em] transition-all duration-300",
+      active ? "opacity-100" : "opacity-60"
     )}>
       {label}
     </span>
+    {active && (
+      <motion.div 
+        layoutId="mobile-nav-dot"
+        className="absolute -bottom-1 w-1 h-1 bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+      />
+    )}
   </button>
 );
 
@@ -2652,30 +2658,36 @@ export default function App() {
         "flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 h-full",
         sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]"
       )}>
-        {/* Sticky Header Mobile */}
-        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-slate-950/90 backdrop-blur-2xl border-b border-white/5 px-6 pb-4 flex justify-between items-center shadow-lg pt-[calc(1rem+env(safe-area-inset-top))]">
+        {/* Sticky Header Mobile - Premium Adaptive Glass */}
+        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 px-6 pb-4 flex justify-between items-center shadow-lg pt-[calc(1rem+env(safe-area-inset-top))]">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2.5 bg-white/5 rounded-xl text-white hover:bg-white/10 transition-all active:scale-90 border border-white/5 shadow-xl shadow-cyan-500/10"
+              className="p-2.5 bg-slate-100 dark:bg-white/5 rounded-2xl text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-white/10 transition-all active:scale-95 border border-slate-200 dark:border-white/5 shadow-xl shadow-cyan-500/10"
             >
               <Menu size={22} strokeWidth={2.5} />
             </button>
             <div className="flex items-center gap-3">
-              <div className="hidden xs:flex w-9 h-9 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+              <div className="hidden xs:flex w-9 h-9 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl items-center justify-center text-white shadow-lg shadow-cyan-500/20">
                 <Zap size={20} strokeWidth={3} />
               </div>
               <div className="flex flex-col">
-                <h1 className="text-lg font-black text-white tracking-tighter leading-none">AsterBank</h1>
+                <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter leading-none lowercase capitalize">AsterBank</h1>
                 <span className="text-[8px] font-black text-cyan-500 uppercase tracking-widest mt-1">Private Wealth</span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all active:scale-90 border border-white/5">
+            <button 
+              onClick={() => setIsDarkMode(!isDarkMode)} 
+              className="p-2.5 bg-slate-100 dark:bg-white/5 rounded-2xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5"
+            >
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-2.5 bg-white/5 rounded-xl text-slate-400 hover:text-white transition-all active:scale-90 border border-white/5 relative">
+            <button 
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
+              className="p-2.5 bg-slate-100 dark:bg-white/5 rounded-2xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5 relative"
+            >
               <Bell size={20} />
               {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>}
             </button>
@@ -5732,30 +5744,33 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-slate-950/95">
-        <nav className="bg-slate-950/95 backdrop-blur-3xl border-t border-white/5 flex justify-around items-center px-1 pt-3 pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
-          <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => setActiveTab('dashboard')} />
-          <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => setActiveTab('transactions')} />
-          <MobileNavItem icon={Tags} active={activeTab === 'categories'} label="Categorias" onClick={() => setActiveTab('categories')} />
+      {/* Mobile Bottom Navigation - Premium iOS Style */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100]">
+        <div className="absolute inset-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-3xl border-t border-slate-200/50 dark:border-white/5" />
+        <nav className="relative flex justify-between items-center px-2 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+          <div className="flex-1 flex justify-around items-center">
+            <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => setActiveTab('dashboard')} />
+            <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => setActiveTab('transactions')} />
+          </div>
           
-          <div className="relative -top-6">
+          <div className="px-2">
             <button 
               onClick={() => { setDefaultAccountIdForModal(''); setIsAddTransactionModalOpen(true); }}
-              className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[20px] flex items-center justify-center text-white shadow-[0_15px_30px_rgba(6,182,212,0.4)] active:scale-90 transition-all border-4 border-slate-950"
+              className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[22px] flex items-center justify-center text-white shadow-[0_12px_24px_rgba(6,182,212,0.4)] active:scale-90 transition-all border-4 border-white dark:border-slate-950 -mt-8"
             >
               <Plus size={28} strokeWidth={3} />
             </button>
           </div>
 
-          <MobileNavItem icon={RefreshCw} active={activeTab === 'recurring'} label="Agendados" onClick={() => setActiveTab('recurring')} />
-          <MobileNavItem icon={PieChartIcon} active={activeTab === 'reports'} label="Análises" onClick={() => setActiveTab('reports')} />
-          <MobileNavItem 
-            icon={Menu} 
-            active={isMobileMenuOpen} 
-            label="Ajustes" 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-          />
+          <div className="flex-1 flex justify-around items-center">
+            <MobileNavItem icon={PieChartIcon} active={activeTab === 'reports'} label="Análises" onClick={() => setActiveTab('reports')} />
+            <MobileNavItem 
+              icon={Menu} 
+              active={isMobileMenuOpen} 
+              label="Menu" 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+            />
+          </div>
         </nav>
       </div>
 
