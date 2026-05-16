@@ -843,7 +843,13 @@ export default function App() {
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [amountValue, setAmountValue] = useState('');
-  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
+  const [isPrivacyMode, setIsPrivacyMode] = useState(() => {
+    return localStorage.getItem('isPrivacyMode') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('isPrivacyMode', isPrivacyMode.toString());
+  }, [isPrivacyMode]);
   const [displayDensity, setDisplayDensity] = useState<DensityType>(() => {
     const saved = localStorage.getItem('displayDensity');
     return (saved as DensityType) || 'normal';
@@ -959,6 +965,17 @@ export default function App() {
       }
     }
     testConnection();
+  }, []);
+
+  useEffect(() => {
+    if (localStorage.getItem('darkMode') === null) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = (e: MediaQueryListEvent) => {
+        setIsDarkMode(e.matches);
+      };
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
   }, []);
 
   useEffect(() => {
@@ -2587,8 +2604,8 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center transition-colors duration-500">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.3)]"></div>
       </div>
     );
   }
@@ -3090,8 +3107,8 @@ export default function App() {
 
                 {/* Bento Row 2: Big Charts & Insights */}
                 <Card title="Dinâmica Mensal" className="lg:col-span-2 overflow-hidden" density={displayDensity}>
-                  <div className="h-72 mt-4">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-72 mt-4 min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                       <AreaChart data={chartData}>
                         <defs>
                           <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -3143,8 +3160,8 @@ export default function App() {
                     </button>
                   )}
                 >
-                  <div className="h-72 flex items-center justify-center relative">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-72 flex items-center justify-center relative min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                       <PieChart>
                         <Pie
                           data={pieData}
@@ -3182,8 +3199,8 @@ export default function App() {
                       <p className="text-sm font-black text-rose-600 uppercase">{expenseAnalysis.peakMonth || 'N/A'} ({formatCurrencyWithPrivacy(expenseAnalysis.max)})</p>
                     </div>
                   </div>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-80 min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                       <BarChart data={annualSummary.monthlyData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.2} />
                         <XAxis 
@@ -4066,8 +4083,8 @@ export default function App() {
               {/* Gráficos Principais */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card title="Tendência de Saldo (Período)" density={displayDensity}>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-80 min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                       <AreaChart data={trendSummary}>
                         <defs>
                           <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
@@ -4111,8 +4128,8 @@ export default function App() {
                       ? 'Mostrando subcategorias. Clique para filtrar a tabela.' 
                       : 'Clique em um Centro de Custo para ver o detalhamento.'}
                   </p>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-80 min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                       <PieChart>
                         <Pie
                           data={categorySummary}
@@ -4165,8 +4182,8 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-80 min-h-0 min-w-0">
+                  <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                     <LineChart data={trendSummary}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis 
@@ -4219,8 +4236,8 @@ export default function App() {
                       ))}
                     </select>
                   </div>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-80 min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                       <BarChart 
                         data={annualSummary.monthlyData}
                         onClick={(data: any) => {
@@ -4279,8 +4296,8 @@ export default function App() {
                       <p className="text-sm font-bold text-rose-600">{expenseAnalysis.peakMonth} ({formatCurrency(expenseAnalysis.max)})</p>
                     </div>
                   </div>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="h-80 min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                       <BarChart data={annualSummary.monthlyData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />

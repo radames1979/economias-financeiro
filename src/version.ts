@@ -1,6 +1,26 @@
-export const APP_VERSION = "1.4.0";
+export const APP_VERSION = "1.4.2";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.4.2",
+    date: "2026-05-16",
+    changes: [
+      "Implementação robusta de Modo Escuro com detecção instantânea (sem flash)",
+      "Sincronização inteligente com o tema do sistema operacional",
+      "Persistência do Modo Privacidade para maior discrição",
+      "Otimização do carregamento inicial (Splash Screen dark-ready)",
+      "Correção de compatibilidade com Tailwind 4 dark variants"
+    ]
+  },
+  {
+    version: "1.4.1",
+    date: "2026-05-16",
+    changes: [
+      "Correção de avisos (warnings) do Recharts sobre dimensões do container",
+      "Otimização da renderização de gráficos em containers responsivos",
+      "Estabilização de layout em transições de abas"
+    ]
+  },
   {
     version: "1.4.0",
     date: "2026-05-16",
