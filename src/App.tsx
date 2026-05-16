@@ -492,11 +492,21 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
                 "font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-all",
                 density === 'super-compact' ? "text-[7px]" : "text-[9px]",
                 t.consolidated 
-                  ? "text-emerald-500/60 bg-emerald-500/5" 
-                  : "bg-amber-500/10 text-amber-500"
+                  ? "text-emerald-500/60 bg-emerald-500/5 shadow-sm" 
+                  : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 shadow-sm"
               )}
             >
-              {t.consolidated ? 'Efetivado' : 'Previsto'}
+              {t.consolidated ? (
+                <span className="flex items-center gap-1">
+                  <Check size={density === 'super-compact' ? 8 : 10} />
+                  Efetivado
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <Clock size={density === 'super-compact' ? 8 : 10} className="animate-pulse" />
+                  Agendado
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -1496,6 +1506,12 @@ export default function App() {
       };
     });
   }, [accounts, transactions, futureRecurringImpact]);
+
+  const pendingTransactions = useMemo(() => {
+    return transactions
+      .filter(t => !t.consolidated)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [transactions]);
 
   const dashboardTransactions = useMemo(() => {
     return transactions.filter(t => {
@@ -4862,70 +4878,140 @@ export default function App() {
               </Card>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {recurringTransactions.map((rt) => (
-                  <Card key={`recurring-tx-card-${rt.id}`} className="relative" density={displayDensity}>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className={cn("p-2 rounded-lg", rt.type === 'income' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
-                        <RefreshCw size={20} />
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Recorrências Configuradas</h3>
+                    <span className="text-[10px] font-black bg-blue-100 text-blue-600 px-2 py-1 rounded-full">{recurringTransactions.length} MODELOS</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {recurringTransactions.length === 0 ? (
+                      <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <p className="text-slate-400 font-medium">Nenhuma recorrência configurada.</p>
                       </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={async () => {
-                            try {
-                              await updateDoc(doc(db, `users/${user.uid}/recurring_transactions`, rt.id), { 
-                                active: !rt.active,
-                                updatedAt: serverTimestamp()
-                              });
-                            } catch (error) {
-                              handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/recurring_transactions/${rt.id}`);
-                            }
-                          }}
-                          className={cn("text-xs font-bold px-2 py-1 rounded-full", rt.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}
-                        >
-                          {rt.active ? 'Ativo' : 'Pausado'}
-                        </button>
-                        <button 
-                          onClick={() => {
-                            confirmAction({
-                              title: 'Excluir Agendamento',
-                              message: `Deseja realmente excluir o agendamento de "${rt.description}"? Novas transações automáticas não serão mais geradas.`,
-                              variant: 'danger',
-                              confirmText: 'Excluir'
-                            }, async () => {
-                              try {
-                                await deleteDoc(doc(db, `users/${user.uid}/recurring_transactions`, rt.id));
-                              } catch (error) {
-                                handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/recurring_transactions/${rt.id}`);
-                              }
-                            });
-                          }}
-                          className="text-slate-300 hover:text-rose-500 transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                    ) : (
+                      recurringTransactions.map((rt) => (
+                        <Card key={`recurring-tx-card-${rt.id}`} className="relative border-l-4 border-l-blue-500" density={displayDensity}>
+                          <div className="flex justify-between items-start mb-4">
+                            <div className={cn("p-2 rounded-lg", rt.type === 'income' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
+                              <RefreshCw size={20} />
+                            </div>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    await updateDoc(doc(db, `users/${user.uid}/recurring_transactions`, rt.id), { 
+                                      active: !rt.active,
+                                      updatedAt: serverTimestamp()
+                                    });
+                                  } catch (error) {
+                                    handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/recurring_transactions/${rt.id}`);
+                                  }
+                                }}
+                                className={cn("text-xs font-bold px-2 py-1 rounded-full", rt.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}
+                              >
+                                {rt.active ? 'Ativo' : 'Pausado'}
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  confirmAction({
+                                    title: 'Excluir Agendamento',
+                                    message: `Deseja realmente excluir o agendamento de "${rt.description}"? Novas transações automáticas não serão mais geradas.`,
+                                    variant: 'danger',
+                                    confirmText: 'Excluir'
+                                  }, async () => {
+                                    try {
+                                      await deleteDoc(doc(db, `users/${user.uid}/recurring_transactions`, rt.id));
+                                    } catch (error) {
+                                      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/recurring_transactions/${rt.id}`);
+                                    }
+                                  });
+                                }}
+                                className="text-slate-300 hover:text-rose-500 transition-colors"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </div>
+                          <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1">{rt.description}</h4>
+                          <p className="text-xl font-black text-slate-900 dark:text-white mb-2">{formatCurrency(rt.amount)}</p>
+                          <div className="flex flex-wrap gap-2 text-[10px] text-slate-500 mb-3">
+                            <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md font-bold uppercase tracking-wider">
+                              {categories.find(c => c.id === rt.costCenterId)?.name}
+                            </span>
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+                              {categories.find(c => c.id === rt.categoryId)?.name}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-[10px] text-slate-400 uppercase font-black">
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">{rt.frequency}</span>
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">Início: {formatDate(rt.startDate)}</span>
+                          </div>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Pendentes de Consolidação</h3>
+                    <span className="text-[10px] font-black bg-rose-100 text-rose-600 px-2 py-1 rounded-full">{pendingTransactions.length} EM ABERTO</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {pendingTransactions.length === 0 ? (
+                      <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                        <p className="text-slate-400 font-medium">Nenhum lançamento pendente.</p>
                       </div>
-                    </div>
-                    <h4 className="font-bold text-slate-800 mb-1">{rt.description}</h4>
-                    <p className="text-2xl font-bold text-slate-900 mb-2">{formatCurrency(rt.amount)}</p>
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-500 mb-3">
-                      <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-md font-bold uppercase tracking-wider">
-                        {categories.find(c => c.id === rt.costCenterId)?.name}
-                      </span>
-                      <span className="bg-slate-100 px-2 py-1 rounded-md">
-                        {categories.find(c => c.id === rt.categoryId)?.name}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                      <span className="bg-slate-100 px-2 py-1 rounded-md capitalize">{rt.frequency}</span>
-                      <span className="bg-slate-100 px-2 py-1 rounded-md">Início: {formatDate(rt.startDate)}</span>
-                      {rt.lastProcessedDate && (
-                        <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-md font-medium">
-                          Último: {formatDate(rt.lastProcessedDate)}
-                        </span>
-                      )}
-                    </div>
-                  </Card>
-                ))}
+                    ) : (
+                      pendingTransactions.map((t) => (
+                        <Card key={`pending-tx-card-${t.id}`} className="relative border-l-4 border-l-rose-500 hover:shadow-lg transition-all" density={displayDensity}>
+                          <div className="flex justify-between items-start mb-4">
+                            <div className={cn(
+                              "p-2 rounded-xl",
+                              t.type === 'income' ? "bg-emerald-100 text-emerald-600" : 
+                              t.type === 'expense' ? "bg-rose-100 text-rose-600" : 
+                              "bg-blue-100 text-blue-600"
+                            )}>
+                              <RefreshCw size={20} className="animate-spin-slow" />
+                            </div>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => handleToggleConsolidation(t)}
+                                className="px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-colors shadow-sm"
+                              >
+                                Consolidar
+                              </button>
+                              <button 
+                                onClick={() => { setTransactionToEdit(t); setIsEditTransactionModalOpen(true); }}
+                                className="p-1.5 text-slate-300 hover:text-blue-500 transition-colors"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                          <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1 leading-tight">{t.description}</h4>
+                          <div className="flex items-baseline gap-2 mb-2">
+                             <p className={cn(
+                               "text-xl font-black tracking-tighter",
+                               t.type === 'income' ? "text-emerald-600" : t.type === 'expense' ? "text-rose-600" : "text-blue-600"
+                             )}>
+                               {formatCurrency(t.amount)}
+                             </p>
+                             <span className="text-[10px] font-black text-slate-400 uppercase">{formatDate(t.date)}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-[9px] text-slate-500">
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase font-bold">
+                              {accounts.find(a => a.id === t.accountId)?.name}
+                            </span>
+                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase font-bold">
+                              {categories.find(c => c.id === t.categoryId)?.name}
+                            </span>
+                          </div>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
