@@ -2656,10 +2656,11 @@ export default function App() {
       {/* Main Content */}
       <main className={cn(
         "flex-1 overflow-y-auto no-scrollbar relative transition-all duration-500 h-full",
-        sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]"
+        sidebarCollapsed ? "lg:pl-[120px]" : "lg:pl-[340px]",
+        "pt-[calc(76px+env(safe-area-inset-top))] lg:pt-0"
       )}>
-        {/* Sticky Header Mobile - Premium Adaptive Glass */}
-        <header className="lg:hidden sticky top-0 left-0 right-0 z-[100] bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 px-6 pb-4 flex justify-between items-center shadow-lg pt-[calc(1rem+env(safe-area-inset-top))]">
+        {/* Fixed Header Mobile - Premium Adaptive Glass */}
+        <header className="lg:hidden fixed top-0 left-0 right-1 lg:right-0 z-[100] bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-b border-slate-200 dark:border-white/5 px-6 pb-4 flex justify-between items-center shadow-lg pt-[calc(1rem+env(safe-area-inset-top))]">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsMobileMenuOpen(true)}

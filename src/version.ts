@@ -1,6 +1,15 @@
-export const APP_VERSION = "1.3.0";
+export const APP_VERSION = "1.3.1";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.3.1",
+    date: "2026-05-16",
+    changes: [
+      "Header Mobile fixo: barra superior agora permanece travada no topo",
+      "Compensação dinâmica de layout para evitar sobreposição sob o Header fixo",
+      "Ajuste fino de paddings para Safe Areas em dispositivos iOS"
+    ]
+  },
   {
     version: "1.3.0",
     date: "2026-05-16",
