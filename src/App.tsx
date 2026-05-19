@@ -66,6 +66,9 @@ import {
   Layout,
   Settings,
   Sliders,
+  Database,
+  ShieldAlert,
+  FileJson,
   Home,
   Utensils,
   Car,
@@ -153,6 +156,7 @@ import {
 import { auth, db, storage, signInWithGoogle, logout } from './firebase';
 import { APP_VERSION, VERSION_HISTORY } from './version';
 import { VersionHistoryModal } from './components/VersionHistoryModal';
+import { AuthModal } from './components/AuthModal';
 import { cn, formatCurrency, formatDate } from './lib/utils';
 import { PDF_IMPORT_DATA, ImportTransaction } from './services/pdfImportData';
 import { parseExcelFile, downloadExcelTemplate } from './services/excelImportService';
@@ -808,7 +812,14 @@ const ConfirmationModal = ({
   </div>
 );
 
-const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity }: { isOpen: boolean, onClose: () => void, displayDensity: DensityType, setDisplayDensity: (d: DensityType) => void }) => {
+const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onExportBackup, isLoading }: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  displayDensity: DensityType, 
+  setDisplayDensity: (d: DensityType) => void,
+  onExportBackup: () => void,
+  isLoading: boolean
+}) => {
   if (!isOpen) return null;
   
   return (
@@ -850,7 +861,7 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity }: {
             </button>
           </div>
 
-          <div className="p-8 space-y-8">
+          <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
             {/* Visualização Section */}
             <div className="space-y-6">
               <div className="flex items-center gap-3">
@@ -917,6 +928,57 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity }: {
                 A densidade visual altera o espaçamento, tamanho de ícones e fontes em todo o aplicativo, permitindo que você visualize mais informações ou tenha uma interface mais limpa.
               </p>
             </div>
+
+            {/* Backup & Dados */}
+            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
+                  <Database size={18} />
+                </div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                  Backup & Dados
+                </h3>
+              </div>
+
+              <div className="p-6 bg-blue-50/50 dark:bg-blue-900/10 rounded-[32px] border border-blue-100 dark:border-blue-900/30">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="p-3 bg-blue-500 rounded-2xl text-white shadow-lg shadow-blue-500/20">
+                    <FileJson size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white mb-1">Exportar JSON</h4>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">
+                      Baixe uma cópia completa de todos os seus dados financeiros para controle pessoal.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex gap-3 mb-6">
+                  <ShieldAlert size={16} className="text-amber-500 shrink-0" />
+                  <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase leading-snug tracking-tighter">
+                    Este arquivo contém dados sensíveis. Mantenha em local seguro. O backup inclui contas, transações, categorias e agendamentos.
+                  </p>
+                </div>
+
+                <button 
+                  onClick={onExportBackup}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-[20px] font-black uppercase tracking-widest text-xs hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={18} />
+                      Exportar meus dados
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </motion.div>
       </motion.div>
@@ -954,6 +1016,33 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Inactivity Timeout (15 minutes)
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: NodeJS.Timeout;
+    const TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        logout();
+        alert('Sua sessão expirou devido à inatividade (15 minutos). Por segurança, você foi desconectado.');
+      }, TIMEOUT_DURATION);
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const handleActivity = () => resetTimer();
+
+    events.forEach(event => document.addEventListener(event, handleActivity));
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => document.removeEventListener(event, handleActivity));
+    };
+  }, [user]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -977,6 +1066,7 @@ export default function App() {
   }, [displayDensity]);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     if (saved !== null) return saved === 'true';
@@ -1009,6 +1099,46 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleExportBackup = () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const backupData = {
+        version: '1.1.0',
+        exportDate: new Date().toISOString(),
+        user: {
+          uid: user.uid,
+          email: user.email
+        },
+        data: {
+          accounts,
+          transactions,
+          categories,
+          recurringTransactions
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `finance_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert('Backup gerado e baixado com sucesso!');
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Erro ao gerar backup. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [transactionsToImport, setTransactionsToImport] = useState<ImportTransaction[]>([]);
@@ -2810,7 +2940,12 @@ export default function App() {
   }
 
   if (!user) {
-    return <LandingPage onSignIn={signInWithGoogle} />;
+    return (
+      <>
+        <LandingPage onSignIn={() => setIsAuthModalOpen(true)} />
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      </>
+    );
   }
 
   return (
@@ -6405,6 +6540,8 @@ export default function App() {
             onClose={() => setIsSettingsModalOpen(false)} 
             displayDensity={displayDensity} 
             setDisplayDensity={setDisplayDensity} 
+            onExportBackup={handleExportBackup}
+            isLoading={isLoading}
           />
         )}
       </AnimatePresence>
