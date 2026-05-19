@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
   collection, 
@@ -1078,6 +1078,7 @@ export default function App() {
   const [isAccountDetailsVisible, setIsAccountDetailsVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<{ isPremium?: boolean } | null>(null);
+  const editFormRef = useRef<HTMLFormElement>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>(() => {
     const saved = localStorage.getItem('activeTab');
     return (saved as any) || 'transactions';
@@ -2168,6 +2169,58 @@ export default function App() {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/transactions/${transactionToEdit.id}`);
     }
     });
+  };
+
+  const handleCancelEdit = () => {
+    if (!transactionToEdit) {
+      setIsEditTransactionModalOpen(false);
+      return;
+    }
+
+    const checkHasChanges = () => {
+      if (!editFormRef.current) return false;
+      const formData = new FormData(editFormRef.current);
+      
+      const fields = [
+        { name: 'type', current: transactionType, original: transactionToEdit.type },
+        { name: 'amount', current: Number(formData.get('amount')), original: transactionToEdit.amount },
+        { name: 'description', current: formData.get('description') || '', original: transactionToEdit.description || '' },
+        { name: 'notes', current: formData.get('notes') || '', original: transactionToEdit.notes || '' },
+        { name: 'date', current: formData.get('date') || '', original: transactionToEdit.date || '' },
+        { name: 'accountId', current: formData.get('accountId') || '', original: transactionToEdit.accountId || '' },
+        { name: 'toAccountId', current: formData.get('toAccountId') || '', original: transactionToEdit.toAccountId || '' },
+        { name: 'groupId', current: formData.get('groupId') || '', original: transactionToEdit.groupId || '' },
+        { name: 'categoryId', current: formData.get('categoryId') || '', original: transactionToEdit.categoryId || '' },
+        { name: 'costCenterId', current: selectedCostCenterId, original: transactionToEdit.costCenterId || '' },
+        { name: 'consolidated', current: formData.get('consolidated') === 'on', original: !!transactionToEdit.consolidated },
+        { name: 'paid', current: isPaid, original: !!transactionToEdit.paid },
+        { name: 'paymentDate', current: paymentDate, original: transactionToEdit.paymentDate || '' },
+      ];
+
+      return fields.some(f => {
+        const isDifferent = f.current !== f.original;
+        return isDifferent;
+      }) || selectedFile !== null || shouldRemoveAttachment;
+    };
+
+    if (checkHasChanges()) {
+      confirmAction({
+        title: 'Descartar Alterações',
+        message: 'Você tem alterações não salvas nesta transação. Deseja realmente descartá-las?',
+        variant: 'danger',
+        confirmText: 'Descartar Alterações'
+      }, () => {
+        setIsEditTransactionModalOpen(false);
+        setTransactionToEdit(null);
+        setSelectedFile(null);
+        setShouldRemoveAttachment(false);
+      });
+    } else {
+      setIsEditTransactionModalOpen(false);
+      setTransactionToEdit(null);
+      setSelectedFile(null);
+      setShouldRemoveAttachment(false);
+    }
   };
 
   const handleFileUpload = async (file: File) => {
@@ -6409,12 +6462,12 @@ export default function App() {
               >
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-slate-900">Editar Transação</h2>
-                  <button onClick={() => setIsEditTransactionModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <button onClick={handleCancelEdit} type="button" className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                     <X size={24} />
                   </button>
                 </div>
 
-                <form onSubmit={handleEditTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form ref={editFormRef} onSubmit={handleEditTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-slate-500 ml-1">Tipo</label>
                     <select 
@@ -6630,7 +6683,7 @@ export default function App() {
                     )}
                     <button
                       type="button"
-                      onClick={() => setIsEditTransactionModalOpen(false)}
+                      onClick={handleCancelEdit}
                       className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                     >
                       Cancelar
