@@ -36,23 +36,25 @@ service cloud.firestore {
              data.amount is number &&
              data.date is string &&
              data.accountId is string &&
-             data.description is string &&
-             (data.createdAt is timestamp || data.createdAt == null) &&
-             (!('notes' in data) || data.notes == null || data.notes is string) &&
-             (!('toAccountId' in data) || data.toAccountId == null || data.toAccountId is string) &&
-             (!('categoryId' in data) || data.categoryId == null || data.categoryId is string) &&
-             (!('costCenterId' in data) || data.costCenterId == null || data.costCenterId is string) &&
-             (!('groupId' in data) || data.groupId == null || data.groupId is string) &&
+             (!('description' in data) || data.description is string) &&
+             (!('notes' in data) || data.notes is string || data.notes == null) &&
              (!('consolidated' in data) || data.consolidated is bool) &&
              (!('paid' in data) || data.paid is bool) &&
-             (!('paymentDate' in data) || data.paymentDate == null || data.paymentDate is string) &&
+             (!('categoryId' in data) || data.categoryId is string || data.categoryId == null) &&
+             (!('costCenterId' in data) || data.costCenterId is string || data.costCenterId == null) &&
+             (!('toAccountId' in data) || data.toAccountId is string || data.toAccountId == null) &&
+             (!('groupId' in data) || data.groupId is string || data.groupId == null) &&
+             (!('paymentDate' in data) || data.paymentDate is string || data.paymentDate == null) &&
+             (!('attachmentUrl' in data) || data.attachmentUrl is string || data.attachmentUrl == null) &&
+             (!('attachmentName' in data) || data.attachmentName is string || data.attachmentName == null) &&
+             (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt == null) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp || data.updatedAt == null) &&
              (!('id' in data) || data.id is string);
     }
 
     function isValidTransactionGroup(data, userId) {
       return data.userId == userId &&
-             data.name is string && data.name.size() > 0 &&
-             (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt == null);
+             data.name is string && data.name.size() > 0;
     }
 
     function isValidAccount(data, userId) {
@@ -71,8 +73,7 @@ service cloud.firestore {
       return data.userId == userId &&
              data.description is string &&
              data.amount is number &&
-             data.type in ['income', 'expense'] &&
-             (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt == null);
+             data.type in ['income', 'expense'];
     }
 
     // Rules matching blueprint paths
@@ -84,9 +85,8 @@ service cloud.firestore {
       match /transactions/{transactionId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && isValidTransaction(incoming(), userId);
-        allow update: if isOwner(userId) && isValidTransaction(incoming(), userId);
-        allow delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && request.auth.uid == userId && isValidTransaction(incoming(), userId);
+        allow delete: if (isOwner(userId) && request.auth.uid == userId) || isAdmin();
       }
 
       match /accounts/{accountId} {
@@ -94,7 +94,7 @@ service cloud.firestore {
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidAccount(incoming(), userId);
         allow update: if isOwner(userId) && isValidAccount(incoming(), userId);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /categories/{categoryId} {
@@ -102,7 +102,7 @@ service cloud.firestore {
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidCategory(incoming(), userId);
         allow update: if isOwner(userId) && isValidCategory(incoming(), userId);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /recurring_transactions/{recurringId} {
@@ -110,7 +110,7 @@ service cloud.firestore {
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidRecurringTransaction(incoming(), userId);
         allow update: if isOwner(userId) && isValidRecurringTransaction(incoming(), userId);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
       }
 
       match /transaction_groups/{groupId} {
@@ -118,7 +118,7 @@ service cloud.firestore {
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidTransactionGroup(incoming(), userId);
         allow update: if isOwner(userId) && isValidTransactionGroup(incoming(), userId);
-        allow delete: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
       }
     }
 

@@ -595,26 +595,35 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
           Projetado: {formatCurrencyWithPrivacy(projected)}
         </motion.div>
 
-        <div className={cn("grid grid-cols-2 w-full gap-3 md:gap-6", density === 'super-compact' ? 'mt-2' : '')}>
+        <div className={cn(
+          "grid grid-cols-1 sm:grid-cols-2 w-full gap-3 md:gap-6", 
+          density === 'super-compact' ? 'mt-2' : ''
+        )}>
           <button 
             onClick={onStatClick} 
-            className="flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all p-5 md:p-8 group/btn relative overflow-hidden"
+            className={cn(
+              "flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all group/btn relative overflow-hidden",
+              density === 'super-compact' ? 'p-3' : density === 'compact' ? 'p-4' : 'p-5 md:p-8'
+            )}
           >
             <div className="absolute inset-0 bg-emerald-500/[0.03] opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-            <p className={cn("font-black text-emerald-500/60 uppercase tracking-widest leading-none mb-2 md:mb-4 relative z-10", d.heroSubText)}>Proventos</p>
-            <p className={cn("font-mono font-black text-emerald-400 relative z-10 flex items-center gap-2", density === 'super-compact' ? 'text-sm' : 'text-xl md:text-3xl text-emerald-400')}>
-              <ArrowUpRight size={20} className="opacity-40" />
+            <p className={cn("font-black text-emerald-500/60 uppercase tracking-widest leading-none mb-2 md:mb-4 relative z-10", d.heroSubText)}>Receitas</p>
+            <p className={cn("font-mono font-black text-emerald-400 relative z-10 flex items-center gap-2", density === 'super-compact' ? 'text-base' : 'text-xl md:text-3xl')}>
+              <ArrowUpRight size={density === 'super-compact' ? 14 : 20} className="opacity-40" />
               {formatCurrencyWithPrivacy(income)}
             </p>
           </button>
           <button 
             onClick={onStatClick} 
-            className="flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all p-5 md:p-8 group/btn relative overflow-hidden"
+            className={cn(
+              "flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all group/btn relative overflow-hidden",
+              density === 'super-compact' ? 'p-3' : density === 'compact' ? 'p-4' : 'p-5 md:p-8'
+            )}
           >
             <div className="absolute inset-0 bg-rose-500/[0.03] opacity-0 group-hover/btn:opacity-100 transition-opacity" />
-            <p className={cn("font-black text-rose-500/60 uppercase tracking-widest leading-none mb-2 md:mb-4 relative z-10", d.heroSubText)}>Desembolsos</p>
-            <p className={cn("font-mono font-black text-rose-500 relative z-10 flex items-center gap-2", density === 'super-compact' ? 'text-sm' : 'text-xl md:text-3xl text-rose-500')}>
-              <ArrowDownRight size={20} className="opacity-40" />
+            <p className={cn("font-black text-rose-500/60 uppercase tracking-widest leading-none mb-2 md:mb-4 relative z-10", d.heroSubText)}>Despesas</p>
+            <p className={cn("font-mono font-black text-rose-500 relative z-10 flex items-center gap-2", density === 'super-compact' ? 'text-base' : 'text-xl md:text-3xl')}>
+              <ArrowDownRight size={density === 'super-compact' ? 14 : 20} className="opacity-40" />
               {formatCurrencyWithPrivacy(expense)}
             </p>
           </button>
@@ -663,7 +672,7 @@ const findBestIcon = (name: string): string => {
 };
 
 const Card = ({ children, className, title, onClick, extra, density = 'normal' }: { children: React.ReactNode, className?: string, title?: string, onClick?: () => void, extra?: React.ReactNode, density?: DensityType }) => {
-  const pSize = density === 'super-compact' ? 'p-3' : density === 'compact' ? 'p-4' : density === 'super-relaxed' ? 'p-10' : 'p-4 md:p-6';
+  const pSize = DISPLAY_DENSITIES[density].cardP;
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -3431,10 +3440,19 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-6"
+              className={cn(
+                "w-full",
+                displayDensity === 'super-compact' ? 'space-y-3' : 
+                displayDensity === 'compact' ? 'space-y-4' : 
+                displayDensity === 'relaxed' ? 'space-y-8' : 
+                displayDensity === 'super-relaxed' ? 'space-y-12' : 'space-y-6'
+              )}
             >
               {/* Dashboard Period & Date Controls */}
-              <div className="flex flex-col lg:flex-row gap-2 md:gap-4 mb-4 md:mb-8">
+              <div className={cn(
+                "flex flex-col lg:flex-row gap-2 md:gap-4",
+                displayDensity === 'super-compact' ? 'mb-2' : 'mb-4 md:mb-8'
+              )}>
                 {/* Period Selector */}
                 <div className="flex-1 flex items-center gap-1 p-1 bg-slate-100 dark:bg-white/5 rounded-xl md:rounded-2xl border border-transparent dark:border-white/5 backdrop-blur-md">
                   <button 
@@ -3520,7 +3538,10 @@ export default function App() {
               />
 
               {notifications.length > 0 && (
-                <div className="grid grid-cols-1 gap-4 mb-8">
+                <div className={cn(
+                  "grid grid-cols-1 gap-2 md:gap-4",
+                  displayDensity === 'super-compact' ? 'mb-4' : 'mb-8'
+                )}>
                   {notifications.filter(n => n.type === 'danger' || n.type === 'warning').map((alert, idx) => (
                     <motion.div 
                       key={`dashboard-alert-${alert.id}-${idx}`}
@@ -3576,7 +3597,13 @@ export default function App() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className={cn(
+                "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4",
+                displayDensity === 'super-compact' ? 'gap-2' : 
+                displayDensity === 'compact' ? 'gap-3' : 
+                displayDensity === 'relaxed' ? 'gap-8' : 
+                displayDensity === 'super-relaxed' ? 'gap-10' : 'gap-4 md:gap-6'
+              )}>
                 {/* Bento Row 1: Activity & Balances */}
                 <Card title="Fluxo de Atividade" className="lg:col-span-3" density={displayDensity}>
                   <div className="space-y-4 md:space-y-6 max-h-[440px] overflow-y-auto no-scrollbar pr-1">
@@ -3697,12 +3724,12 @@ export default function App() {
                           dataKey="name" 
                           axisLine={false} 
                           tickLine={false} 
-                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                          tick={{ fill: '#94a3b8', fontSize: displayDensity === 'super-compact' ? 8 : 10, fontWeight: 800 }} 
                         />
                         <YAxis 
                           axisLine={false} 
                           tickLine={false} 
-                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                          tick={{ fill: '#94a3b8', fontSize: displayDensity === 'super-compact' ? 8 : 10, fontWeight: 800 }} 
                         />
                         <Tooltip 
                           contentStyle={{ 
@@ -3710,17 +3737,17 @@ export default function App() {
                             border: 'none', 
                             boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', 
                             background: isDarkMode ? '#1e293b' : '#ffffff',
-                            padding: '12px'
+                            padding: displayDensity === 'super-compact' ? '8px' : '12px'
                           }}
-                          itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                          itemStyle={{ fontSize: displayDensity === 'super-compact' ? '9px' : '11px', fontWeight: 'bold' }}
                           formatter={(value: any) => formatCurrency(Number(value))}
                         />
                         <Legend 
                           iconType="circle" 
-                          wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }} 
+                          wrapperStyle={{ paddingTop: displayDensity === 'super-compact' ? '10px' : '20px', fontSize: displayDensity === 'super-compact' ? '8px' : '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }} 
                         />
-                        <Bar name="Receitas" dataKey="income" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
-                        <Bar name="Despesas" dataKey="expense" fill="#f43f5e" radius={[6, 6, 0, 0]} barSize={20} />
+                        <Bar name="Receitas" dataKey="income" fill="#10b981" radius={[6, 6, 0, 0]} barSize={displayDensity === 'super-compact' ? 12 : 20} />
+                        <Bar name="Despesas" dataKey="expense" fill="#f43f5e" radius={[6, 6, 0, 0]} barSize={displayDensity === 'super-compact' ? 12 : 20} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
