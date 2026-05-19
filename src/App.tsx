@@ -3306,7 +3306,7 @@ export default function App() {
                         ) : (
                           // Render real notifications if any
                           notifications.map((n, i) => (
-                            <div key={`notif-item-${n.id || i}`} className={cn(
+                            <div key={`notif-item-${n.id || 'no-id'}-${i}`} className={cn(
                               "p-4 rounded-2xl border flex flex-col gap-1 transition-all hover:scale-[1.02]",
                               n.type === 'danger' ? "bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20" :
                               n.type === 'warning' ? "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20" :
@@ -3582,9 +3582,9 @@ export default function App() {
                 <div className="flex flex-col gap-6">
                   <Card title="Portfólio" className="flex-1 overflow-hidden relative" density={displayDensity}>
                     <div className="space-y-4 relative z-10">
-                      {accounts.slice(0, 4).map(account => (
+                      {accounts.slice(0, 4).map((account, idx) => (
                         <motion.div 
-                          key={`dashboard-account-${account.id}`} 
+                          key={`dashboard-account-${account.id || idx}`} 
                           whileHover={{ x: 4, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,1)' }}
                           className="flex items-center gap-4 p-4 rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-transparent hover:border-white/10 cursor-pointer transition-all duration-300"
                           onClick={() => {
@@ -3726,8 +3726,8 @@ export default function App() {
                 {budgetMonitoring.length > 0 && (
                   <Card title="Monitoramento de Orçamentos" className="lg:col-span-4" density={displayDensity}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {budgetMonitoring.map(cat => (
-                        <div key={`budget-card-${cat.id}`} className="p-4 rounded-3xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 group hover:border-cyan-500/30 transition-all">
+                      {budgetMonitoring.map((cat, idx) => (
+                        <div key={`budget-card-${cat.id || idx}`} className="p-4 rounded-3xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 group hover:border-cyan-500/30 transition-all">
                           <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm text-slate-400 group-hover:text-cyan-500 transition-colors">
@@ -3994,7 +3994,7 @@ export default function App() {
 
                   <select name="groupId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
                     <option value="">📌 Sem Grupo</option>
-                    {transactionGroups.map(g => <option key={`quick-add-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
+                    {transactionGroups.map((g, idx) => <option key={`quick-add-group-opt-${g.id}-${idx}`} value={g.id}>{g.name}</option>)}
                   </select>
 
                   {transactionType === 'transfer' && (
@@ -4151,7 +4151,7 @@ export default function App() {
 
                         return (
                           <div 
-                            key={`virtuoso-item-${t.id || index}`} 
+                            key={`virtuoso-item-${t.id || 'no-id'}-${index}`} 
                             className={cn(
                               "flex items-center px-4 group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800/50 transition-[height]",
                               displayDensity === 'super-compact' ? 'h-[44px]' : 
@@ -4293,7 +4293,7 @@ export default function App() {
 
                         {group.transactions.map((t, tIdx) => (
                           <TransactionCard 
-                            key={`mobile-list-${t.id || tIdx}`}
+                            key={`mobile-list-${t.id || 'no-id'}-${tIdx}`}
                             t={t}
                             accounts={accounts}
                             categories={categories}
@@ -4349,7 +4349,7 @@ export default function App() {
                         const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
                         
                         return (
-                          <tr key={`table-row-${t.id || idx}`} className="group hover:bg-slate-50 dark:hover:bg-cyan-500/[0.03] transition-colors">
+                          <tr key={`table-row-${t.id || 'no-id'}-${idx}`} className="group hover:bg-slate-50 dark:hover:bg-cyan-500/[0.03] transition-colors">
                             <td className="px-5 py-4 text-xs font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
                               {format(parseISO(t.date), 'dd/MM/yy')}
                             </td>
@@ -4607,8 +4607,8 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Centro de Custo (Pai)</label>
                     <select name="parentId" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Nenhum (Será um Centro de Custo)</option>
-                      {categories.filter(c => !c.parentId).map(c => (
-                        <option key={`cc-mgmt-parent-opt-${c.id}`} value={c.id}>{c.name}</option>
+                      {categories.filter(c => !c.parentId).map((c, idx) => (
+                        <option key={`cc-mgmt-parent-opt-${c.id || idx}`} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -4621,8 +4621,8 @@ export default function App() {
               </Card>
 
               <div className="space-y-6">
-                {categories.filter(c => !c.parentId).map((root) => (
-                  <div key={`category-tab-root-${root.id}`} className="space-y-3">
+                {categories.filter(c => !c.parentId).map((root, rootIdx) => (
+                  <div key={`category-tab-root-${root.id || rootIdx}`} className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider rounded">Centro de Custo</div>
                     </div>
@@ -4671,8 +4671,8 @@ export default function App() {
                     {/* Subcategories */}
                     <div className="ml-8 space-y-2 border-l-2 border-slate-100 dark:border-slate-800 pl-4">
                       {categories.filter(c => c.parentId === root.id).length > 0 ? (
-                        categories.filter(c => c.parentId === root.id).map((child) => (
-                          <Card key={`category-tab-child-${child.id}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group" density={displayDensity}>
+                        categories.filter(c => c.parentId === root.id).map((child, childIdx) => (
+                          <Card key={`category-tab-child-${child.id || childIdx}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group" density={displayDensity}>
                             <div className="flex items-center gap-3">
                               <CategoryIcon iconName={child.icon} size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{child.name}</p>
@@ -5442,7 +5442,7 @@ export default function App() {
                         </tr>
                       ) : (
                         filteredTransactions.map((t, idx) => (
-                           <tr key={`report-row-${t.id || idx}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                           <tr key={`report-row-${t.id || 'no-id'}-${idx}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                             <td className="py-4 text-sm text-slate-600 dark:text-slate-400">{formatDate(t.date)}</td>
                             <td className="py-4">
                               <div className="font-medium text-slate-800 dark:text-white">{t.description}</div>
@@ -5593,7 +5593,7 @@ export default function App() {
                       </div>
                     ) : (
                       recurringTransactions.map((rt, rtIdx) => (
-                        <Card key={`recurring-tx-card-${rt.id || rtIdx}`} className="relative border-l-4 border-l-blue-500" density={displayDensity}>
+                        <Card key={`recurring-tx-card-${rt.id || 'no-id'}-${rtIdx}`} className="relative border-l-4 border-l-blue-500" density={displayDensity}>
                           <div className="flex justify-between items-start mb-4">
                             <div className={cn("p-2 rounded-lg", rt.type === 'income' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
                               <RefreshCw size={20} />
@@ -5667,7 +5667,7 @@ export default function App() {
                       </div>
                     ) : (
                       pendingTransactions.map((t, tIdx) => (
-                        <Card key={`pending-tx-card-${t.id || tIdx}`} className="relative border-l-4 border-l-rose-500 hover:shadow-lg transition-all" density={displayDensity}>
+                        <Card key={`pending-tx-card-${t.id || 'no-id'}-${tIdx}`} className="relative border-l-4 border-l-rose-500 hover:shadow-lg transition-all" density={displayDensity}>
                           <div className="flex justify-between items-start mb-4">
                             <div className={cn(
                               "p-2 rounded-xl",
@@ -5841,7 +5841,7 @@ export default function App() {
                         className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">Nenhum Grupo</option>
-                        {transactionGroups.map(g => <option key={`add-tx-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
+                        {transactionGroups.map((g, idx) => <option key={`add-tx-group-opt-${g.id}-${idx}`} value={g.id}>{g.name}</option>)}
                       </select>
                     </div>
 
@@ -6362,7 +6362,7 @@ export default function App() {
                       className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     >
                       <option value="">📌 Sem Grupo</option>
-                      {transactionGroups.map(g => <option key={`edit-tx-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
+                      {transactionGroups.map((g, idx) => <option key={`edit-tx-group-opt-${g.id}-${idx}`} value={g.id}>{g.name}</option>)}
                     </select>
                   </div>
 
@@ -7030,7 +7030,7 @@ export default function App() {
                           <div className="space-y-1">
                             {days[day].map((t, tIdx) => (
                               <TransactionCard 
-                                key={`account-details-item-${t.id || tIdx}`}
+                                key={`account-details-item-${t.id || 'no-id'}-${tIdx}`}
                                 t={t}
                                 accounts={accounts}
                                 categories={categories}

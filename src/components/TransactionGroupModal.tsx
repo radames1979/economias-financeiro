@@ -162,9 +162,9 @@ export const TransactionGroupModal: React.FC<TransactionGroupModalProps> = ({ is
             <div className="space-y-4">
               <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em] mb-4">Grupos Ativos ({groups.length})</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {groups.map((group) => (
+                {groups.map((group, i) => (
                   <div 
-                    key={group.id}
+                    key={`${group.id}-${i}`}
                     className="p-5 bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 rounded-3xl flex items-center justify-between group hover:shadow-lg hover:shadow-slate-200/50 dark:hover:shadow-none transition-all"
                   >
                     <div className="flex items-center gap-4">
