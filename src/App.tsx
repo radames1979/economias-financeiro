@@ -4151,7 +4151,7 @@ export default function App() {
 
                         return (
                           <div 
-                            key={`virtuoso-item-${t.id}`} 
+                            key={`virtuoso-item-${t.id || index}`} 
                             className={cn(
                               "flex items-center px-4 group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800/50 transition-[height]",
                               displayDensity === 'super-compact' ? 'h-[44px]' : 
@@ -4291,9 +4291,9 @@ export default function App() {
                           </div>
                         </div>
 
-                        {group.transactions.map(t => (
+                        {group.transactions.map((t, tIdx) => (
                           <TransactionCard 
-                            key={`mobile-list-${t.id}`}
+                            key={`mobile-list-${t.id || tIdx}`}
                             t={t}
                             accounts={accounts}
                             categories={categories}
@@ -4342,14 +4342,14 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTransactionsByDashboard.slice(0, visibleTransactionsCount).map((t) => {
+                      {filteredTransactionsByDashboard.slice(0, visibleTransactionsCount).map((t, idx) => {
                         const category = categories.find(c => c.id === t.categoryId);
                         const costCenter = categories.find(c => c.id === t.costCenterId);
                         const account = accounts.find(a => a.id === t.accountId);
                         const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
                         
                         return (
-                          <tr key={`table-row-${t.id}`} className="group hover:bg-slate-50 dark:hover:bg-cyan-500/[0.03] transition-colors">
+                          <tr key={`table-row-${t.id || idx}`} className="group hover:bg-slate-50 dark:hover:bg-cyan-500/[0.03] transition-colors">
                             <td className="px-5 py-4 text-xs font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
                               {format(parseISO(t.date), 'dd/MM/yy')}
                             </td>
@@ -5144,7 +5144,7 @@ export default function App() {
                       />
                       {annualSummary.topCategoryNames.map((name, index) => (
                         <Bar 
-                          key={`annual-cat-bar-${name}`} 
+                          key={`annual-cat-bar-${name}-${index}`} 
                           dataKey={name} 
                           name={name}
                           stackId="a" 
@@ -5441,8 +5441,8 @@ export default function App() {
                           </td>
                         </tr>
                       ) : (
-                        filteredTransactions.map((t) => (
-                          <tr key={`report-row-${t.id}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                        filteredTransactions.map((t, idx) => (
+                           <tr key={`report-row-${t.id || idx}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                             <td className="py-4 text-sm text-slate-600 dark:text-slate-400">{formatDate(t.date)}</td>
                             <td className="py-4">
                               <div className="font-medium text-slate-800 dark:text-white">{t.description}</div>
@@ -5592,8 +5592,8 @@ export default function App() {
                         <p className="text-slate-400 font-medium">Nenhuma recorrência configurada.</p>
                       </div>
                     ) : (
-                      recurringTransactions.map((rt) => (
-                        <Card key={`recurring-tx-card-${rt.id}`} className="relative border-l-4 border-l-blue-500" density={displayDensity}>
+                      recurringTransactions.map((rt, rtIdx) => (
+                        <Card key={`recurring-tx-card-${rt.id || rtIdx}`} className="relative border-l-4 border-l-blue-500" density={displayDensity}>
                           <div className="flex justify-between items-start mb-4">
                             <div className={cn("p-2 rounded-lg", rt.type === 'income' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600")}>
                               <RefreshCw size={20} />
@@ -5666,8 +5666,8 @@ export default function App() {
                         <p className="text-slate-400 font-medium">Nenhum lançamento pendente.</p>
                       </div>
                     ) : (
-                      pendingTransactions.map((t) => (
-                        <Card key={`pending-tx-card-${t.id}`} className="relative border-l-4 border-l-rose-500 hover:shadow-lg transition-all" density={displayDensity}>
+                      pendingTransactions.map((t, tIdx) => (
+                        <Card key={`pending-tx-card-${t.id || tIdx}`} className="relative border-l-4 border-l-rose-500 hover:shadow-lg transition-all" density={displayDensity}>
                           <div className="flex justify-between items-start mb-4">
                             <div className={cn(
                               "p-2 rounded-xl",
@@ -5842,18 +5842,6 @@ export default function App() {
                       >
                         <option value="">Nenhum Grupo</option>
                         {transactionGroups.map(g => <option key={`add-tx-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Grupo (Opcional)</label>
-                      <select 
-                        name="groupId" 
-                        defaultValue={transactionToEdit.groupId || ''}
-                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
-                      >
-                        <option value="">📌 Sem Grupo</option>
-                        {transactionGroups.map(g => <option key={`edit-tx-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
                       </select>
                     </div>
 
@@ -6296,7 +6284,7 @@ export default function App() {
             </div>
           )}
 
-          {isEditTransactionModalOpen && transactionToEdit && (
+          {isEditTransactionModalOpen && transactionToEdit && transactionToEdit.id && (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -7040,9 +7028,9 @@ export default function App() {
                             <div className="flex-1 h-px bg-slate-100 dark:bg-white/5" />
                           </div>
                           <div className="space-y-1">
-                            {days[day].map((t) => (
+                            {days[day].map((t, tIdx) => (
                               <TransactionCard 
-                                key={`account-details-item-${t.id}`}
+                                key={`account-details-item-${t.id || tIdx}`}
                                 t={t}
                                 accounts={accounts}
                                 categories={categories}
