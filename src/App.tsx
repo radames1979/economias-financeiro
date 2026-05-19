@@ -2255,15 +2255,24 @@ export default function App() {
         if (consolidated) {
           if (type === 'transfer') {
             if (fromAccountSnap.exists()) {
-              transaction.update(fromAccountRef, { balance: fromAccountSnap.data().balance - amount });
+              transaction.update(fromAccountRef, { 
+                balance: fromAccountSnap.data().balance - amount,
+                updatedAt: serverTimestamp()
+              });
             }
-            if (toAccountSnap && toAccountSnap.exists()) {
-              transaction.update(toAccountRef!, { balance: toAccountSnap.data().balance + amount });
+            if (toAccountRef && toAccountSnap && toAccountSnap.exists()) {
+              transaction.update(toAccountRef!, { 
+                balance: toAccountSnap.data().balance + amount,
+                updatedAt: serverTimestamp()
+              });
             }
           } else {
             if (fromAccountSnap.exists()) {
               const newBalance = type === 'income' ? fromAccountSnap.data().balance + amount : fromAccountSnap.data().balance - amount;
-              transaction.update(fromAccountRef, { balance: newBalance });
+              transaction.update(fromAccountRef, { 
+                balance: newBalance,
+                updatedAt: serverTimestamp()
+              });
             }
           }
         }
@@ -2296,15 +2305,24 @@ export default function App() {
         if (t.consolidated) {
           if (t.type === 'transfer') {
             if (fromAccountSnap.exists()) {
-              transaction.update(fromAccountRef, { balance: fromAccountSnap.data().balance + t.amount });
+              transaction.update(fromAccountRef, { 
+                balance: fromAccountSnap.data().balance + t.amount,
+                updatedAt: serverTimestamp()
+              });
             }
-            if (toAccountSnap && toAccountSnap.exists()) {
-              transaction.update(toAccountRef!, { balance: toAccountSnap.data().balance - t.amount });
+            if (toAccountRef && toAccountSnap && toAccountSnap.exists()) {
+              transaction.update(toAccountRef!, { 
+                balance: toAccountSnap.data().balance - t.amount,
+                updatedAt: serverTimestamp()
+              });
             }
           } else {
             if (fromAccountSnap.exists()) {
               const newBalance = t.type === 'income' ? fromAccountSnap.data().balance - t.amount : fromAccountSnap.data().balance + t.amount;
-              transaction.update(fromAccountRef, { balance: newBalance });
+              transaction.update(fromAccountRef, { 
+                balance: newBalance,
+                updatedAt: serverTimestamp()
+              });
             }
           }
         }
@@ -2355,30 +2373,48 @@ export default function App() {
           // Becoming consolidated: Apply changes to balance
           if (t.type === 'transfer') {
             if (fromAccountSnap.exists()) {
-              transaction.update(fromAccountRef, { balance: fromAccountSnap.data().balance - t.amount });
+              transaction.update(fromAccountRef, { 
+                balance: fromAccountSnap.data().balance - t.amount,
+                updatedAt: serverTimestamp()
+              });
             }
             if (toAccountSnap && toAccountSnap.exists()) {
-              transaction.update(toAccountRef!, { balance: toAccountSnap.data().balance + t.amount });
+              transaction.update(toAccountRef!, { 
+                balance: toAccountSnap.data().balance + t.amount,
+                updatedAt: serverTimestamp()
+              });
             }
           } else {
             if (fromAccountSnap.exists()) {
               const newBalance = t.type === 'income' ? fromAccountSnap.data().balance + t.amount : fromAccountSnap.data().balance - t.amount;
-              transaction.update(fromAccountRef, { balance: newBalance });
+              transaction.update(fromAccountRef, { 
+                balance: newBalance,
+                updatedAt: serverTimestamp()
+              });
             }
           }
         } else {
           // Becoming non-consolidated: Revert changes to balance
           if (t.type === 'transfer') {
             if (fromAccountSnap.exists()) {
-              transaction.update(fromAccountRef, { balance: fromAccountSnap.data().balance + t.amount });
+              transaction.update(fromAccountRef, { 
+                balance: fromAccountSnap.data().balance + t.amount,
+                updatedAt: serverTimestamp()
+              });
             }
             if (toAccountSnap && toAccountSnap.exists()) {
-              transaction.update(toAccountRef!, { balance: toAccountSnap.data().balance - t.amount });
+              transaction.update(toAccountRef!, { 
+                balance: toAccountSnap.data().balance - t.amount,
+                updatedAt: serverTimestamp()
+              });
             }
           } else {
             if (fromAccountSnap.exists()) {
               const newBalance = t.type === 'income' ? fromAccountSnap.data().balance - t.amount : fromAccountSnap.data().balance + t.amount;
-              transaction.update(fromAccountRef, { balance: newBalance });
+              transaction.update(fromAccountRef, { 
+                balance: newBalance,
+                updatedAt: serverTimestamp()
+              });
             }
           }
         }
@@ -2425,15 +2461,24 @@ export default function App() {
 
             if (t.type === 'transfer') {
               if (fromAccountSnap.exists()) {
-                transaction.update(fromAccountRef, { balance: fromAccountSnap.data().balance - t.amount });
+                transaction.update(fromAccountRef, { 
+                  balance: fromAccountSnap.data().balance - t.amount,
+                  updatedAt: serverTimestamp()
+                });
               }
               if (toAccountSnap && toAccountSnap.exists()) {
-                transaction.update(toAccountRef!, { balance: toAccountSnap.data().balance + t.amount });
+                transaction.update(toAccountRef!, { 
+                  balance: toAccountSnap.data().balance + t.amount,
+                  updatedAt: serverTimestamp()
+                });
               }
             } else {
               if (fromAccountSnap.exists()) {
                 const newBalance = t.type === 'income' ? fromAccountSnap.data().balance + t.amount : fromAccountSnap.data().balance - t.amount;
-                transaction.update(fromAccountRef, { balance: newBalance });
+                transaction.update(fromAccountRef, { 
+                  balance: newBalance,
+                  updatedAt: serverTimestamp()
+                });
               }
             }
             transaction.update(transRef, { consolidated: true, updatedAt: serverTimestamp() });

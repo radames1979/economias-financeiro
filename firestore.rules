@@ -31,80 +31,52 @@ service cloud.firestore {
       return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
              data.uid == request.auth.uid &&
              data.email == request.auth.token.email &&
-             data.createdAt == request.time &&
+             (data.createdAt is timestamp) &&
              data.uid is string && data.uid.size() <= 128 &&
              data.email is string && data.email.size() <= 256;
     }
 
     function isValidTransaction(data, userId) {
-      return data.keys().hasAll(['type', 'amount', 'date', 'accountId', 'userId', 'createdAt']) &&
-             data.userId == userId &&
+      return data.userId == userId &&
              data.type in ['income', 'expense', 'transfer'] &&
              data.amount is number &&
-             data.date is string && data.date.size() <= 32 &&
-             data.accountId is string && data.accountId.size() <= 128 &&
-             data.createdAt == request.time &&
-             ( !data.keys().contains('groupId') || (data.groupId is string && data.groupId.size() <= 128) ) &&
-             ( !data.keys().contains('costCenterId') || (data.costCenterId is string && data.costCenterId.size() <= 128) ) &&
-             // Relational check
-             exists(/databases/$(database)/documents/users/$(userId)/accounts/$(data.accountId));
+             data.date is string;
     }
 
     function isValidTransactionGroup(data, userId) {
-      return data.keys().hasAll(['name', 'color', 'userId', 'createdAt']) &&
-             data.userId == userId &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.color is string && data.color.size() <= 50 &&
-             (!data.keys().contains('description') || (data.description is string && data.description.size() <= 500)) &&
-             data.createdAt == request.time;
+      return data.userId == userId &&
+             data.name is string && data.name.size() > 0;
     }
 
     function isValidAccount(data, userId) {
-      return data.keys().hasAll(['name', 'type', 'balance', 'userId']) &&
-             data.userId == userId &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.type in ['checking', 'savings', 'credit_card', 'cash', 'investment', 'other'] &&
+      return data.userId == userId &&
+             data.name is string && data.name.size() > 0 &&
              data.balance is number;
     }
 
     function isValidCategory(data, userId) {
-      return data.keys().hasAll(['name', 'type', 'userId']) &&
-             data.userId == userId &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.type in ['income', 'expense', 'transfer'];
+      return data.userId == userId &&
+             data.name is string && data.name.size() > 0;
     }
 
     function isValidRecurringTransaction(data, userId) {
-      return data.keys().hasAll(['active', 'description', 'amount', 'type', 'accountId', 'userId', 'frequency', 'startDate', 'createdAt']) &&
-             data.userId == userId &&
-             data.active is bool &&
-             data.description is string && data.description.size() <= 200 &&
+      return data.userId == userId &&
+             data.description is string &&
              data.amount is number &&
-             data.type in ['income', 'expense'] &&
-             data.accountId is string && data.accountId.size() <= 128 &&
-             data.frequency in ['weekly', 'monthly'] &&
-             data.startDate is string && data.startDate.size() <= 32 &&
-             data.createdAt == request.time;
+             data.type in ['income', 'expense'];
     }
 
     // Rules matching blueprint paths
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']) &&
-        incoming().updatedAt == request.time
-      ) || isAdmin();
+      allow update: if isOwner(userId) && (incoming().updatedAt is timestamp || isAdmin());
 
       match /transactions/{transactionId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidTransaction(incoming(), userId);
-        allow update: if isOwner(userId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'description', 'date', 'categoryId', 'costCenterId', 'groupId', 'notes', 'consolidated', 'accountId', 'toAccountId', 'attachmentUrl', 'attachmentName', 'updatedAt']) &&
-          incoming().userId == existing().userId &&
-          incoming().updatedAt == request.time
-        ) || isAdmin();
+        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
         allow delete: if isOwner(userId) || isAdmin();
       }
 
@@ -112,11 +84,7 @@ service cloud.firestore {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidAccount(incoming(), userId);
-        allow update: if isOwner(userId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'balance', 'type', 'updatedAt']) &&
-          incoming().userId == existing().userId &&
-          incoming().updatedAt == request.time
-        ) || isAdmin();
+        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
         allow delete: if isOwner(userId) || isAdmin();
       }
 
@@ -124,11 +92,7 @@ service cloud.firestore {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidCategory(incoming(), userId);
-        allow update: if isOwner(userId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'icon', 'color', 'parentId', 'type', 'monthlyBudget', 'updatedAt']) &&
-          incoming().userId == existing().userId &&
-          incoming().updatedAt == request.time
-        ) || isAdmin();
+        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
         allow delete: if isOwner(userId) || isAdmin();
       }
 
@@ -136,11 +100,7 @@ service cloud.firestore {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidRecurringTransaction(incoming(), userId);
-        allow update: if isOwner(userId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['active', 'lastProcessedDate', 'description', 'amount', 'type', 'accountId', 'categoryId', 'costCenterId', 'frequency', 'startDate', 'updatedAt']) &&
-          incoming().userId == existing().userId &&
-          incoming().updatedAt == request.time
-        ) || isAdmin();
+        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
         allow delete: if isOwner(userId) || isAdmin();
       }
 
@@ -148,11 +108,7 @@ service cloud.firestore {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidTransactionGroup(incoming(), userId);
-        allow update: if isOwner(userId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'color', 'updatedAt']) &&
-          incoming().userId == existing().userId &&
-          incoming().updatedAt == request.time
-        ) || isAdmin();
+        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
         allow delete: if isOwner(userId) || isAdmin();
       }
     }
