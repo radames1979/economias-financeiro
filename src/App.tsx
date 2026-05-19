@@ -947,11 +947,11 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onE
               
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {[
-                  { id: 'super-compact' as const, label: 'Super Compact', desc: 'Densidade máxima' },
-                  { id: 'compact' as const, label: 'Compact', desc: 'Espaçamento reduzido' },
-                  { id: 'normal' as const, label: 'Normal', desc: 'Padrão do sistema' },
-                  { id: 'relaxed' as const, label: 'Relaxed', desc: 'Mais respiro' },
-                  { id: 'super-relaxed' as const, label: 'Super Relaxed', desc: 'Imersão total' },
+                  { id: 'super-compact' as const, label: 'Super Compacto', desc: 'Densidade máxima para telas pequenas' },
+                  { id: 'compact' as const, label: 'Compacto', desc: 'Espaçamento reduzido' },
+                  { id: 'normal' as const, label: 'Normal', desc: 'Equilíbrio padrão' },
+                  { id: 'relaxed' as const, label: 'Relaxado', desc: 'Mais espaço e respiro' },
+                  { id: 'super-relaxed' as const, label: 'Super Relaxado', desc: 'Imersão e legibilidade máxima' },
                 ].map((density) => (
                   <button
                     key={density.id}
@@ -968,7 +968,10 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onE
                         "text-[9px] font-black uppercase tracking-widest",
                         displayDensity === density.id ? "text-cyan-500" : "text-slate-400 dark:text-slate-500"
                       )}>
-                        {density.id.replace('-', ' ')}
+                        {density.id === 'super-compact' ? 'Mínimo' : 
+                         density.id === 'compact' ? 'Pequeno' : 
+                         density.id === 'normal' ? 'Médio' : 
+                         density.id === 'relaxed' ? 'Grande' : 'Livre'}
                       </span>
                       {displayDensity === density.id && (
                         <motion.div layoutId="active-dot" className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
@@ -1810,7 +1813,7 @@ export default function App() {
     return last7Days.map(date => {
       const dayTransactions = dashboardTransactions.filter(t => t.date.startsWith(date));
       return {
-        name: format(parseISO(date), 'eee', { locale: undefined }),
+        name: format(parseISO(date), 'eee', { locale: ptBR }),
         income: dayTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0),
         expense: dayTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0),
       };
@@ -3407,8 +3410,9 @@ export default function App() {
                 {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
 
-              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
-                <Settings size={20} />
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95 group relative">
+                <Sliders size={20} className="group-hover:rotate-180 transition-transform duration-500" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border-2 border-white dark:border-slate-950 shadow-sm" />
               </button>
               <button 
                 onClick={() => setIsTransactionGroupModalOpen(true)} 
@@ -3683,7 +3687,46 @@ export default function App() {
                   </motion.button>
                 </div>
 
-                {/* Bento Row 2: Big Charts & Insights */}
+                {/* Bento Row 2: Bar Chart Summary */}
+                <Card title="Resumo das Últimas Transações (7 dias)" className="lg:col-span-4 overflow-hidden" density={displayDensity}>
+                  <div className="h-64 mt-4 min-h-0 min-w-0">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.2} />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            borderRadius: '24px', 
+                            border: 'none', 
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', 
+                            background: isDarkMode ? '#1e293b' : '#ffffff',
+                            padding: '12px'
+                          }}
+                          itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
+                          formatter={(value: any) => formatCurrency(Number(value))}
+                        />
+                        <Legend 
+                          iconType="circle" 
+                          wrapperStyle={{ paddingTop: '20px', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }} 
+                        />
+                        <Bar name="Receitas" dataKey="income" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
+                        <Bar name="Despesas" dataKey="expense" fill="#f43f5e" radius={[6, 6, 0, 0]} barSize={20} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+
+                {/* Bento Row 3: Big Charts & Insights */}
                 <Card title="Dinâmica Mensal" className="lg:col-span-2 overflow-hidden" density={displayDensity}>
                   <div className="h-72 mt-4 min-h-0 min-w-0">
                     <ResponsiveContainer width="100%" height="100%" minHeight={0}>

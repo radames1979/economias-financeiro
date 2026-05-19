@@ -16,36 +16,43 @@ service cloud.firestore {
     
     // Admin check - Hardcoded for bootstrap or lookup
     function isAdmin() { 
-      return isVerified() && (
-        request.auth.token.email == 'bernardoaster@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      return isSignedIn() && (
+        request.auth.token.email == 'bernardoaster@gmail.com'
       );
     }
 
     function isOwner(userId) {
-      return isValidId(userId) && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     // Validation Helpers
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
-             data.uid == request.auth.uid &&
-             data.email == request.auth.token.email &&
-             (data.createdAt is timestamp) &&
-             data.uid is string && data.uid.size() <= 128 &&
-             data.email is string && data.email.size() <= 256;
+      return data.uid == request.auth.uid;
     }
 
     function isValidTransaction(data, userId) {
       return data.userId == userId &&
              data.type in ['income', 'expense', 'transfer'] &&
              data.amount is number &&
-             data.date is string;
+             data.date is string &&
+             data.accountId is string &&
+             data.description is string &&
+             (data.createdAt is timestamp || data.createdAt == null) &&
+             (!('notes' in data) || data.notes == null || data.notes is string) &&
+             (!('toAccountId' in data) || data.toAccountId == null || data.toAccountId is string) &&
+             (!('categoryId' in data) || data.categoryId == null || data.categoryId is string) &&
+             (!('costCenterId' in data) || data.costCenterId == null || data.costCenterId is string) &&
+             (!('groupId' in data) || data.groupId == null || data.groupId is string) &&
+             (!('consolidated' in data) || data.consolidated is bool) &&
+             (!('paid' in data) || data.paid is bool) &&
+             (!('paymentDate' in data) || data.paymentDate == null || data.paymentDate is string) &&
+             (!('id' in data) || data.id is string);
     }
 
     function isValidTransactionGroup(data, userId) {
       return data.userId == userId &&
-             data.name is string && data.name.size() > 0;
+             data.name is string && data.name.size() > 0 &&
+             (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt == null);
     }
 
     function isValidAccount(data, userId) {
@@ -56,60 +63,62 @@ service cloud.firestore {
 
     function isValidCategory(data, userId) {
       return data.userId == userId &&
-             data.name is string && data.name.size() > 0;
+             data.name is string && data.name.size() > 0 &&
+             data.type in ['income', 'expense', 'transfer'];
     }
 
     function isValidRecurringTransaction(data, userId) {
       return data.userId == userId &&
              data.description is string &&
              data.amount is number &&
-             data.type in ['income', 'expense'];
+             data.type in ['income', 'expense'] &&
+             (!('createdAt' in data) || data.createdAt is timestamp || data.createdAt == null);
     }
 
     // Rules matching blueprint paths
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && (incoming().updatedAt is timestamp || isAdmin());
+      allow update: if isOwner(userId) || isAdmin();
 
       match /transactions/{transactionId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidTransaction(incoming(), userId);
-        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
-        allow delete: if isOwner(userId) || isAdmin();
+        allow update: if isOwner(userId) && isValidTransaction(incoming(), userId);
+        allow delete: if isOwner(userId);
       }
 
       match /accounts/{accountId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidAccount(incoming(), userId);
-        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
-        allow delete: if isOwner(userId) || isAdmin();
+        allow update: if isOwner(userId) && isValidAccount(incoming(), userId);
+        allow delete: if isOwner(userId);
       }
 
       match /categories/{categoryId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidCategory(incoming(), userId);
-        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
-        allow delete: if isOwner(userId) || isAdmin();
+        allow update: if isOwner(userId) && isValidCategory(incoming(), userId);
+        allow delete: if isOwner(userId);
       }
 
       match /recurring_transactions/{recurringId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidRecurringTransaction(incoming(), userId);
-        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
-        allow delete: if isOwner(userId) || isAdmin();
+        allow update: if isOwner(userId) && isValidRecurringTransaction(incoming(), userId);
+        allow delete: if isOwner(userId);
       }
 
       match /transaction_groups/{groupId} {
         allow list: if isOwner(userId);
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidTransactionGroup(incoming(), userId);
-        allow update: if isOwner(userId) && (incoming().userId == userId || isAdmin());
-        allow delete: if isOwner(userId) || isAdmin();
+        allow update: if isOwner(userId) && isValidTransactionGroup(incoming(), userId);
+        allow delete: if isOwner(userId);
       }
     }
 
