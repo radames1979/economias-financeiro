@@ -24,6 +24,8 @@
         "description": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "categoryId": { "type": "string" },
+        "costCenterId": { "type": "string" },
+        "groupId": { "type": "string" },
         "accountId": { "type": "string" },
         "toAccountId": { "type": "string" },
         "userId": { "type": "string" },
@@ -35,6 +37,20 @@
         "notes": { "type": "string", "description": "Additional notes about the transaction" }
       },
       "required": ["type", "amount", "date", "accountId", "userId"]
+    },
+    "TransactionGroup": {
+      "title": "Transaction Group",
+      "description": "A group of related transactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "color": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "color", "userId"]
     },
     "Account": {
       "title": "Account",
@@ -108,6 +124,10 @@
     "/users/{userId}/recurring_transactions/{recurringId}": {
       "schema": "RecurringTransaction",
       "description": "User's recurring transaction templates"
+    },
+    "/users/{userId}/transaction_groups/{groupId}": {
+      "schema": "TransactionGroup",
+      "description": "User's transaction groups"
     }
   }
 }

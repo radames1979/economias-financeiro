@@ -43,12 +43,16 @@ import {
   Menu,
   X,
   PieChart as PieChartIcon,
+  Table,
+  LayoutGrid,
   FileDown,
   FileUp,
   Calendar,
   CalendarDays,
   Filter,
   Download,
+  ArrowUpRight,
+  ArrowDownRight,
   Eye,
   EyeOff,
   Moon,
@@ -120,7 +124,7 @@ import {
   Coffee as CoffeeIcon,
   Wine,
   Camera,
-  Scissors
+  Scissors,
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
 import { GroupedVirtuoso } from 'react-virtuoso';
@@ -141,6 +145,7 @@ import {
   LineChart,
   Line,
   ReferenceLine,
+  ReferenceArea,
   Label
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
@@ -157,12 +162,13 @@ import { auth, db, storage, signInWithGoogle, logout } from './firebase';
 import { APP_VERSION, VERSION_HISTORY } from './version';
 import { VersionHistoryModal } from './components/VersionHistoryModal';
 import { AuthModal } from './components/AuthModal';
+import { TransactionGroupModal } from './components/TransactionGroupModal';
 import { cn, formatCurrency, formatDate } from './lib/utils';
 import { PDF_IMPORT_DATA, ImportTransaction } from './services/pdfImportData';
 import { parseExcelFile, downloadExcelTemplate } from './services/excelImportService';
 import { ACCOUNT_IMPORT_DATA, ImportAccount } from './services/accountImportData';
 import { processRecurringTransactions } from './services/recurringTransactionService';
-import { Transaction, Account, Category, TransactionType, AccountType, RecurringTransaction, Frequency } from './types';
+import { Transaction, Account, Category, TransactionType, AccountType, RecurringTransaction, Frequency, TransactionGroup } from './types';
 
 // --- Constants & Types ---
 
@@ -191,6 +197,9 @@ const DISPLAY_DENSITIES = {
     textDescription: 'text-[11px]',
     textCategory: 'text-[9px]',
     textAmount: 'text-sm',
+    textBadge: 'text-[7px]',
+    badgeIconSize: 8,
+    actionIconSize: 12,
     sidebarP: 'py-2 px-3',
     sidebarGap: 'gap-2',
   },
@@ -206,6 +215,9 @@ const DISPLAY_DENSITIES = {
     textDescription: 'text-xs',
     textCategory: 'text-[10px]',
     textAmount: 'text-base',
+    textBadge: 'text-[9px]',
+    badgeIconSize: 10,
+    actionIconSize: 14,
     sidebarP: 'py-3 px-4',
     sidebarGap: 'gap-3',
   },
@@ -221,6 +233,9 @@ const DISPLAY_DENSITIES = {
     textDescription: 'text-sm',
     textCategory: 'text-[10px]',
     textAmount: 'text-base',
+    textBadge: 'text-[9px]',
+    badgeIconSize: 10,
+    actionIconSize: 16,
     sidebarP: 'py-4 px-4',
     sidebarGap: 'gap-4',
   },
@@ -236,6 +251,9 @@ const DISPLAY_DENSITIES = {
     textDescription: 'text-base',
     textCategory: 'text-xs',
     textAmount: 'text-xl',
+    textBadge: 'text-xs',
+    badgeIconSize: 12,
+    actionIconSize: 18,
     sidebarP: 'py-5 px-6',
     sidebarGap: 'gap-6',
   },
@@ -251,6 +269,9 @@ const DISPLAY_DENSITIES = {
     textDescription: 'text-lg',
     textCategory: 'text-base',
     textAmount: 'text-2xl',
+    textBadge: 'text-sm',
+    badgeIconSize: 14,
+    actionIconSize: 20,
     sidebarP: 'py-6 px-8',
     sidebarGap: 'gap-8',
   }
@@ -307,6 +328,11 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Components ---
 
+const Atmosphere = ({ isDarkMode }: { isDarkMode: boolean }) => {
+  if (!isDarkMode) return null;
+  return <div className="atmosphere-dark" />;
+};
+
 const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 'normal' }: { icon: any, label: string, active: boolean, onClick: () => void, collapsed?: boolean, density?: DensityType }) => {
   const d = DISPLAY_DENSITIES[density];
   return (
@@ -355,9 +381,9 @@ const TopNavigationBar = ({ activeTab, onTabChange, notificationsCount, onOpenNo
   ];
 
   return (
-    <div className={cn("hidden lg:flex sticky top-0 z-[60] bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5 px-1 md:px-2 overflow-x-auto no-scrollbar")}>
-      <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
-        <div className="flex items-center gap-0.5 md:gap-1 py-1 lg:py-2">
+    <div className={cn("hidden lg:flex sticky top-0 z-[60] bg-white/70 dark:bg-[#020617]/70 backdrop-blur-3xl border-b border-slate-200/50 dark:border-white/5 px-4 overflow-x-auto no-scrollbar transition-all duration-700")}>
+      <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4 h-16 lg:h-20">
+        <div className="flex items-center gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -367,15 +393,15 @@ const TopNavigationBar = ({ activeTab, onTabChange, notificationsCount, onOpenNo
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={cn(
-                  "relative flex items-center gap-2 px-4 py-2.5 md:px-6 md:py-3 rounded-xl md:rounded-2xl transition-all duration-300 group",
+                  "relative flex items-center gap-2 px-5 py-2.5 rounded-2xl transition-all duration-300 group",
                   isActive 
                     ? "text-cyan-500 bg-cyan-500/5" 
                     : "text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5"
                 )}
               >
-                <Icon size={18} className={cn("transition-transform duration-300 group-hover:scale-110", isActive ? "stroke-[2.5px]" : "stroke-2")} />
+                <Icon size={18} className={cn("transition-all duration-300 group-hover:scale-110", isActive ? "stroke-[2.5px] scale-110" : "stroke-2")} />
                 <span className={cn(
-                  "text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap",
+                  "text-[10px] font-black uppercase tracking-widest whitespace-nowrap",
                   isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100"
                 )}>
                   {tab.label}
@@ -384,7 +410,7 @@ const TopNavigationBar = ({ activeTab, onTabChange, notificationsCount, onOpenNo
                 {isActive && (
                   <motion.div 
                     layoutId="top-nav-indicator"
-                    className="absolute bottom-0 left-4 right-4 md:left-6 md:right-6 h-0.5 bg-cyan-500 rounded-full shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                    className="absolute bottom-[-10px] left-5 right-5 h-1 bg-cyan-500 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.8)]"
                   />
                 )}
               </button>
@@ -392,14 +418,14 @@ const TopNavigationBar = ({ activeTab, onTabChange, notificationsCount, onOpenNo
           })}
         </div>
         
-        <div className="flex items-center gap-2 py-1 lg:py-2">
+        <div className="flex items-center gap-4">
           <button 
             onClick={onOpenNotifications}
-            className="p-3 rounded-2xl relative text-slate-400 hover:text-cyan-500 hover:bg-cyan-500/5 transition-all group active:scale-95"
+            className="p-3 rounded-2xl relative text-slate-400 hover:text-cyan-500 hover:bg-cyan-500/5 transition-all group active:scale-95 border border-transparent hover:border-cyan-500/20"
           >
             <Bell size={18} className="transition-transform group-hover:rotate-12" />
             {notificationsCount > 0 && (
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
+              <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-[#020617] shadow-[0_0_10px_rgba(244,63,94,0.6)] animate-pulse" />
             )}
           </button>
         </div>
@@ -412,32 +438,26 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick, hasNotification }: 
   <button
     onClick={onClick}
     className={cn(
-      "flex flex-col items-center justify-center gap-1.5 flex-1 py-2 transition-all duration-300 relative",
-      "active:scale-90 touch-none select-none",
-      active ? "text-cyan-500" : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+      "flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-300 relative",
+      "active:scale-95 touch-none select-none",
+      active ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"
     )}
   >
     <div className={cn(
       "transition-all duration-300 flex items-center justify-center relative",
-      active ? "transform -translate-y-0.5 scale-110" : "scale-100"
+      active ? "transform -translate-y-0.5" : ""
     )}>
-      <Icon size={22} strokeWidth={active ? 3 : 2} />
+      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
       {hasNotification && (
-        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-slate-950 shadow-sm animate-pulse" />
+        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-rose-500 rounded-full border border-white dark:border-slate-950 shadow-sm" />
       )}
     </div>
     <span className={cn(
-      "text-[9px] font-black uppercase tracking-[0.15em] transition-all duration-300",
-      active ? "opacity-100" : "opacity-60"
+      "text-[10px] font-medium transition-all duration-300",
+      active ? "opacity-100" : "opacity-70"
     )}>
       {label}
     </span>
-    {active && (
-      <motion.div 
-        layoutId="mobile-nav-dot"
-        className="absolute -bottom-1 w-1 h-1 bg-cyan-500 rounded-full shadow-[0_0_8px_rgba(6,182,212,0.8)]"
-      />
-    )}
   </button>
 );
 
@@ -489,27 +509,36 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
           )}>
             {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
           </p>
-          <div className="flex justify-end mt-1">
+          <div className="flex justify-end items-center gap-2 mt-1">
+            {t.paid && (
+              <span className={cn(
+                "font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center gap-1",
+                d.textBadge
+              )}>
+                <ShieldCheck size={d.badgeIconSize} />
+                Pago
+              </span>
+            )}
             <button 
               onClick={() => onToggleConsolidation(t)}
               className={cn(
-                "font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-all",
-                density === 'super-compact' ? "text-[7px]" : "text-[9px]",
+                "font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-all flex items-center gap-1",
+                d.textBadge,
                 t.consolidated 
-                  ? "text-emerald-500/60 bg-emerald-500/5 shadow-sm" 
+                  ? "text-blue-500/60 bg-blue-500/5 shadow-sm" 
                   : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 shadow-sm"
               )}
             >
               {t.consolidated ? (
-                <span className="flex items-center gap-1">
-                  <Check size={density === 'super-compact' ? 8 : 10} />
+                <>
+                  <Check size={d.badgeIconSize} />
                   Efetivado
-                </span>
+                </>
               ) : (
-                <span className="flex items-center gap-1">
-                  <Clock size={density === 'super-compact' ? 8 : 10} className="animate-pulse" />
+                <>
+                  <Clock size={d.badgeIconSize} className="animate-pulse" />
                   Agendado
-                </span>
+                </>
               )}
             </button>
           </div>
@@ -517,10 +546,10 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
         
         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
           <button onClick={() => onEdit(t)} className="p-2 text-slate-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-xl transition-colors">
-            <Edit2 size={16} />
+            <Edit2 size={d.actionIconSize} />
           </button>
           <button onClick={() => onDelete(t)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors">
-            <Trash2 size={16} />
+            <Trash2 size={d.actionIconSize} />
           </button>
         </div>
       </div>
@@ -531,15 +560,19 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
 const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick, density = 'normal' }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void, density?: DensityType }) => {
   const d = DISPLAY_DENSITIES[density];
   return (
-    <div className={cn("bg-slate-900 dark:bg-slate-900 rounded-[32px] md:rounded-[40px] border border-white/5 shadow-2xl overflow-hidden relative group", d.heroP)}>
-      {/* Background Glow */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-cyan-500/20 transition-colors duration-1000" />
+    <div className={cn("bg-[#020617] dark:bg-[#020617] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative group", d.heroP)}>
+      {/* Background Animated Glows */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/[0.08] blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none transition-all duration-1000 group-hover:bg-cyan-500/[0.12]" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/[0.05] blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
       
       <div className="relative z-10 flex flex-col items-center text-center">
-        <p className={cn("font-black text-slate-400 uppercase tracking-[0.3em] mb-2 md:mb-4", d.heroSubText)}>Balanço do Mês</p>
+        <div className="flex items-center gap-2 mb-3 md:mb-6 opacity-60">
+          <Sparkles size={14} className="text-cyan-500 animate-pulse" />
+          <p className={cn("font-black text-slate-400 uppercase tracking-[0.4em]", d.heroSubText)}>Patrimônio Líquido</p>
+        </div>
         
         <h2 className={cn(
-          "font-black font-mono tracking-tighter leading-none mb-1 md:mb-2",
+          "font-black font-mono tracking-[-0.05em] leading-none mb-2 md:mb-4 drop-shadow-2xl",
           d.heroText,
           balance < 0 ? "text-rose-500" : "text-white"
         )}>
@@ -547,25 +580,43 @@ const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPr
         </h2>
 
         <motion.div 
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, y: -2 }}
           className={cn(
-            "inline-flex items-center gap-2 px-3 py-1 rounded-full font-black uppercase tracking-wider border mb-4 md:mb-8",
+            "inline-flex items-center gap-2 px-5 py-2 rounded-full font-black uppercase tracking-wider border mb-8 md:mb-12 backdrop-blur-md shadow-lg",
             d.heroSubText,
-            projected >= balance ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+            projected >= balance 
+              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-emerald-500/5" 
+              : "bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-rose-500/5"
           )}
         >
-          {projected >= balance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-          Projeção: {formatCurrencyWithPrivacy(projected)}
+          <div className={cn("p-1 rounded-full", projected >= balance ? "bg-emerald-500/20" : "bg-rose-500/20")}>
+            {projected >= balance ? <TrendingUp size={12} strokeWidth={3} /> : <TrendingDown size={12} strokeWidth={3} />}
+          </div>
+          Projetado: {formatCurrencyWithPrivacy(projected)}
         </motion.div>
 
-        <div className={cn("grid grid-cols-2 w-full gap-2 md:gap-4", density === 'super-compact' ? 'mt-2' : '')}>
-          <button onClick={onStatClick} className={cn("flex flex-col items-center justify-center rounded-2xl md:rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all p-3 md:p-4")}>
-            <p className={cn("font-black text-emerald-500/80 uppercase tracking-widest leading-none mb-1 md:mb-2", d.heroSubText)}>Entradas</p>
-            <p className={cn("font-mono font-black text-emerald-400", density === 'super-compact' ? 'text-xs' : 'text-sm md:text-lg text-emerald-400')}>{formatCurrencyWithPrivacy(income)}</p>
+        <div className={cn("grid grid-cols-2 w-full gap-3 md:gap-6", density === 'super-compact' ? 'mt-2' : '')}>
+          <button 
+            onClick={onStatClick} 
+            className="flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all p-5 md:p-8 group/btn relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-emerald-500/[0.03] opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+            <p className={cn("font-black text-emerald-500/60 uppercase tracking-widest leading-none mb-2 md:mb-4 relative z-10", d.heroSubText)}>Proventos</p>
+            <p className={cn("font-mono font-black text-emerald-400 relative z-10 flex items-center gap-2", density === 'super-compact' ? 'text-sm' : 'text-xl md:text-3xl text-emerald-400')}>
+              <ArrowUpRight size={20} className="opacity-40" />
+              {formatCurrencyWithPrivacy(income)}
+            </p>
           </button>
-          <button onClick={onStatClick} className={cn("flex flex-col items-center justify-center rounded-2xl md:rounded-3xl bg-white/5 border border-white/10 active:scale-95 transition-all p-3 md:p-4")}>
-            <p className={cn("font-black text-rose-500/80 uppercase tracking-widest leading-none mb-1 md:mb-2", d.heroSubText)}>Saídas</p>
-            <p className={cn("font-mono font-black text-rose-500", density === 'super-compact' ? 'text-xs' : 'text-sm md:text-lg text-rose-500')}>{formatCurrencyWithPrivacy(expense)}</p>
+          <button 
+            onClick={onStatClick} 
+            className="flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all p-5 md:p-8 group/btn relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-rose-500/[0.03] opacity-0 group-hover/btn:opacity-100 transition-opacity" />
+            <p className={cn("font-black text-rose-500/60 uppercase tracking-widest leading-none mb-2 md:mb-4 relative z-10", d.heroSubText)}>Desembolsos</p>
+            <p className={cn("font-mono font-black text-rose-500 relative z-10 flex items-center gap-2", density === 'super-compact' ? 'text-sm' : 'text-xl md:text-3xl text-rose-500')}>
+              <ArrowDownRight size={20} className="opacity-40" />
+              {formatCurrencyWithPrivacy(expense)}
+            </p>
           </button>
         </div>
       </div>
@@ -615,25 +666,32 @@ const Card = ({ children, className, title, onClick, extra, density = 'normal' }
   const pSize = density === 'super-compact' ? 'p-3' : density === 'compact' ? 'p-4' : density === 'super-relaxed' ? 'p-10' : 'p-4 md:p-6';
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
       onClick={onClick}
       className={cn(
-        "glass-card rounded-[24px] md:rounded-[32px] group/card",
+        "glass-card rounded-[32px] group/card relative overflow-hidden",
         pSize,
-        onClick && "cursor-pointer active:scale-[0.98]",
+        onClick && "cursor-pointer active:scale-[0.98] hover:shadow-cyan-500/10",
         className
       )}
     >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent dark:from-white/[0.02] dark:to-transparent pointer-events-none" />
       {title && (
-        <div className={cn("flex justify-between items-center", density === 'super-compact' ? 'mb-2 md:mb-3' : 'mb-4 md:mb-6')}>
-          <h3 className="text-[10px] md:text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
-            {title}
-          </h3>
+        <div className={cn("flex justify-between items-center relative z-10", density === 'super-compact' ? 'mb-2 md:mb-3' : 'mb-4 md:mb-6')}>
+          <div className="flex flex-col">
+            <h3 className="text-[10px] md:text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
+              {title}
+            </h3>
+            <div className="h-0.5 w-4 bg-cyan-500 mt-1 rounded-full opacity-50 group-hover/card:w-8 transition-all duration-500" />
+          </div>
           {extra}
         </div>
       )}
-      {children}
+      <div className="relative z-10">
+        {children}
+      </div>
     </motion.div>
   );
 };
@@ -641,32 +699,46 @@ const Card = ({ children, className, title, onClick, extra, density = 'normal' }
 const StatCard = ({ title, value, icon: Icon, color, trend, valueColor, onClick, density = 'normal' }: { title: string, value: string, icon: any, color: string, trend?: string, valueColor?: string, onClick?: () => void, density?: DensityType }) => (
   <Card 
     className={cn(
-      "flex flex-col transition-all duration-500 overflow-hidden relative", 
-      onClick && "hover:border-cyan-500/50",
+      "flex flex-col transition-all duration-500 overflow-hidden relative group/stat", 
+      onClick && "hover:scale-[1.02] active:scale-[0.98]",
       density === 'super-compact' ? 'gap-2' : 'gap-4'
     )}
     onClick={onClick}
     density={density}
   >
     <div className="flex justify-between items-start relative z-10">
-      <div className={cn("rounded-2xl shadow-lg", color, density === 'super-compact' ? 'p-2' : 'p-3')}>
-        <Icon size={density === 'super-compact' ? 16 : 20} className="text-white" />
+      <div className={cn(
+        "rounded-2xl transition-all duration-500 group-hover/stat:rotate-12", 
+        color, 
+        density === 'super-compact' ? 'p-2' : 'p-3'
+      )}>
+        <Icon size={density === 'super-compact' ? 16 : 22} className="text-white" />
       </div>
       {trend && (
         <span className={cn(
-          "font-black px-2.5 py-1 rounded-full uppercase tracking-widest", 
+          "font-black px-3 py-1 rounded-full uppercase tracking-widest flex items-center gap-1", 
           density === 'super-compact' ? 'text-[8px]' : 'text-[10px]',
           trend.startsWith('+') ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
         )}>
-          {trend}
+          {trend.startsWith('+') ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+          {trend.replace('+', '').replace('-', '')}
         </span>
       )}
     </div>
     <div className="relative z-10">
-      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">{title}</p>
-      <p className={cn("font-mono font-black tracking-tighter", valueColor || "text-slate-900 dark:text-white", density === 'super-compact' ? 'text-xl' : 'text-3xl')}>{value}</p>
+      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1.5">{title}</p>
+      <div className="flex items-baseline gap-1">
+        <p className={cn("font-mono font-black tracking-tighter whitespace-nowrap", valueColor || "text-slate-900 dark:text-white", density === 'super-compact' ? 'text-xl' : 'text-3xl')}>
+          {value}
+        </p>
+      </div>
     </div>
-    <div className={cn("absolute -bottom-6 -right-6 w-24 h-24 blur-3xl rounded-full opacity-20 pointer-events-none transition-all duration-500 group-hover/card:scale-150", color)} />
+    
+    {/* Decorative background glow */}
+    <div className={cn(
+      "absolute -bottom-8 -right-8 w-32 h-32 blur-[60px] rounded-full opacity-20 transition-all duration-700 group-hover/stat:opacity-40 group-hover/stat:scale-150", 
+      color
+    )} />
   </Card>
 );
 
@@ -996,12 +1068,28 @@ export default function App() {
   const [profile, setProfile] = useState<{ isPremium?: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>(() => {
     const saved = localStorage.getItem('activeTab');
-    return (saved as any) || 'dashboard';
+    return (saved as any) || 'transactions';
   });
 
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
+    // Smooth scroll to top on tab change
+    const root = document.getElementById('root');
+    if (root) {
+      root.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }, [activeTab]);
+
+  const handleTabChange = (tab: any) => {
+    if (activeTab === tab) {
+      const root = document.getElementById('root');
+      if (root) {
+        root.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -1044,6 +1132,7 @@ export default function App() {
     };
   }, [user]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionGroups, setTransactionGroups] = useState<TransactionGroup[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
@@ -1066,11 +1155,12 @@ export default function App() {
   }, [displayDensity]);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isTransactionGroupModalOpen, setIsTransactionGroupModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     if (saved !== null) return saved === 'true';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return true; // Default to dark mode
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
@@ -1116,6 +1206,7 @@ export default function App() {
           accounts,
           transactions,
           categories,
+          transactionGroups,
           recurringTransactions
         }
       };
@@ -1157,7 +1248,23 @@ export default function App() {
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
   const [defaultAccountIdForModal, setDefaultAccountIdForModal] = useState<string>('');
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+  const [transactionViewMode, setTransactionViewMode] = useState<'list' | 'table'>('list');
+  const [isPaid, setIsPaid] = useState(false);
+  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [shouldRemoveAttachment, setShouldRemoveAttachment] = useState(false);
+
+  useEffect(() => {
+    if (transactionToEdit) {
+      setIsPaid(transactionToEdit.paid || false);
+      setPaymentDate(transactionToEdit.paymentDate || transactionToEdit.date || format(new Date(), 'yyyy-MM-dd'));
+      setTransactionType(transactionToEdit.type);
+      setSelectedCostCenterId(transactionToEdit.costCenterId || '');
+    } else {
+      setIsPaid(false);
+      setPaymentDate(format(new Date(), 'yyyy-MM-dd'));
+    }
+  }, [transactionToEdit]);
+
   const [visibleTransactionsCount, setVisibleTransactionsCount] = useState(20);
   const [selectedAccountForProjection, setSelectedAccountForProjection] = useState<string | null>(null);
 
@@ -1315,11 +1422,16 @@ export default function App() {
       setRecurringTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RecurringTransaction)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/recurring_transactions`));
 
+    const unsubGroups = onSnapshot(collection(db, `users/${user.uid}/transaction_groups`), (snapshot) => {
+      setTransactionGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TransactionGroup)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/transaction_groups`));
+
     return () => {
       unsubTransactions();
       unsubAccounts();
       unsubCategories();
       unsubRecurring();
+      unsubGroups();
     };
   }, [user]);
 
@@ -1882,10 +1994,13 @@ export default function App() {
     const date = formData.get('date') as string;
     const categoryId = formData.get('categoryId') as string;
     const costCenterId = formData.get('costCenterId') as string;
+    const groupId = formData.get('groupId') as string;
     const accountId = formData.get('accountId') as string;
     const toAccountId = formData.get('toAccountId') as string;
     const notes = formData.get('notes') as string;
     const consolidated = formData.get('consolidated') === 'on';
+    const paid = formData.get('paid') === 'on';
+    const paymentDate = formData.get('paymentDate') as string;
 
     if (type === 'transfer' && accountId === toAccountId) {
       alert('A conta de origem e destino não podem ser a mesma.');
@@ -1995,8 +2110,15 @@ export default function App() {
           date,
           accountId,
           consolidated,
+          paid,
           updatedAt: serverTimestamp()
         };
+
+        if (paid && paymentDate) {
+          updatedData.paymentDate = paymentDate;
+        } else {
+          updatedData.paymentDate = deleteField();
+        }
 
         if (attachment) {
           updatedData.attachmentUrl = attachment.url;
@@ -2014,6 +2136,12 @@ export default function App() {
           updatedData.toAccountId = toAccountId;
           updatedData.categoryId = null;
           updatedData.costCenterId = null;
+        }
+
+        if (groupId) {
+          updatedData.groupId = groupId;
+        } else {
+          updatedData.groupId = deleteField();
         }
 
         transaction.update(transRef, updatedData);
@@ -2057,10 +2185,13 @@ export default function App() {
     const date = formData.get('date') as string;
     const categoryId = formData.get('categoryId') as string;
     const costCenterId = formData.get('costCenterId') as string;
+    const groupId = formData.get('groupId') as string;
     const accountId = formData.get('accountId') as string;
     const toAccountId = formData.get('toAccountId') as string;
     const notes = formData.get('notes') as string;
     const consolidated = formData.get('consolidated') === 'on';
+    const paid = formData.get('paid') === 'on';
+    const paymentDate = formData.get('paymentDate') as string;
 
     if (type === 'transfer' && accountId === toAccountId) {
       alert('A conta de origem e destino não podem ser a mesma.');
@@ -2074,12 +2205,12 @@ export default function App() {
 
     try {
       await runTransaction(db, async (transaction) => {
-        // 1. Prepare references
+        // ... references ...
         const transRef = doc(collection(db, `users/${user.uid}/transactions`));
         const fromAccountRef = doc(db, `users/${user.uid}/accounts`, accountId);
         const toAccountRef = type === 'transfer' ? doc(db, `users/${user.uid}/accounts`, toAccountId) : null;
 
-        // 2. Perform all READS first
+        // ... reads ...
         const fromAccountSnap = await transaction.get(fromAccountRef);
         const toAccountSnap = toAccountRef ? await transaction.get(toAccountRef) : null;
 
@@ -2094,8 +2225,13 @@ export default function App() {
           accountId,
           userId: user.uid,
           createdAt: serverTimestamp(),
-          consolidated
+          consolidated,
+          paid,
         };
+
+        if (paid && paymentDate) {
+          data.paymentDate = paymentDate;
+        }
 
         if (attachment) {
           data.attachmentUrl = attachment.url;
@@ -2107,6 +2243,10 @@ export default function App() {
           data.costCenterId = costCenterId;
         } else {
           data.toAccountId = toAccountId;
+        }
+
+        if (groupId) {
+          data.groupId = groupId;
         }
 
         // Set the transaction record
@@ -2522,11 +2662,30 @@ export default function App() {
     const income = yearTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
     const expense = yearTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
     
-    const monthlyData = Array.from({ length: 12 }, (_, i) => {
+    // Get all top-level category names that have at least one expense in this year
+    const yearExpenseTransactions = yearTransactions.filter(t => t.type === 'expense');
+    const categoriesWithExpenses = new Set<string>();
+    yearExpenseTransactions.forEach(t => {
+      const subCat = categories.find(c => c.id === t.categoryId);
+      const parentCat = categories.find(c => c.id === t.costCenterId) || (subCat?.parentId ? categories.find(c => c.id === subCat.parentId) : subCat);
+      if (parentCat) categoriesWithExpenses.add(parentCat.name);
+      else categoriesWithExpenses.add('Sem Categoria');
+    });
+
+    const monthlyDataTemp = Array.from({ length: 12 }, (_, i) => {
       const month = (i + 1).toString().padStart(2, '0');
       const monthPrefix = `${reportYear}-${month}`;
       const monthTransactions = yearTransactions.filter(t => t.date.startsWith(monthPrefix));
       const monthDate = new Date(Number(reportYear), i, 1);
+      
+      const categoryExpenses: Record<string, number> = {};
+      monthTransactions.filter(t => t.type === 'expense').forEach(t => {
+        const subCat = categories.find(c => c.id === t.categoryId);
+        const parentCat = categories.find(c => c.id === t.costCenterId) || (subCat?.parentId ? categories.find(c => c.id === subCat.parentId) : subCat);
+        const catName = parentCat?.name || 'Sem Categoria';
+        categoryExpenses[catName] = (categoryExpenses[catName] || 0) + t.amount;
+      });
+
       return {
         month: format(monthDate, 'MMM', { locale: undefined }),
         fullMonth: format(monthDate, 'MMMM', { locale: undefined }),
@@ -2534,11 +2693,24 @@ export default function App() {
         endDate: format(endOfMonth(monthDate), 'yyyy-MM-dd'),
         income: monthTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0),
         expense: monthTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0),
-      };
+        ...categoryExpenses
+      } as any;
     });
 
-    return { income, expense, monthlyData };
-  }, [transactions, reportYear]);
+    const maxOverallExpense = Math.max(...monthlyDataTemp.map(d => d.expense));
+    const monthlyData = monthlyDataTemp.map(d => ({
+      ...d,
+      isPeak: d.expense === maxOverallExpense && maxOverallExpense > 0
+    }));
+
+    const categoryAverages: Record<string, number> = {};
+    Array.from(categoriesWithExpenses).forEach(catName => {
+      const totalForCat = monthlyData.reduce((acc, curr) => acc + (curr[catName] || 0), 0);
+      categoryAverages[catName] = totalForCat / 12;
+    });
+
+    return { income, expense, monthlyData, topCategoryNames: Array.from(categoriesWithExpenses), categoryAverages };
+  }, [transactions, reportYear, categories]);
 
   const comparisonStats = useMemo(() => {
     const start = parseISO(reportStartDate);
@@ -2949,7 +3121,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex transition-colors duration-700">
+      <Atmosphere isDarkMode={isDarkMode} />
       {/* Sidebar Desktop */}
       <aside className={cn(
         "hidden lg:flex flex-col fixed inset-y-6 left-6 w-80 glass-card rounded-[40px] z-[80] transition-all duration-500",
@@ -2968,12 +3141,12 @@ export default function App() {
         </div>
 
         <nav className="flex-1 px-4 py-2 space-y-2">
-          <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={sidebarCollapsed} density={displayDensity} />
-          <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} collapsed={sidebarCollapsed} density={displayDensity} />
-          <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} collapsed={sidebarCollapsed} density={displayDensity} />
-          <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} collapsed={sidebarCollapsed} density={displayDensity} />
-          <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => setActiveTab('recurring')} collapsed={sidebarCollapsed} density={displayDensity} />
-          <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => handleTabChange('dashboard')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => handleTabChange('transactions')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => handleTabChange('accounts')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => handleTabChange('categories')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => handleTabChange('recurring')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => handleTabChange('reports')} collapsed={sidebarCollapsed} density={displayDensity} />
         </nav>
 
         <div className="p-4 mt-auto">
@@ -3065,7 +3238,7 @@ export default function App() {
 
         <TopNavigationBar 
           activeTab={activeTab} 
-          onTabChange={setActiveTab} 
+          onTabChange={handleTabChange} 
           notificationsCount={notifications.length}
           onOpenNotifications={() => setIsNotificationsOpen(!isNotificationsOpen)} 
         />
@@ -3191,6 +3364,13 @@ export default function App() {
 
               <button onClick={() => setIsSettingsModalOpen(true)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
                 <Settings size={20} />
+              </button>
+              <button 
+                onClick={() => setIsTransactionGroupModalOpen(true)} 
+                className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
+                title="Grupos de Transações"
+              >
+                <LayoutGrid size={20} />
               </button>
             </div>
           </header>
@@ -3812,6 +3992,11 @@ export default function App() {
                     {accounts.map(a => <option key={`acc-opt-1-${a.id}`} value={a.id}>{a.name}</option>)}
                   </select>
 
+                  <select name="groupId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+                    <option value="">📌 Sem Grupo</option>
+                    {transactionGroups.map(g => <option key={`quick-add-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
+                  </select>
+
                   {transactionType === 'transfer' && (
                     <select name="toAccountId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                       <option value="">Conta de Destino</option>
@@ -3840,6 +4025,34 @@ export default function App() {
 
               <Card title="Histórico" density={displayDensity}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
+                      <button 
+                        onClick={() => setTransactionViewMode('list')}
+                        className={cn(
+                          "p-2 rounded-lg transition-all",
+                          transactionViewMode === 'list' 
+                            ? "bg-white dark:bg-slate-800 shadow-sm text-cyan-500" 
+                            : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        )}
+                        title="Visualização em Lista"
+                      >
+                        <LayoutGrid size={18} />
+                      </button>
+                      <button 
+                        onClick={() => setTransactionViewMode('table')}
+                        className={cn(
+                          "p-2 rounded-lg transition-all",
+                          transactionViewMode === 'table' 
+                            ? "bg-white dark:bg-slate-800 shadow-sm text-cyan-500" 
+                            : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        )}
+                        title="Visualização em Tabela"
+                      >
+                        <Table size={18} />
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex-1 flex flex-col md:flex-row gap-3">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -3872,10 +4085,12 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  {/* Desktop Table View */}
-                  <div className="hidden md:block" style={{ height: '600px' }}>
-                    <GroupedVirtuoso
+                <div className="overflow-x-auto min-h-[400px]">
+                  {transactionViewMode === 'list' ? (
+                    <>
+                      {/* Desktop List View (Virtuoso) */}
+                      <div className="hidden md:block" style={{ height: '600px' }}>
+                        <GroupedVirtuoso
                       groupCounts={dayGroupCounts}
                       endReached={() => {
                         if (visibleTransactionsCount < filteredTransactionsByDashboard.length) {
@@ -3950,6 +4165,14 @@ export default function App() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <p className="font-medium text-slate-800 truncate max-w-[200px] dark:text-slate-200">{t.description}</p>
+                                {t.groupId && transactionGroups.find(g => g.id === t.groupId) && (
+                                  <span className={cn(
+                                    "px-1.5 py-0.5 rounded text-[8px] font-black text-white uppercase tracking-tighter",
+                                    transactionGroups.find(g => g.id === t.groupId)?.color
+                                  )}>
+                                    {transactionGroups.find(g => g.id === t.groupId)?.name}
+                                  </span>
+                                )}
                                 {t.attachmentUrl && (
                                   <a 
                                     href={t.attachmentUrl} 
@@ -4103,7 +4326,132 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                </>
+              ) : (
+                <div className="overflow-x-auto min-h-[400px]">
+                  <table className="w-full border-separate border-spacing-0">
+                    <thead>
+                      <tr className="bg-slate-50/50 dark:bg-white/5">
+                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Data</th>
+                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Descrição</th>
+                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Categoria</th>
+                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Conta</th>
+                        <th className="px-5 py-4 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Status</th>
+                        <th className="px-5 py-4 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Valor</th>
+                        <th className="px-5 py-4 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTransactionsByDashboard.slice(0, visibleTransactionsCount).map((t) => {
+                        const category = categories.find(c => c.id === t.categoryId);
+                        const costCenter = categories.find(c => c.id === t.costCenterId);
+                        const account = accounts.find(a => a.id === t.accountId);
+                        const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
+                        
+                        return (
+                          <tr key={`table-row-${t.id}`} className="group hover:bg-slate-50 dark:hover:bg-cyan-500/[0.03] transition-colors">
+                            <td className="px-5 py-4 text-xs font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
+                              {format(parseISO(t.date), 'dd/MM/yy')}
+                            </td>
+                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "w-1.5 h-1.5 rounded-full shrink-0",
+                                  t.type === 'income' ? 'bg-emerald-500' : t.type === 'expense' ? 'bg-rose-500' : 'bg-blue-500'
+                                )} />
+                                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.description}</span>
+                                {t.attachmentUrl && <Paperclip size={12} className="text-blue-500 opacity-60" />}
+                              </div>
+                              {t.notes && <p className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-0.5 line-clamp-1">{t.notes}</p>}
+                            </td>
+                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                              <div className="flex flex-col gap-1">
+                                {costCenter && <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{costCenter.name}</span>}
+                                {category && (
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-white w-fit shadow-sm",
+                                    category.color
+                                  )}>
+                                    {category.name}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                                {t.type === 'transfer' ? `${account?.name} → ${toAccount?.name}` : account?.name}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                              <div className="flex flex-col gap-1 items-center">
+                                <div className="flex items-center gap-1">
+                                  {t.consolidated ? (
+                                    <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                                      <Check size={8} strokeWidth={4} /> Efetivado
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                      <Clock size={8} strokeWidth={4} className="animate-pulse" /> Agendado
+                                    </span>
+                                  )}
+                                </div>
+                                {t.paid && (
+                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                    <ShieldCheck size={8} strokeWidth={4} /> Pago
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
+                              <span className={cn(
+                                "font-mono font-black text-sm",
+                                t.type === 'income' ? 'text-emerald-500' : t.type === 'expense' ? 'text-rose-500' : 'text-blue-500'
+                              )}>
+                                {t.type === 'income' ? '+' : '-'}{formatCurrencyWithPrivacy(t.amount)}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
+                              <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={() => {
+                                    setTransactionToEdit(t);
+                                    setSelectedCostCenterId(t.costCenterId || '');
+                                    setTransactionType(t.type);
+                                    setSelectedFile(null);
+                                    setShouldRemoveAttachment(false);
+                                    setIsEditTransactionModalOpen(true);
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-cyan-500 bg-slate-100 dark:bg-white/5 hover:bg-cyan-500/10 rounded-xl transition-all"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteTransactionWithConfirm(t)}
+                                  className="p-2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 rounded-xl transition-all"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  {visibleTransactionsCount < filteredTransactionsByDashboard.length && (
+                    <div className="p-8 flex justify-center">
+                      <button 
+                        onClick={() => setVisibleTransactionsCount(prev => prev + 20)}
+                        className="px-8 py-3 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all active:scale-95 border border-slate-200 dark:border-white/5 shadow-sm"
+                      >
+                        Carregar Mais
+                      </button>
+                    </div>
+                  )}
                 </div>
+              )}
+            </div>
                 {filteredTransactionsByDashboard.length === 0 && (
                   <div className="py-12 text-center">
                     <p className="text-slate-400 font-medium">Nenhuma transação encontrada para este período.</p>
@@ -4521,11 +4869,19 @@ export default function App() {
                             <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                         <Tooltip 
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                          contentStyle={{ 
+                            borderRadius: '24px', 
+                            border: 'none', 
+                            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', 
+                            background: isDarkMode ? '#1e293b' : '#ffffff',
+                            color: isDarkMode ? '#f1f5f9' : '#0f172a',
+                            padding: '16px'
+                          }}
+                          itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                           formatter={(value: number) => [formatCurrency(value), 'Saldo']}
                         />
                         <Area type="monotone" dataKey="balance" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorBalance)" />
@@ -4568,6 +4924,8 @@ export default function App() {
                           outerRadius={80}
                           paddingAngle={5}
                           dataKey="value"
+                          labelLine={false}
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                           onClick={(data: any) => {
                             if (data && data.id) {
                               if (!reportDrillDownCategory && data.id !== 'none') {
@@ -4591,15 +4949,217 @@ export default function App() {
                           ))}
                         </Pie>
                         <Tooltip 
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                          formatter={(value: number) => [formatCurrency(value), 'Valor']}
+                          contentStyle={{ 
+                            borderRadius: '24px', 
+                            border: 'none', 
+                            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                            background: isDarkMode ? '#1e293b' : '#ffffff',
+                            padding: '16px'
+                          }}
+                          formatter={(value: number) => {
+                            const total = categorySummary.reduce((acc, curr) => acc + curr.value, 0);
+                            const percent = ((value / total) * 100).toFixed(1);
+                            return [`${formatCurrency(value)} (${percent}%)`, 'Valor'];
+                          }}
                         />
-                        <Legend verticalAlign="bottom" height={36}/>
+                        <Legend 
+                          verticalAlign="bottom" 
+                          height={36} 
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', paddingTop: '10px' }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
                 </Card>
               </div>
+
+              {/* Fluxo de Caixa Diário */}
+              <Card title="Fluxo de Caixa: Evolução do Saldo Diário" density={displayDensity}>
+                <div className="h-96 min-h-0 min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trendSummary}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }} 
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                        tickFormatter={(value) => `R$ ${value}`}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          borderRadius: '24px', 
+                          border: 'none', 
+                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+                          padding: '16px',
+                          background: isDarkMode ? '#1e293b' : '#ffffff',
+                          color: isDarkMode ? '#f1f5f9' : '#0f172a'
+                        }}
+                        formatter={(value: number) => [formatCurrency(value), 'Saldo']}
+                        labelStyle={{ fontWeight: 'black', marginBottom: '8px', color: isDarkMode ? '#fff' : '#0f172a', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.1em' }}
+                      />
+                      <Legend 
+                        verticalAlign="top" 
+                        align="right" 
+                        height={36}
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="balance" 
+                        name="Saldo Acumulado"
+                        stroke="#3b82f6" 
+                        strokeWidth={4} 
+                        dot={{ r: 4, strokeWidth: 2, fill: isDarkMode ? '#0f172a' : '#fff' }}
+                        activeDot={{ r: 6, strokeWidth: 0 }}
+                        animationDuration={1500}
+                      />
+                      <Line 
+                        type="stepAfter" 
+                        dataKey="income" 
+                        name="Entradas"
+                        stroke="#10b981" 
+                        strokeWidth={2} 
+                        strokeDasharray="5 5"
+                        dot={false}
+                      />
+                      <Line 
+                        type="stepAfter" 
+                        dataKey="expense" 
+                        name="Saídas"
+                        stroke="#f43f5e" 
+                        strokeWidth={2} 
+                        strokeDasharray="5 5"
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Comparativo Anual por Categoria */}
+              <Card 
+                title={`Detalhamento Mensal: ${reportYear}`} 
+                density={displayDensity}
+                extra={
+                  <div className="text-right">
+                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Pico de Despesas</p>
+                    <p className="text-sm font-black text-rose-600 uppercase tracking-tighter">{expenseAnalysis.peakMonth || 'N/A'}</p>
+                  </div>
+                }
+              >
+                <p className="text-[10px] text-slate-500 mb-6 uppercase tracking-widest font-bold">
+                  Distribuição de gastos por Centro de Custo vs Média Mensal de {formatCurrency(expenseAnalysis.average)}
+                </p>
+                <div className="h-96 min-h-0 min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={annualSummary.monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
+                      <XAxis 
+                        dataKey="month" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                        tickFormatter={(value) => `R$ ${value}`}
+                      />
+                      <Tooltip 
+                        cursor={{ fill: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}
+                        contentStyle={{ 
+                          borderRadius: '24px', 
+                          border: 'none', 
+                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                          padding: '16px',
+                          background: isDarkMode ? '#1e293b' : '#ffffff',
+                        }}
+                        labelStyle={{ fontWeight: 'black', marginBottom: '8px', color: isDarkMode ? '#fff' : '#0f172a', textTransform: 'uppercase', fontSize: '12px' }}
+                        formatter={(value: number, name: string) => {
+                          const avg = annualSummary.categoryAverages[name];
+                          const diff = avg ? ((value - avg) / avg) * 100 : 0;
+                          return [
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between gap-4">
+                                <span className={cn(isDarkMode ? "text-white" : "text-slate-900")}>{formatCurrency(value)}</span>
+                                {avg > 0 && (
+                                  <span className={cn(
+                                    "text-[9px] font-black px-1.5 py-0.5 rounded",
+                                    value > avg ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"
+                                  )}>
+                                    {value > avg ? '+' : ''}{diff.toFixed(0)}% vs média
+                                  </span>
+                                )}
+                              </div>
+                              {avg > 0 && (
+                                <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                                  Média anual: {formatCurrency(avg)}
+                                </div>
+                              )}
+                            </div>,
+                            <span className="capitalize">{name}</span>
+                          ];
+                        }}
+                      />
+                      <Legend 
+                        verticalAlign="top" 
+                        align="right" 
+                        height={40}
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '9px', fontWeight: 'black', textTransform: 'uppercase', letterSpacing: '0.1em' }}
+                      />
+                      {annualSummary.monthlyData.map((d: any, idx: number) => (
+                        d.isPeak && (
+                          <ReferenceArea 
+                            key={`peak-highlight-${idx}`}
+                            x1={d.month} 
+                            x2={d.month} 
+                            fill={isDarkMode ? "rgba(244, 63, 94, 0.08)" : "rgba(244, 63, 94, 0.03)"}
+                            stroke="rgba(244, 63, 94, 0.1)"
+                            strokeDasharray="3 3"
+                          />
+                        )
+                      ))}
+                      <ReferenceLine 
+                        y={expenseAnalysis.average} 
+                        stroke="#94a3b8" 
+                        strokeDasharray="8 4" 
+                        strokeWidth={1}
+                        label={{ 
+                          position: 'top', 
+                          value: 'Méd. Geral', 
+                          fill: '#94a3b8', 
+                          fontSize: 8, 
+                          fontWeight: '800'
+                        }} 
+                      />
+                      {annualSummary.topCategoryNames.map((name, index) => (
+                        <Bar 
+                          key={`annual-cat-bar-${name}`} 
+                          dataKey={name} 
+                          name={name}
+                          stackId="a" 
+                          radius={index === annualSummary.topCategoryNames.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                          fill={[
+                            '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', 
+                            '#ec4899', '#06b6d4', '#84cc16', '#f43f5e',
+                            '#6366f1', '#14b8a6', '#f97316', '#a855f7'
+                          ][index % 12]}
+                        />
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
 
               {/* Comparativo de Período */}
               <Card title="Comparativo: Período Atual vs Anterior" density={displayDensity}>
@@ -4631,7 +5191,7 @@ export default function App() {
                       ]} 
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
                       <XAxis 
                         dataKey="name" 
                         axisLine={false} 
@@ -4645,11 +5205,17 @@ export default function App() {
                         tickFormatter={(value) => `R$ ${value >= 1000 ? (value/1000).toFixed(1) + 'k' : value}`}
                       />
                       <Tooltip 
-                        cursor={{ fill: 'transparent' }}
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        cursor={{ fill: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}
+                        contentStyle={{ 
+                          borderRadius: '24px', 
+                          border: 'none', 
+                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                          background: isDarkMode ? '#1e293b' : '#ffffff',
+                          color: isDarkMode ? '#fff' : '#0f172a'
+                        }}
                         formatter={(value: number) => [formatCurrency(value), '']}
                       />
-                      <Bar dataKey="prev" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Período Anterior" barSize={40} />
+                      <Bar dataKey="prev" fill={isDarkMode ? "#1e293b" : "#e2e8f0"} radius={[4, 4, 0, 0]} name="Período Anterior" barSize={40} />
                       <Bar dataKey="current" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Período Atual" barSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -4694,7 +5260,7 @@ export default function App() {
                 <div className="h-80 min-h-0 min-w-0">
                   <ResponsiveContainer width="100%" height="100%" minHeight={0}>
                     <LineChart data={trendSummary}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
                       <XAxis 
                         dataKey="date" 
                         axisLine={false} 
@@ -4709,20 +5275,22 @@ export default function App() {
                       />
                       <Tooltip 
                         contentStyle={{ 
-                          borderRadius: '16px', 
+                          borderRadius: '24px', 
                           border: 'none', 
                           boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-                          padding: '12px'
+                          padding: '16px',
+                          background: isDarkMode ? '#1e293b' : '#ffffff',
+                          color: isDarkMode ? '#fff' : '#0f172a'
                         }}
                         formatter={(value: number) => [formatCurrency(value), 'Saldo']}
                       />
-                      <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="3 3" />
+                      <ReferenceLine y={0} stroke={isDarkMode ? "rgba(255,255,255,0.2)" : "#cbd5e1"} strokeDasharray="3 3" />
                       <Line 
                         type="monotone" 
                         dataKey="balance" 
                         stroke="#3b82f6" 
                         strokeWidth={4} 
-                        dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                        dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: isDarkMode ? '#0f172a' : '#fff' }}
                         activeDot={{ r: 6, strokeWidth: 0 }} 
                         animationDuration={1500}
                       />
@@ -5267,6 +5835,29 @@ export default function App() {
                     )}
 
                     <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-slate-500 ml-1">Grupo (Opcional)</label>
+                      <select 
+                        name="groupId" 
+                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Nenhum Grupo</option>
+                        {transactionGroups.map(g => <option key={`add-tx-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-slate-500 ml-1">Grupo (Opcional)</label>
+                      <select 
+                        name="groupId" 
+                        defaultValue={transactionToEdit.groupId || ''}
+                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+                      >
+                        <option value="">📌 Sem Grupo</option>
+                        {transactionGroups.map(g => <option key={`edit-tx-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-slate-500 ml-1">{transactionType === 'transfer' ? 'Conta de Origem' : 'Conta'}</label>
                       <select name="accountId" defaultValue={defaultAccountIdForModal} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
                         <option value="">Selecione a Conta</option>
@@ -5284,17 +5875,54 @@ export default function App() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 p-3 md:col-span-2">
-                      <input 
-                        name="consolidated" 
-                        type="checkbox" 
-                        id="modal-consolidated" 
-                        className="w-5 h-5 rounded border-slate-200 text-blue-600 focus:ring-blue-500"
-                        defaultChecked
-                      />
-                      <label htmlFor="modal-consolidated" className="text-sm font-bold text-slate-600 dark:text-slate-400 cursor-pointer">
-                        Consolidado (Afeta saldo atual)
-                      </label>
+                    <div className="flex flex-col gap-4 p-3 md:col-span-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <input 
+                            name="consolidated" 
+                            type="checkbox" 
+                            id="modal-consolidated" 
+                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            defaultChecked
+                          />
+                          <label htmlFor="modal-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Consolidado
+                          </label>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input 
+                            name="paid" 
+                            type="checkbox" 
+                            tabIndex={0}
+                            id="modal-paid" 
+                            className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            checked={isPaid}
+                            onChange={(e) => setIsPaid(e.target.checked)}
+                          />
+                          <label htmlFor="modal-paid" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Marcado como Pago
+                          </label>
+                        </div>
+                      </div>
+
+                      {isPaid && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="flex flex-col gap-1 pt-2 border-t border-slate-200 dark:border-slate-700"
+                        >
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
+                          <input 
+                            name="paymentDate" 
+                            type="date" 
+                            value={paymentDate}
+                            onChange={(e) => setPaymentDate(e.target.value)}
+                            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm" 
+                            required={isPaid} 
+                          />
+                        </motion.div>
+                      )}
                     </div>
 
                     <div className="flex gap-3 md:col-span-2 mt-4">
@@ -5738,6 +6366,18 @@ export default function App() {
                     </div>
                   )}
 
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-slate-500 ml-1">Grupo (Opcional)</label>
+                    <select 
+                      name="groupId" 
+                      defaultValue={transactionToEdit.groupId || ''}
+                      className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                    >
+                      <option value="">📌 Sem Grupo</option>
+                      {transactionGroups.map(g => <option key={`edit-tx-group-opt-${g.id}`} value={g.id}>{g.name}</option>)}
+                    </select>
+                  </div>
+
                   {transactionType !== 'transfer' && (
                     <>
                       <div className="flex flex-col gap-1">
@@ -5775,15 +6415,49 @@ export default function App() {
                     </>
                   )}
 
-                  <div className="flex items-center gap-2 md:col-span-2 py-2">
-                    <input 
-                      name="consolidated" 
-                      type="checkbox" 
-                      id="edit-consolidated" 
-                      defaultChecked={transactionToEdit.consolidated}
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
-                    />
-                    <label htmlFor="edit-consolidated" className="text-sm font-medium text-slate-700">Consolidado (Afeta o saldo da conta)</label>
+                  <div className="flex flex-col gap-4 p-3 md:col-span-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <input 
+                          name="consolidated" 
+                          type="checkbox" 
+                          id="edit-consolidated" 
+                          defaultChecked={transactionToEdit.consolidated}
+                          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                        />
+                        <label htmlFor="edit-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300">Consolidado</label>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input 
+                          name="paid" 
+                          type="checkbox" 
+                          id="edit-paid" 
+                          className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
+                          checked={isPaid}
+                          onChange={(e) => setIsPaid(e.target.checked)}
+                        />
+                        <label htmlFor="edit-paid" className="text-sm font-bold text-slate-700 dark:text-slate-300">Marcado como Pago</label>
+                      </div>
+                    </div>
+
+                    {isPaid && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="flex flex-col gap-1 pt-2 border-t border-slate-200 dark:border-slate-700"
+                      >
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
+                        <input 
+                          name="paymentDate" 
+                          type="date" 
+                          value={paymentDate}
+                          onChange={(e) => setPaymentDate(e.target.value)}
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm" 
+                          required={isPaid}
+                        />
+                      </motion.div>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-1 md:col-span-2">
@@ -6169,15 +6843,49 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 md:col-span-2 py-2">
-                    <input 
-                      name="consolidated" 
-                      type="checkbox" 
-                      id="quick-consolidated" 
-                      defaultChecked 
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
-                    />
-                    <label htmlFor="quick-consolidated" className="text-sm font-medium text-slate-700 dark:text-slate-300">Consolidado (Afeta o saldo da conta)</label>
+                  <div className="flex flex-col gap-4 p-3 md:col-span-2 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <input 
+                          name="consolidated" 
+                          type="checkbox" 
+                          id="quick-consolidated" 
+                          defaultChecked 
+                          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                        />
+                        <label htmlFor="quick-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300">Consolidado</label>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input 
+                          name="paid" 
+                          type="checkbox" 
+                          id="quick-paid" 
+                          className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
+                          checked={isPaid}
+                          onChange={(e) => setIsPaid(e.target.checked)}
+                        />
+                        <label htmlFor="quick-paid" className="text-sm font-bold text-slate-700 dark:text-slate-300">Marcado como Pago</label>
+                      </div>
+                    </div>
+
+                    {isPaid && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="flex flex-col gap-1 pt-2 border-t border-slate-200 dark:border-slate-700"
+                      >
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
+                        <input 
+                          name="paymentDate" 
+                          type="date" 
+                          value={paymentDate}
+                          onChange={(e) => setPaymentDate(e.target.value)}
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm" 
+                          required={isPaid}
+                        />
+                      </motion.div>
+                    )}
                   </div>
 
                   <div className="flex gap-4 pt-4 md:col-span-2">
@@ -6378,34 +7086,39 @@ export default function App() {
 
       {/* Mobile Bottom Navigation - Premium iOS Style */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[100]">
-        <div className="absolute inset-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-3xl border-t border-slate-200/50 dark:border-white/5" />
-        <nav className="relative flex justify-between items-center px-2 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-          <div className="flex-1 flex justify-around items-center">
-            <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => setActiveTab('dashboard')} />
-            <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => setActiveTab('transactions')} />
-          </div>
-          
-          <div className="px-2">
-            <button 
-              onClick={() => { setDefaultAccountIdForModal(''); setIsAddTransactionModalOpen(true); }}
-              className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-[22px] flex items-center justify-center text-white shadow-[0_12px_24px_rgba(6,182,212,0.4)] active:scale-90 transition-all border-4 border-white dark:border-slate-950 -mt-8"
-            >
-              <Plus size={28} strokeWidth={3} />
-            </button>
-          </div>
-
-          <div className="flex-1 flex justify-around items-center">
-            <MobileNavItem icon={PieChartIcon} active={activeTab === 'reports'} label="Análises" onClick={() => setActiveTab('reports')} />
-            <MobileNavItem 
-              icon={Menu} 
-              active={isMobileMenuOpen} 
-              label="Menu" 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-              hasNotification={notifications.length > 0}
-            />
-          </div>
+        <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-t border-slate-200/50 dark:border-white/5" />
+        <nav className="relative flex justify-around items-center px-4 pt-3 pb-[calc(0.7rem+env(safe-area-inset-bottom))]">
+          <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => handleTabChange('dashboard')} />
+          <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => handleTabChange('transactions')} />
+          <MobileNavItem icon={PieChartIcon} active={activeTab === 'reports'} label="Análises" onClick={() => handleTabChange('reports')} />
+          <MobileNavItem 
+            icon={Menu} 
+            active={isMobileMenuOpen} 
+            label="Menu" 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+            hasNotification={notifications.length > 0}
+          />
         </nav>
       </div>
+
+      {/* Floating Add Button - iOS Style separate from Tab Bar */}
+      <AnimatePresence>
+        {!isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            className="lg:hidden fixed right-6 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[90]"
+          >
+            <button 
+              onClick={() => { setDefaultAccountIdForModal(''); setIsAddTransactionModalOpen(true); }}
+              className="w-14 h-14 bg-blue-600 dark:bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-blue-500/40 active:scale-90 transition-all"
+            >
+              <Plus size={28} strokeWidth={2.5} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Sidebar (Drawer) */}
       <AnimatePresence>
@@ -6453,12 +7166,12 @@ export default function App() {
               {/* Sidebar Navigation */}
               <div className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar">
                 <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Navegação Principal</p>
-                <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => { setActiveTab('transactions'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => { setActiveTab('accounts'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => { setActiveTab('categories'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => { setActiveTab('recurring'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => { handleTabChange('dashboard'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => { handleTabChange('transactions'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => { handleTabChange('accounts'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => { handleTabChange('categories'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => { handleTabChange('recurring'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => { handleTabChange('reports'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
                 
                 <div className="pt-8 space-y-2">
                   <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Configurações</p>
@@ -6558,6 +7271,12 @@ export default function App() {
       <VersionHistoryModal 
         isOpen={isVersionHistoryOpen} 
         onClose={() => setIsVersionHistoryOpen(false)} 
+      />
+
+      <TransactionGroupModal 
+        isOpen={isTransactionGroupModalOpen}
+        onClose={() => setIsTransactionGroupModalOpen(false)}
+        groups={transactionGroups}
       />
     </div>
   );

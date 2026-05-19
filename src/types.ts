@@ -18,15 +18,27 @@ export interface Transaction {
   date: string;
   categoryId?: string;
   costCenterId?: string;
+  groupId?: string;
   accountId: string;
   toAccountId?: string;
   userId: string;
   createdAt: any;
   updatedAt?: any;
   consolidated: boolean;
+  paid?: boolean;
+  paymentDate?: string;
   attachmentUrl?: string;
   attachmentName?: string;
   notes?: string;
+}
+
+export interface TransactionGroup {
+  id: string;
+  name: string;
+  description?: string;
+  userId: string;
+  createdAt: any;
+  color: string;
 }
 
 export interface Account {

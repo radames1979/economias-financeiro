@@ -22,19 +22,19 @@
 
 @layer base {
   html {
-    @apply transition-colors duration-500;
+    @apply transition-colors duration-700;
     min-height: 100%;
     min-height: calc(100% + env(safe-area-inset-top));
     overflow: hidden;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    background-color: #f8fafc; /* slate-50 */
+    background-color: #f8fafc;
   }
   html.dark {
-    background-color: #000000; /* black */
+    background-color: #020617; /* Deep slate-950 */
   }
   body {
-    @apply font-sans bg-slate-50 dark:bg-black text-slate-900 dark:text-slate-100 antialiased selection:bg-cyan-100 selection:text-cyan-900 h-full overflow-hidden fixed inset-0;
+    @apply font-sans bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-100 antialiased selection:bg-cyan-100 selection:text-cyan-900 h-full overflow-hidden fixed inset-0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior-y: none;
@@ -43,22 +43,44 @@
   #root {
     @apply h-full overflow-y-auto;
     -ms-overflow-style: none;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.1) transparent;
+    scroll-behavior: smooth;
+  }
+  html.dark #root {
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
   }
   #root::-webkit-scrollbar {
-    display: none;
+    width: 6px;
+  }
+  #root::-webkit-scrollbar-thumb {
+    @apply bg-slate-200 dark:bg-white/10 rounded-full;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-none transition-all duration-300 hover:shadow-2xl hover:shadow-slate-300/50 dark:hover:shadow-none;
+    @apply bg-white/70 dark:bg-[#0f172a]/40 backdrop-blur-2xl border border-white/40 dark:border-white/5 shadow-xl shadow-slate-200/50 dark:shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-500 hover:shadow-2xl hover:shadow-slate-300/50 dark:hover:border-white/10;
   }
   
   .glass-nav {
-    @apply bg-white/80 dark:bg-black/80 backdrop-blur-2xl border-t border-white/20 dark:border-white/5;
-    /* Para a barra de navegação inferior */
+    @apply bg-white/80 dark:bg-[#020617]/80 backdrop-blur-3xl border-t border-slate-200/50 dark:border-white/5;
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .glow-cyan {
+    @apply shadow-[0_0_20px_-5px_rgba(6,182,212,0.4)] dark:shadow-[0_0_30px_-5px_rgba(6,182,212,0.3)];
+  }
+
+  .atmosphere-dark {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: 
+      radial-gradient(circle at 0% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.03) 0%, transparent 60%);
+    pointer-events: none;
   }
 
   .no-scrollbar::-webkit-scrollbar {

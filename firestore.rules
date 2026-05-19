@@ -44,8 +44,19 @@ service cloud.firestore {
              data.date is string && data.date.size() <= 32 &&
              data.accountId is string && data.accountId.size() <= 128 &&
              data.createdAt == request.time &&
+             ( !data.keys().contains('groupId') || (data.groupId is string && data.groupId.size() <= 128) ) &&
+             ( !data.keys().contains('costCenterId') || (data.costCenterId is string && data.costCenterId.size() <= 128) ) &&
              // Relational check
              exists(/databases/$(database)/documents/users/$(userId)/accounts/$(data.accountId));
+    }
+
+    function isValidTransactionGroup(data, userId) {
+      return data.keys().hasAll(['name', 'color', 'userId', 'createdAt']) &&
+             data.userId == userId &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.color is string && data.color.size() <= 50 &&
+             (!data.keys().contains('description') || (data.description is string && data.description.size() <= 500)) &&
+             data.createdAt == request.time;
     }
 
     function isValidAccount(data, userId) {
@@ -90,7 +101,7 @@ service cloud.firestore {
         allow get: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && isValidTransaction(incoming(), userId);
         allow update: if isOwner(userId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'description', 'date', 'categoryId', 'costCenterId', 'notes', 'consolidated', 'accountId', 'toAccountId', 'attachmentUrl', 'attachmentName', 'updatedAt']) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['amount', 'description', 'date', 'categoryId', 'costCenterId', 'groupId', 'notes', 'consolidated', 'accountId', 'toAccountId', 'attachmentUrl', 'attachmentName', 'updatedAt']) &&
           incoming().userId == existing().userId &&
           incoming().updatedAt == request.time
         ) || isAdmin();
@@ -127,6 +138,18 @@ service cloud.firestore {
         allow create: if isOwner(userId) && isValidRecurringTransaction(incoming(), userId);
         allow update: if isOwner(userId) && (
           incoming().diff(existing()).affectedKeys().hasOnly(['active', 'lastProcessedDate', 'description', 'amount', 'type', 'accountId', 'categoryId', 'costCenterId', 'frequency', 'startDate', 'updatedAt']) &&
+          incoming().userId == existing().userId &&
+          incoming().updatedAt == request.time
+        ) || isAdmin();
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /transaction_groups/{groupId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidTransactionGroup(incoming(), userId);
+        allow update: if isOwner(userId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'color', 'updatedAt']) &&
           incoming().userId == existing().userId &&
           incoming().updatedAt == request.time
         ) || isAdmin();
