@@ -461,19 +461,87 @@ const MobileNavItem = ({ icon: Icon, active, label, onClick, hasNotification }: 
   </button>
 );
 
+const isRecentTransaction = (t: Transaction): boolean => {
+  if (!t) return false;
+  const now = Date.now();
+  const checkTime = (ts: any): boolean => {
+    if (!ts) return false;
+    let ms = 0;
+    if (typeof ts.toDate === 'function') {
+      ms = ts.toDate().getTime();
+    } else if (ts.seconds !== undefined) {
+      ms = ts.seconds * 1000;
+    } else if (ts instanceof Date) {
+      ms = ts.getTime();
+    } else if (typeof ts === 'string') {
+      ms = Date.parse(ts);
+    } else if (typeof ts === 'number') {
+      ms = ts;
+    }
+    if (!ms) return false;
+    const diff = Math.abs(now - ms);
+    return diff <= 5 * 60 * 1000;
+  };
+  return checkTime(t.createdAt) || checkTime(t.updatedAt);
+};
+
 const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency, density = 'normal' }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string, density?: DensityType }) => {
   const category = categories.find(c => c.id === (t.categoryId || t.costCenterId));
   const account = accounts.find(a => a.id === t.accountId);
   const d = DISPLAY_DENSITIES[density];
   
+  const [isRecent, setIsRecent] = useState(() => isRecentTransaction(t));
+
+  useEffect(() => {
+    setIsRecent(isRecentTransaction(t));
+    if (!isRecentTransaction(t)) return;
+
+    const interval = setInterval(() => {
+      const recent = isRecentTransaction(t);
+      setIsRecent(recent);
+      if (!recent) {
+        clearInterval(interval);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [t.createdAt, t.updatedAt]);
+  
   return (
     <motion.div 
       initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
+      animate={isRecent ? {
+        opacity: 1,
+        x: 0,
+        borderColor: ["rgba(6, 182, 212, 0.2)", "rgba(6, 182, 212, 0.6)", "rgba(6, 182, 212, 0.2)"],
+        boxShadow: [
+          "0 1px 3px 0 rgba(6, 182, 212, 0.05), 0 1px 2px -1px rgba(6, 182, 212, 0.05)",
+          "0 4px 12px 0 rgba(6, 182, 212, 0.15), 0 2px 4px -1px rgba(6, 182, 212, 0.1)",
+          "0 1px 3px 0 rgba(6, 182, 212, 0.05), 0 1px 2px -1px rgba(6, 182, 212, 0.05)"
+        ]
+      } : {
+        opacity: 1,
+        x: 0
+      }}
+      transition={isRecent ? {
+        borderColor: {
+          repeat: Infinity,
+          duration: 3,
+          ease: "easeInOut"
+        },
+        boxShadow: {
+          repeat: Infinity,
+          duration: 3,
+          ease: "easeInOut"
+        },
+        opacity: { duration: 0.3 },
+        x: { duration: 0.3 }
+      } : undefined}
       whileHover={{ scale: 1.01 }}
       className={cn(
         "group flex items-center justify-between rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 hover:bg-white/80 dark:hover:bg-slate-800 shadow-sm hover:shadow-md transition-all duration-300",
-        d.cardP
+        d.cardP,
+        isRecent && "border-cyan-500/20 bg-cyan-500/5 dark:bg-cyan-500/5 ring-1 ring-cyan-500/10"
       )}
     >
       <div className={cn("flex items-center min-w-0", d.cardGap)}>
@@ -489,6 +557,12 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <p className={cn("font-extrabold text-slate-900 dark:text-white truncate", d.textDescription)}>{t.description}</p>
+            {isRecent && (
+              <span className="flex h-1.5 w-1.5 relative shrink-0" title="Recém lançado/editado">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+              </span>
+            )}
             {t.attachmentUrl && <Paperclip size={12} className="text-slate-400" />}
           </div>
           <div className="flex items-center gap-2">
@@ -893,12 +967,13 @@ const ConfirmationModal = ({
   </div>
 );
 
-const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onExportBackup, isLoading }: { 
+const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onExportBackup, onImportBackup, isLoading }: { 
   isOpen: boolean, 
   onClose: () => void, 
   displayDensity: DensityType, 
   setDisplayDensity: (d: DensityType) => void,
   onExportBackup: () => void,
+  onImportBackup: (e: React.ChangeEvent<HTMLInputElement>) => void,
   isLoading: boolean
 }) => {
   if (!isOpen) return null;
@@ -1024,43 +1099,73 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onE
                 </h3>
               </div>
 
-              <div className="p-6 bg-blue-50/50 dark:bg-blue-900/10 rounded-[32px] border border-blue-100 dark:border-blue-900/30">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="p-3 bg-blue-500 rounded-2xl text-white shadow-lg shadow-blue-500/20">
-                    <FileJson size={20} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Export Card */}
+                <div className="p-5 bg-blue-50/50 dark:bg-blue-900/10 rounded-[32px] border border-blue-100 dark:border-blue-900/20 flex flex-col justify-between">
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-500 rounded-xl text-white shadow-lg shadow-blue-500/10">
+                        <Download size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">Exportar JSON</h4>
+                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight mt-0.5 leading-tight">
+                          Baixe todos os seus dados financeiros para controle pessoal.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-black text-slate-900 dark:text-white mb-1">Exportar JSON</h4>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">
-                      Baixe uma cópia completa de todos os seus dados financeiros para controle pessoal.
-                    </p>
-                  </div>
+
+                  <button 
+                    onClick={onExportBackup}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Gera...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        Exportar Backup
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex gap-3 mb-6">
-                  <ShieldAlert size={16} className="text-amber-500 shrink-0" />
-                  <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase leading-snug tracking-tighter">
-                    Este arquivo contém dados sensíveis. Mantenha em local seguro. O backup inclui contas, transações, categorias e agendamentos.
-                  </p>
-                </div>
+                {/* Import Card */}
+                <div className="p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[32px] border border-emerald-100 dark:border-emerald-900/20 flex flex-col justify-between">
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-emerald-505 rounded-xl text-white bg-emerald-500 shadow-lg shadow-emerald-500/10">
+                        <FileUp size={16} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">Importar JSON</h4>
+                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight mt-0.5 leading-tight">
+                          Restaure contas, despesas, e categorias de um backup anterior.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-                <button 
-                  onClick={onExportBackup}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-[20px] font-black uppercase tracking-widest text-xs hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      <Download size={18} />
-                      Exportar meus dados
-                    </>
-                  )}
-                </button>
+                  <label 
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg cursor-pointer text-center active:scale-95"
+                  >
+                    <FileUp size={14} />
+                    Importar Backup
+                    <input type="file" accept=".json" onChange={onImportBackup} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex gap-3">
+                <ShieldAlert size={16} className="text-amber-500 shrink-0" />
+                <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase leading-snug tracking-tighter">
+                  Este arquivo contém dados sensíveis. Mantenha em local seguro. O backup inclui contas, transações, categorias e agendamentos.
+                </p>
               </div>
             </div>
           </div>
@@ -3257,6 +3362,7 @@ export default function App() {
           <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => handleTabChange('categories')} collapsed={sidebarCollapsed} density={displayDensity} />
           <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => handleTabChange('recurring')} collapsed={sidebarCollapsed} density={displayDensity} />
           <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => handleTabChange('reports')} collapsed={sidebarCollapsed} density={displayDensity} />
+          <SidebarItem icon={LayoutGrid} label="Grupos" active={isTransactionGroupModalOpen} onClick={() => setIsTransactionGroupModalOpen(true)} collapsed={sidebarCollapsed} density={displayDensity} />
         </nav>
 
         <div className="p-4 mt-auto">
@@ -3311,19 +3417,47 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Quick Privacy Toggle */}
+            <button 
+              onClick={() => setIsPrivacyMode(!isPrivacyMode)} 
+              className={cn(
+                "p-2 rounded-xl transition-all active:scale-95 border",
+                isPrivacyMode 
+                  ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-500" 
+                  : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-400 hover:text-cyan-500"
+              )}
+              title="Modo Privacidade"
+            >
+              {isPrivacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+            
+            {/* Transaction Groups */}
+            <button 
+              onClick={() => setIsTransactionGroupModalOpen(true)} 
+              className="p-2 bg-slate-100 dark:bg-white/5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5"
+              title="Grupos de Transações"
+            >
+              <LayoutGrid size={16} />
+            </button>
+
+            {/* Dark Mode */}
             <button 
               onClick={() => setIsDarkMode(!isDarkMode)} 
-              className="p-2.5 bg-slate-100 dark:bg-white/5 rounded-2xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5"
+              className="p-2 bg-slate-100 dark:bg-white/5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5"
+              title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
             >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>
+
+            {/* Notifications */}
             <button 
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
-              className="p-2.5 bg-slate-100 dark:bg-white/5 rounded-2xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5 relative"
+              className="p-2 bg-slate-100 dark:bg-white/5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5 relative"
+              title="Notificações"
             >
-              <Bell size={20} />
-              {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>}
+              <Bell size={16} />
+              {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.5)]"></span>}
             </button>
           </div>
         </header>
@@ -4657,10 +4791,27 @@ export default function App() {
                 </form>
               </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <motion.div 
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.08
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              >
                 {accounts.map((a) => (
                   <motion.div
                     key={`account-main-${a.id}`}
+                    variants={{
+                      hidden: { opacity: 0, scale: 0.95, y: 15 },
+                      show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 15 } }
+                    }}
                     whileHover={{ y: -6 }}
                     className="group relative h-52 bg-slate-900 dark:bg-slate-800 rounded-[32px] p-6 shadow-2xl shadow-slate-200 dark:shadow-black overflow-hidden flex flex-col justify-between cursor-pointer"
                     onClick={() => {
@@ -4725,7 +4876,11 @@ export default function App() {
                   </motion.div>
                 ))}
 
-                <button 
+                <motion.button 
+                  variants={{
+                    hidden: { opacity: 0, scale: 0.95, y: 15 },
+                    show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 15 } }
+                  }}
                   onClick={() => setIsAddTransactionModalOpen(true)}
                   className="group h-52 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[32px] p-6 flex flex-col items-center justify-center gap-3 hover:border-blue-500 transition-colors"
                 >
@@ -4733,8 +4888,8 @@ export default function App() {
                     <Plus size={24} />
                   </div>
                   <span className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest group-hover:text-blue-600 transition-colors">Nova Conta</span>
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
             </motion.div>
           )}
 
@@ -7328,6 +7483,7 @@ export default function App() {
                 <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => { handleTabChange('categories'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
                 <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => { handleTabChange('recurring'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
                 <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => { handleTabChange('reports'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={LayoutGrid} label="Grupos" active={isTransactionGroupModalOpen} onClick={() => { setIsTransactionGroupModalOpen(true); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
                 
                 <div className="pt-8 space-y-2">
                   <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Configurações</p>
@@ -7410,6 +7566,7 @@ export default function App() {
             displayDensity={displayDensity} 
             setDisplayDensity={setDisplayDensity} 
             onExportBackup={handleExportBackup}
+            onImportBackup={importBackup}
             isLoading={isLoading}
           />
         )}
