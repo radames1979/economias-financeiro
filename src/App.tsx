@@ -3933,8 +3933,28 @@ export default function App() {
                           iconType="circle" 
                           wrapperStyle={{ paddingTop: displayDensity === 'super-compact' ? '10px' : '20px', fontSize: displayDensity === 'super-compact' ? '8px' : '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }} 
                         />
-                        <Bar name="Receitas" dataKey="income" fill="#10b981" radius={[6, 6, 0, 0]} barSize={displayDensity === 'super-compact' ? 12 : 20} />
-                        <Bar name="Despesas" dataKey="expense" fill="#f43f5e" radius={[6, 6, 0, 0]} barSize={displayDensity === 'super-compact' ? 12 : 20} />
+                        <Bar 
+                          name="Receitas" 
+                          dataKey="income" 
+                          fill="#10b981" 
+                          radius={[6, 6, 0, 0]} 
+                          barSize={displayDensity === 'super-compact' ? 12 : 20} 
+                          isAnimationActive={true}
+                          animationDuration={1500}
+                          animationBegin={0}
+                          animationEasing="ease-out"
+                        />
+                        <Bar 
+                          name="Despesas" 
+                          dataKey="expense" 
+                          fill="#f43f5e" 
+                          radius={[6, 6, 0, 0]} 
+                          barSize={displayDensity === 'super-compact' ? 12 : 20} 
+                          isAnimationActive={true}
+                          animationDuration={1500}
+                          animationBegin={150}
+                          animationEasing="ease-out"
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -4007,6 +4027,10 @@ export default function App() {
                           paddingAngle={6}
                           dataKey="value"
                           stroke="none"
+                          isAnimationActive={true}
+                          animationBegin={200}
+                          animationDuration={1500}
+                          animationEasing="ease-out"
                         >
                           {pieData.map((_entry, index) => (
                             <Cell key={`cell-${index}`} fill={pieData[index].color} />
@@ -4121,7 +4145,10 @@ export default function App() {
                         <Bar 
                           dataKey="expense" 
                           radius={[10, 10, 0, 0]}
+                          isAnimationActive={true}
                           animationDuration={1500}
+                          animationBegin={300}
+                          animationEasing="ease-out"
                         >
                           {annualSummary.monthlyData.map((entry, index) => (
                             <Cell 
@@ -5249,6 +5276,10 @@ export default function App() {
                           dataKey="value"
                           labelLine={false}
                           label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                          isAnimationActive={true}
+                          animationBegin={0}
+                          animationDuration={1500}
+                          animationEasing="ease-out"
                           onClick={(data: any) => {
                             if (data && data.id) {
                               if (!reportDrillDownCategory && data.id !== 'none') {
