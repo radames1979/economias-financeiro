@@ -619,7 +619,7 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
           </div>
         </div>
         
-        <div className="flex flex-col gap-1 transition-all duration-300">
+        <div className="flex flex-col gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 lg:translate-x-2 lg:group-hover:translate-x-0">
           <button onClick={() => onEdit(t)} className="p-2 text-slate-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-xl transition-colors">
             <Edit2 size={d.actionIconSize} />
           </button>
@@ -1134,7 +1134,7 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onE
                     )}>
                       {density.label}
                     </span>
-                    <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-tighter relative z-10">
+                    <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity uppercase tracking-tighter relative z-10">
                       {density.desc}
                     </span>
                     
@@ -4898,7 +4898,7 @@ export default function App() {
                               </span>
                             </td>
                             <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
-                              <div className="flex justify-end gap-1 transition-opacity">
+                              <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                                 <button 
                                   onClick={() => {
                                     setTransactionToEdit(t);
@@ -5059,7 +5059,7 @@ export default function App() {
                       <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl">
                         <CreditCard size={24} className="text-white" />
                       </div>
-                      <div className="flex gap-1 transition-opacity">
+                      <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -5211,7 +5211,7 @@ export default function App() {
                           <p className="text-xs text-slate-500 dark:text-slate-400">{root.type === 'income' ? 'Receitas' : 'Despesas'}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2 transition-opacity">
+                      <div className="flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                         <button 
                           onClick={() => {
                             setCategoryToEdit(root);
@@ -5252,7 +5252,7 @@ export default function App() {
                               <CategoryIcon iconName={child.icon} size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{child.name}</p>
                             </div>
-                            <div className="flex gap-2 transition-opacity">
+                            <div className="flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={() => {
                                   setCategoryToEdit(child);
@@ -6039,7 +6039,7 @@ export default function App() {
                               {formatCurrency(t.amount)}
                             </td>
                             <td className="py-4 text-right">
-                              <div className="flex justify-end gap-1 transition-opacity">
+                              <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                                 <button 
                                   onClick={() => {
                                     setTransactionToEdit(t);
