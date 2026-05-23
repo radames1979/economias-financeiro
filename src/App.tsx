@@ -334,7 +334,7 @@ const Atmosphere = ({ isDarkMode }: { isDarkMode: boolean }) => {
   return <div className="atmosphere-dark" />;
 };
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 'normal' }: { icon: any, label: string, active: boolean, onClick: () => void, collapsed?: boolean, density?: DensityType }) => {
+const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 'normal', sidebarType = 'desktop' }: { icon: any, label: string, active: boolean, onClick: () => void, collapsed?: boolean, density?: DensityType, sidebarType?: 'desktop' | 'mobile' }) => {
   const d = DISPLAY_DENSITIES[density];
   return (
     <button
@@ -363,7 +363,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, collapsed, density = 
       </span>
       {active && (
         <motion.div 
-          layoutId="sidebarGlow"
+          layoutId={`sidebarGlow-${sidebarType}`}
           className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-cyan-400 pointer-events-none"
         />
       )}
@@ -619,7 +619,7 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
           </div>
         </div>
         
-        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+        <div className="flex flex-col gap-1 transition-all duration-300">
           <button onClick={() => onEdit(t)} className="p-2 text-slate-400 hover:text-cyan-500 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-xl transition-colors">
             <Edit2 size={d.actionIconSize} />
           </button>
@@ -941,17 +941,19 @@ const CalculatorComponent = ({ value, onValueChange, onClose }: { value: string,
         <span className="text-2xl font-mono text-slate-800 dark:text-white truncate block">{display}</span>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        {['7', '8', '9', '/'].map(btn => (
-          <button key={btn} onClick={() => isNaN(Number(btn)) ? handleOperator(btn) : handleDigit(btn)} className="p-3 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg font-bold text-slate-700 dark:text-slate-200">{btn}</button>
-        ))}
-        {['4', '5', '6', '*'].map(btn => (
-          <button key={btn} onClick={() => isNaN(Number(btn)) ? handleOperator(btn) : handleDigit(btn)} className="p-3 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg font-bold text-slate-700 dark:text-slate-200">{btn}</button>
-        ))}
-        {['1', '2', '3', '-'].map(btn => (
-          <button key={btn} onClick={() => isNaN(Number(btn)) ? handleOperator(btn) : handleDigit(btn)} className="p-3 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg font-bold text-slate-700 dark:text-slate-200">{btn}</button>
-        ))}
-        {['0', ',', 'C', '+'].map(btn => (
-          <button key={btn} onClick={() => btn === 'C' ? handleClear() : btn === ',' ? handleDigit(',') : isNaN(Number(btn)) ? handleOperator(btn) : handleDigit(btn)} className="p-3 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg font-bold text-slate-700 dark:text-slate-200">{btn}</button>
+        {[
+          '7', '8', '9', '/',
+          '4', '5', '6', '*',
+          '1', '2', '3', '-',
+          '0', ',', 'C', '+'
+        ].map(btn => (
+          <button 
+            key={`calc-button-${btn}`} 
+            onClick={() => btn === 'C' ? handleClear() : btn === ',' ? handleDigit(',') : isNaN(Number(btn)) ? handleOperator(btn) : handleDigit(btn)} 
+            className="p-3 bg-slate-50 dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg font-bold text-slate-700 dark:text-slate-200"
+          >
+            {btn}
+          </button>
         ))}
         <button onClick={handleEqual} className="col-span-2 p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-lg font-bold">=</button>
         <button onClick={handleApply} className="col-span-2 p-3 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-bold">Aplicar</button>
@@ -4896,7 +4898,7 @@ export default function App() {
                               </span>
                             </td>
                             <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
-                              <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex justify-end gap-1 transition-opacity">
                                 <button 
                                   onClick={() => {
                                     setTransactionToEdit(t);
@@ -5057,7 +5059,7 @@ export default function App() {
                       <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl">
                         <CreditCard size={24} className="text-white" />
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-1 transition-opacity">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -5209,7 +5211,7 @@ export default function App() {
                           <p className="text-xs text-slate-500 dark:text-slate-400">{root.type === 'income' ? 'Receitas' : 'Despesas'}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex gap-2 transition-opacity">
                         <button 
                           onClick={() => {
                             setCategoryToEdit(root);
@@ -5250,7 +5252,7 @@ export default function App() {
                               <CategoryIcon iconName={child.icon} size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{child.name}</p>
                             </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex gap-2 transition-opacity">
                               <button 
                                 onClick={() => {
                                   setCategoryToEdit(child);
@@ -6037,7 +6039,7 @@ export default function App() {
                               {formatCurrency(t.amount)}
                             </td>
                             <td className="py-4 text-right">
-                              <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex justify-end gap-1 transition-opacity">
                                 <button 
                                   onClick={() => {
                                     setTransactionToEdit(t);
@@ -7801,17 +7803,17 @@ export default function App() {
               {/* Sidebar Navigation */}
               <div className="flex-1 px-4 py-8 space-y-2 overflow-y-auto no-scrollbar">
                 <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Navegação Principal</p>
-                <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => { handleTabChange('dashboard'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => { handleTabChange('transactions'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => { handleTabChange('accounts'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => { handleTabChange('categories'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => { handleTabChange('recurring'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => { handleTabChange('reports'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
-                <SidebarItem icon={LayoutGrid} label="Grupos" active={isTransactionGroupModalOpen} onClick={() => { setIsTransactionGroupModalOpen(true); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'dashboard'} onClick={() => { handleTabChange('dashboard'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
+                <SidebarItem icon={ArrowUpCircle} label="Extrato" active={activeTab === 'transactions'} onClick={() => { handleTabChange('transactions'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
+                <SidebarItem icon={CreditCard} label="Contas" active={activeTab === 'accounts'} onClick={() => { handleTabChange('accounts'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
+                <SidebarItem icon={Tags} label="Categorias" active={activeTab === 'categories'} onClick={() => { handleTabChange('categories'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
+                <SidebarItem icon={RefreshCw} label="Agendados" active={activeTab === 'recurring'} onClick={() => { handleTabChange('recurring'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
+                <SidebarItem icon={PieChartIcon} label="Análises" active={activeTab === 'reports'} onClick={() => { handleTabChange('reports'); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
+                <SidebarItem icon={LayoutGrid} label="Grupos" active={isTransactionGroupModalOpen} onClick={() => { setIsTransactionGroupModalOpen(true); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
                 
                 <div className="pt-8 space-y-2">
                   <p className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Configurações</p>
-                  <SidebarItem icon={Settings} label="Ajustes" active={isSettingsModalOpen} onClick={() => { setIsSettingsModalOpen(true); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} />
+                  <SidebarItem icon={Settings} label="Ajustes" active={isSettingsModalOpen} onClick={() => { setIsSettingsModalOpen(true); setIsMobileMenuOpen(false); }} collapsed={false} density={displayDensity} sidebarType="mobile" />
                   <SidebarItem 
                     icon={isDarkMode ? Sun : Moon} 
                     label={isDarkMode ? "Modo Claro" : "Modo Escuro"} 
@@ -7819,6 +7821,7 @@ export default function App() {
                     onClick={() => setIsDarkMode(!isDarkMode)} 
                     collapsed={false} 
                     density={displayDensity} 
+                    sidebarType="mobile"
                   />
                   <SidebarItem 
                     icon={isPrivacyMode ? Eye : EyeOff} 
@@ -7827,6 +7830,7 @@ export default function App() {
                     onClick={() => setIsPrivacyMode(!isPrivacyMode)} 
                     collapsed={false} 
                     density={displayDensity} 
+                    sidebarType="mobile"
                   />
                 </div>
               </div>
