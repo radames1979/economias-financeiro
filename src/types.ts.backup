@@ -47,10 +47,6 @@ export interface Account {
   type: AccountType;
   balance: number;
   userId: string;
-  includeInMainBalance?: boolean;
-  includeInNetWorth?: boolean;
-  currency?: string;
-  exchangeRate?: number;
 }
 
 export interface Category {

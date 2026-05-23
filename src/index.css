@@ -101,3 +101,135 @@
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/* Accessibility - High Contrast Mode overrides */
+html.high-contrast {
+  color-scheme: light;
+}
+
+html.high-contrast.dark {
+  color-scheme: dark;
+}
+
+html.high-contrast body {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html.high-contrast.dark body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Ensure all textual/label elements have high-visibility weights & contrast */
+html.high-contrast p,
+html.high-contrast span,
+html.high-contrast h1,
+html.high-contrast h2,
+html.high-contrast h3,
+html.high-contrast h4,
+html.high-contrast h5,
+html.high-contrast h6,
+html.high-contrast label {
+  font-weight: 600 !important;
+}
+
+/* Text colors under high contrast (Light Mode) */
+html.high-contrast .text-slate-400,
+html.high-contrast .text-slate-500,
+html.high-contrast .text-slate-600,
+html.high-contrast .text-slate-700,
+html.high-contrast .text-gray-400,
+html.high-contrast .text-gray-500,
+html.high-contrast .text-gray-600,
+html.high-contrast .text-slate-400\/80,
+html.high-contrast .text-slate-500\/80 {
+  color: #000000 !important;
+}
+
+/* Text colors under high contrast (Dark Mode) */
+html.high-contrast.dark .text-slate-400,
+html.high-contrast.dark .text-slate-500,
+html.high-contrast.dark .text-slate-600,
+html.high-contrast.dark .text-slate-300,
+html.high-contrast.dark .text-gray-400,
+html.high-contrast.dark .text-gray-500,
+html.high-contrast.dark .text-gray-300,
+html.high-contrast.dark .text-slate-400\/80,
+html.high-contrast.dark .text-slate-500\/80 {
+  color: #ffffff !important;
+}
+
+/* Hard outlines for inputs, select elements, textareas */
+html.high-contrast input,
+html.high-contrast select,
+html.high-contrast textarea {
+  border: 2px solid #000000 !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html.high-contrast.dark input,
+html.high-contrast.dark select,
+html.high-contrast.dark textarea {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Cards & containers must be solid and outlined */
+html.high-contrast .glass-card,
+html.high-contrast .bg-white\/40,
+html.high-contrast .bg-slate-900\/40,
+html.high-contrast .bg-slate-50,
+html.high-contrast .bg-white,
+html.high-contrast .bg-slate-100 {
+  background-color: #ffffff !important;
+  border: 2px solid #000000 !important;
+  box-shadow: none !important;
+}
+
+html.high-contrast.dark .glass-card,
+html.high-contrast.dark .bg-white\/40,
+html.high-contrast.dark .bg-slate-900\/40,
+html.high-contrast.dark .bg-slate-50,
+html.high-contrast.dark .bg-white,
+html.high-contrast.dark .bg-slate-100,
+html.high-contrast.dark .bg-slate-900 {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Primary/Secondary Buttons */
+html.high-contrast button,
+html.high-contrast a.button,
+html.high-contrast .cursor-pointer,
+html.high-contrast label.cursor-pointer {
+  border: 2px solid #000000 !important;
+  box-shadow: none !important;
+}
+
+html.high-contrast.dark button,
+html.high-contrast.dark a.button,
+html.high-contrast.dark .cursor-pointer,
+html.high-contrast.dark label.cursor-pointer {
+  border: 2px solid #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Faint Borders are brought to extreme contrast */
+html.high-contrast .border,
+html.high-contrast .border-slate-200,
+html.high-contrast .border-slate-100 {
+  border-color: #000000 !important;
+  border-width: 1.5px !important;
+}
+
+html.high-contrast.dark .border,
+html.high-contrast.dark .border-slate-800,
+html.high-contrast.dark .border-slate-700,
+html.high-contrast.dark .border-white\/5 {
+  border-color: #ffffff !important;
+  border-width: 1.5px !important;
+}

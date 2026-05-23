@@ -632,34 +632,8 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
   );
 };
 
-const SummaryHero = ({ 
-  mainBalance, 
-  projectedMainBalance, 
-  netWorth, 
-  projectedNetWorth, 
-  income, 
-  expense, 
-  formatCurrencyWithPrivacy, 
-  onStatClick, 
-  density = 'normal' 
-}: { 
-  mainBalance: number, 
-  projectedMainBalance: number, 
-  netWorth: number, 
-  projectedNetWorth: number, 
-  income: number, 
-  expense: number, 
-  formatCurrencyWithPrivacy: (v: number) => string, 
-  onStatClick: () => void, 
-  density?: DensityType 
-}) => {
+const SummaryHero = ({ balance, income, expense, projected, formatCurrencyWithPrivacy, onStatClick, density = 'normal' }: { balance: number, income: number, expense: number, projected: number, formatCurrencyWithPrivacy: (v: number) => string, onStatClick: () => void, density?: DensityType }) => {
   const d = DISPLAY_DENSITIES[density];
-  const [viewMode, setViewMode] = useState<'oficial' | 'patrimonio'>('oficial');
-
-  const balance = viewMode === 'oficial' ? mainBalance : netWorth;
-  const projected = viewMode === 'oficial' ? projectedMainBalance : projectedNetWorth;
-  const label = viewMode === 'oficial' ? 'Saldo Oficial Disponível' : 'Patrimônio Geral';
-
   return (
     <div className={cn("bg-[#020617] dark:bg-[#020617] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative group", d.heroP)}>
       {/* Background Animated Glows */}
@@ -667,37 +641,9 @@ const SummaryHero = ({
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-600/[0.05] blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
       
       <div className="relative z-10 flex flex-col items-center text-center">
-        {/* Toggle para Modo de Visualização */}
-        <div className="flex bg-white/5 dark:bg-white/5 p-1 rounded-full border border-white/10 mb-5 relative z-20">
-          <button 
-            type="button"
-            onClick={() => setViewMode('oficial')}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
-              viewMode === 'oficial' 
-                ? "bg-cyan-500 text-[#020617] shadow-lg font-black" 
-                : "text-slate-400 hover:text-white"
-            )}
-          >
-            Saldo Oficial
-          </button>
-          <button 
-            type="button"
-            onClick={() => setViewMode('patrimonio')}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer",
-              viewMode === 'patrimonio' 
-                ? "bg-cyan-500 text-[#020617] shadow-lg font-black" 
-                : "text-slate-400 hover:text-white"
-            )}
-          >
-            Patrimônio Geral
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2 mb-2 opacity-60">
+        <div className="flex items-center gap-2 mb-3 md:mb-6 opacity-60">
           <Sparkles size={14} className="text-cyan-500 animate-pulse" />
-          <p className={cn("font-black text-slate-400 uppercase tracking-[0.4em]", d.heroSubText)}>{label}</p>
+          <p className={cn("font-black text-slate-400 uppercase tracking-[0.4em]", d.heroSubText)}>Patrimônio Líquido</p>
         </div>
         
         <h2 className={cn(
@@ -711,7 +657,7 @@ const SummaryHero = ({
         <motion.div 
           whileHover={{ scale: 1.05, y: -2 }}
           className={cn(
-            "inline-flex items-center gap-2 px-5 py-2 rounded-full font-black uppercase tracking-wider border mb-4 md:mb-6 backdrop-blur-md shadow-lg",
+            "inline-flex items-center gap-2 px-5 py-2 rounded-full font-black uppercase tracking-wider border mb-8 md:mb-12 backdrop-blur-md shadow-lg",
             d.heroSubText,
             projected >= balance 
               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-emerald-500/5" 
@@ -724,18 +670,11 @@ const SummaryHero = ({
           Projetado: {formatCurrencyWithPrivacy(projected)}
         </motion.div>
 
-        {/* Informação secundária */}
-        <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-8 md:mb-10 flex items-center gap-2 bg-white/[0.04] border border-white/10 px-4 py-1.5 rounded-full">
-          <span>{viewMode === 'oficial' ? 'Patrimônio Geral:' : 'Saldo Oficial:'}</span>
-          <span className="text-white font-mono">{formatCurrencyWithPrivacy(viewMode === 'oficial' ? netWorth : mainBalance)}</span>
-        </div>
-
         <div className={cn(
           "grid grid-cols-1 sm:grid-cols-2 w-full gap-3 md:gap-6", 
           density === 'super-compact' ? 'mt-2' : ''
         )}>
           <button 
-            type="button"
             onClick={onStatClick} 
             className={cn(
               "flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all group/btn relative overflow-hidden",
@@ -750,7 +689,6 @@ const SummaryHero = ({
             </p>
           </button>
           <button 
-            type="button"
             onClick={onStatClick} 
             className={cn(
               "flex flex-col items-center justify-center rounded-[32px] bg-white/[0.03] border border-white/5 active:scale-95 hover:bg-white/[0.06] hover:border-white/10 transition-all group/btn relative overflow-hidden",
@@ -1575,12 +1513,9 @@ export default function App() {
     localStorage.setItem('highContrast', isHighContrast.toString());
   }, [isHighContrast]);
 
-  const formatCurrencyWithPrivacy = (amount: number, currency: string = 'BRL') => {
-    if (isPrivacyMode) {
-      const symbol = currency === 'BRL' ? 'R$' : currency === 'USD' ? 'US$' : currency === 'EUR' ? '€' : currency;
-      return `${symbol} ••••`;
-    }
-    return formatCurrency(amount, currency);
+  const formatCurrencyWithPrivacy = (amount: number) => {
+    if (isPrivacyMode) return 'R$ ••••';
+    return formatCurrency(amount);
   };
 
   useEffect(() => {
@@ -1743,24 +1678,6 @@ export default function App() {
   }, [recurringTransactions, transactions, categories, formatCurrency]);
 
   const totalBalance = useMemo(() => accounts.reduce((acc, curr) => acc + curr.balance, 0), [accounts]);
-
-  const mainBalance = useMemo(() => {
-    return accounts
-      .filter(a => a.includeInMainBalance !== false)
-      .reduce((acc, curr) => {
-        const rate = curr.exchangeRate || 1;
-        return acc + (curr.balance * rate);
-      }, 0);
-  }, [accounts]);
-
-  const netWorth = useMemo(() => {
-    return accounts
-      .filter(a => a.includeInNetWorth !== false)
-      .reduce((acc, curr) => {
-        const rate = curr.exchangeRate || 1;
-        return acc + (curr.balance * rate);
-      }, 0);
-  }, [accounts]);
 
   const budgetMonitoring = useMemo(() => {
     const today = new Date();
@@ -1961,6 +1878,17 @@ export default function App() {
     return details.sort((a, b) => a.date.localeCompare(b.date));
   }, [recurringTransactions, dashboardRange.end]);
 
+  const projectedBalance = useMemo(() => {
+    const pendingTransactions = transactions.filter(t => !t.consolidated);
+    const pendingIncomes = pendingTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0);
+    const pendingExpenses = pendingTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0);
+    
+    // Add future recurring transactions within the period
+    const futureImpact = Object.values(futureRecurringImpact).reduce((acc, curr) => acc + curr, 0);
+    
+    return totalBalance + pendingIncomes - pendingExpenses + futureImpact;
+  }, [totalBalance, transactions, futureRecurringImpact]);
+
   const projectedBalancesByAccount = useMemo(() => {
     return accounts.map(account => {
       const accountTransactions = transactions.filter(t => t.accountId === account.id || t.toAccountId === account.id);
@@ -1991,21 +1919,6 @@ export default function App() {
       };
     });
   }, [accounts, transactions, futureRecurringImpact]);
-
-  const projectedMainBalance = useMemo(() => {
-    return projectedBalancesByAccount
-      .filter(a => a.includeInMainBalance !== false)
-      .reduce((acc, curr) => acc + (curr.projectedBalance * (curr.exchangeRate || 1)), 0);
-  }, [projectedBalancesByAccount]);
-
-  const projectedNetWorth = useMemo(() => {
-    return projectedBalancesByAccount
-      .filter(a => a.includeInNetWorth !== false)
-      .reduce((acc, curr) => acc + (curr.projectedBalance * (curr.exchangeRate || 1)), 0);
-  }, [projectedBalancesByAccount]);
-
-  // Keep projectedBalance matching the main active view balance
-  const projectedBalance = projectedMainBalance;
 
   const pendingTransactions = useMemo(() => {
     return transactions
@@ -2871,10 +2784,6 @@ export default function App() {
       name: formData.get('name') as string,
       type: formData.get('type') as AccountType,
       balance: Number(formData.get('balance')),
-      currency: (formData.get('currency') as string) || 'BRL',
-      exchangeRate: Number(formData.get('exchangeRate')) || 1,
-      includeInMainBalance: formData.get('includeInMainBalance') !== 'false',
-      includeInNetWorth: formData.get('includeInNetWorth') !== 'false',
       userId: user.uid
     };
 
@@ -2891,12 +2800,7 @@ export default function App() {
     if (!user || !accountToEdit) return;
     const formData = new FormData(e.currentTarget);
     const newName = formData.get('name') as string;
-    const newType = formData.get('type') as AccountType;
     const newBalance = Number(formData.get('balance'));
-    const newCurrency = (formData.get('currency') as string) || 'BRL';
-    const newExchangeRate = Number(formData.get('exchangeRate')) || 1;
-    const newIncludeInMainBalance = formData.get('includeInMainBalance') !== 'false';
-    const newIncludeInNetWorth = formData.get('includeInNetWorth') !== 'false';
 
     confirmAction({
       title: 'Editar Conta',
@@ -2907,12 +2811,7 @@ export default function App() {
       try {
         await updateDoc(doc(db, `users/${user.uid}/accounts`, accountToEdit.id), {
           name: newName,
-          type: newType,
           balance: newBalance,
-          currency: newCurrency,
-          exchangeRate: newExchangeRate,
-          includeInMainBalance: newIncludeInMainBalance,
-          includeInNetWorth: newIncludeInNetWorth,
           updatedAt: serverTimestamp()
         });
         setIsEditAccountModalOpen(false);
@@ -3869,10 +3768,8 @@ export default function App() {
               </div>
 
               <SummaryHero 
-                mainBalance={mainBalance}
-                projectedMainBalance={projectedMainBalance}
-                netWorth={netWorth}
-                projectedNetWorth={projectedNetWorth}
+                balance={totalBalance}
+                projected={projectedBalance}
                 income={totalIncome}
                 expense={totalExpense}
                 formatCurrencyWithPrivacy={formatCurrencyWithPrivacy}
@@ -4209,7 +4106,7 @@ export default function App() {
                   <Card title="Monitoramento de Orçamentos" className="lg:col-span-4" density={displayDensity}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {budgetMonitoring.map((cat, idx) => (
-                        <div key={`budget-card-${cat.id || idx}-${idx}`} className="p-4 rounded-3xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 group hover:border-cyan-500/30 transition-all">
+                        <div key={`budget-card-${cat.id || idx}`} className="p-4 rounded-3xl bg-slate-50/50 dark:bg-white/5 border border-slate-100 dark:border-white/5 group hover:border-cyan-500/30 transition-all">
                           <div className="flex justify-between items-start mb-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm text-slate-400 group-hover:text-cyan-500 transition-colors">
@@ -4426,7 +4323,7 @@ export default function App() {
                               <option value="">Selecione o Centro de Custo</option>
                               {categories
                                 .filter(c => !c.parentId && c.type === transactionType)
-                                .map((c, idx) => <option key={`quick-add-cc-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
+                                .map(c => <option key={`quick-add-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
                               }
                             </select>
                             <button 
@@ -4452,7 +4349,7 @@ export default function App() {
                               <option value="">Selecione a Categoria</option>
                               {categories
                                 .filter(c => c.parentId === selectedCostCenterId)
-                                .map((c, idx) => <option key={`quick-add-cat-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
+                                .map(c => <option key={`quick-add-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
                               }
                             </select>
                             <button 
@@ -4474,7 +4371,7 @@ export default function App() {
 
                   <select name="accountId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                     <option value="">{transactionType === 'transfer' ? 'Conta de Origem' : 'Conta'}</option>
-                    {accounts.map((a, idx) => <option key={`acc-opt-1-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
+                    {accounts.map(a => <option key={`acc-opt-1-${a.id}`} value={a.id}>{a.name}</option>)}
                   </select>
 
                   <select name="groupId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
@@ -4485,7 +4382,7 @@ export default function App() {
                   {transactionType === 'transfer' && (
                     <select name="toAccountId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                       <option value="">Conta de Destino</option>
-                      {accounts.map((a, idx) => <option key={`acc-opt-2-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
+                      {accounts.map(a => <option key={`acc-opt-2-${a.id}`} value={a.id}>{a.name}</option>)}
                     </select>
                   )}
 
@@ -4555,8 +4452,8 @@ export default function App() {
                       className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold shadow-sm min-w-[200px]"
                     >
                       <option value="all">🏦 Todas as Contas</option>
-                      {accounts.map((account, idx) => (
-                        <option key={`filter-acc-opt-${account.id || idx}-${idx}`} value={account.id}>{account.name}</option>
+                      {accounts.map(account => (
+                        <option key={`filter-acc-opt-${account.id}`} value={account.id}>{account.name}</option>
                       ))}
                     </select>
                   </div>
@@ -4959,64 +4856,16 @@ export default function App() {
               </div>
 
               <Card title="Nova Conta" density={displayDensity}>
-                <form onSubmit={handleAddAccount} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Nome da Conta</label>
-                      <input name="name" type="text" placeholder="Nome da Conta" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tipo de Conta</label>
-                      <select name="type" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="checking">Corrente</option>
-                        <option value="savings">Poupança</option>
-                        <option value="credit_card">Cartão de Crédito</option>
-                        <option value="cash">Dinheiro</option>
-                        <option value="investment">Investimento</option>
-                        <option value="other">Outro</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Saldo Inicial</label>
-                      <input name="balance" type="number" step="0.01" placeholder="Saldo Inicial" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-slate-100 dark:border-white/5">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Moeda</label>
-                      <select name="currency" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="BRL">Real (R$ - BRL)</option>
-                        <option value="USD">Dólar (US$ - USD)</option>
-                        <option value="EUR">Euro (€ - EUR)</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Cotação p/ BRL</label>
-                      <input name="exchangeRate" type="number" step="0.0001" placeholder="Cotação (ex: 5.25)" defaultValue="1" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required />
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Compor Saldo Oficial</label>
-                      <select name="includeInMainBalance" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="true">Sim (Somar ao Saldo Oficial)</option>
-                        <option value="false">Não (Excluir do Saldo Principal)</option>
-                      </select>
-                    </div>
-
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Compor Patrimônio Geral</label>
-                      <select name="includeInNetWorth" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="true">Sim (Somar ao Patrimônio)</option>
-                        <option value="false">Não (Excluir do Patrimônio)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <button type="submit" className="w-[100%] bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors">
+                <form onSubmit={handleAddAccount} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <input name="name" type="text" placeholder="Nome da Conta" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required />
+                  <select name="type" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
+                    <option value="checking">Corrente</option>
+                    <option value="savings">Poupança</option>
+                    <option value="credit_card">Cartão de Crédito</option>
+                    <option value="cash">Dinheiro</option>
+                  </select>
+                  <input name="balance" type="number" step="0.01" placeholder="Saldo Inicial" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required />
+                  <button type="submit" className="md:col-span-3 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors">
                     Adicionar Conta
                   </button>
                 </form>
@@ -5036,9 +4885,9 @@ export default function App() {
                 animate="show"
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
-                {accounts.map((a, idx) => (
+                {accounts.map((a) => (
                   <motion.div
-                    key={`account-main-${a.id || idx}-${idx}`}
+                    key={`account-main-${a.id}`}
                     variants={{
                       hidden: { opacity: 0, scale: 0.95, y: 15 },
                       show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 15 } }
@@ -5092,35 +4941,16 @@ export default function App() {
                     </div>
 
                     <div className="relative z-10">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">
-                          {a.type === 'credit_card' ? 'Cartão de Crédito' : a.type === 'savings' ? 'Poupança' : a.type === 'investment' ? 'Investimento' : a.type === 'cash' ? 'Dinheiro' : 'Outro'}
-                        </p>
-                        {a.includeInMainBalance === false && (
-                          <span className="text-[8px] font-black uppercase text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">
-                            Excluído do Saldo
-                          </span>
-                        )}
-                      </div>
+                      <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1">{a.type === 'credit_card' ? 'Cartão de Crédito' : a.type === 'savings' ? 'Poupança' : 'Conta Corrente'}</p>
                       <h3 className="text-xl font-bold text-white tracking-tight truncate mb-4">{a.name}</h3>
                       
                       <div className="flex items-end justify-between">
                         <div>
-                          <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Saldo em Carteira</p>
+                          <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.2em]">Saldo Disponível</p>
                           <p className="text-2xl font-black text-white tracking-tighter">
-                            {formatCurrencyWithPrivacy(a.balance, a.currency || 'BRL')}
+                            {formatCurrencyWithPrivacy(a.balance)}
                           </p>
-                          {a.currency && a.currency !== 'BRL' && (
-                            <p className="text-[10px] font-bold text-white/40 font-mono mt-0.5">
-                              {formatCurrencyWithPrivacy(a.balance * (a.exchangeRate || 1), 'BRL')} (BRL)
-                            </p>
-                          )}
                         </div>
-                        {a.currency && a.currency !== 'BRL' && (
-                          <div className="bg-white/10 text-white/80 font-mono text-[9px] font-black px-1.5 py-0.5 rounded-[6px]">
-                            {a.currency} @ {a.exchangeRate || 1}
-                          </div>
-                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -5181,7 +5011,7 @@ export default function App() {
                     <select name="parentId" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                       <option value="">Nenhum (Será um Centro de Custo)</option>
                       {categories.filter(c => !c.parentId).map((c, idx) => (
-                        <option key={`cc-mgmt-parent-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
+                        <option key={`cc-mgmt-parent-opt-${c.id || idx}`} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -5195,7 +5025,7 @@ export default function App() {
 
               <div className="space-y-6">
                 {categories.filter(c => !c.parentId).map((root, rootIdx) => (
-                  <div key={`category-tab-root-${root.id || rootIdx}-${rootIdx}`} className="space-y-3">
+                  <div key={`category-tab-root-${root.id || rootIdx}`} className="space-y-3">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider rounded">Centro de Custo</div>
                     </div>
@@ -5245,7 +5075,7 @@ export default function App() {
                     <div className="ml-8 space-y-2 border-l-2 border-slate-100 dark:border-slate-800 pl-4">
                       {categories.filter(c => c.parentId === root.id).length > 0 ? (
                         categories.filter(c => c.parentId === root.id).map((child, childIdx) => (
-                          <Card key={`category-tab-child-${child.id || childIdx}-${childIdx}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group" density={displayDensity}>
+                          <Card key={`category-tab-child-${child.id || childIdx}`} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/50 border-dashed hover:shadow-sm transition-shadow group" density={displayDensity}>
                             <div className="flex items-center gap-3">
                               <CategoryIcon iconName={child.icon} size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                               <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{child.name}</p>
@@ -6520,26 +6350,26 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Importar Contas</h2>
-                  <button onClick={() => setIsAccountImportModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <h2 className="text-2xl font-bold text-slate-900">Importar Contas</h2>
+                  <button onClick={() => setIsAccountImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                     <X size={24} />
                   </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto mb-6 pr-2">
-                  <p className="text-slate-600 dark:text-slate-400 mb-4">
+                  <p className="text-slate-600 mb-4">
                     Identificamos {ACCOUNT_IMPORT_DATA.length} contas no seu print. 
                     Deseja importar estas contas com seus respectivos saldos?
                   </p>
                   
                   <div className="space-y-2">
                     {ACCOUNT_IMPORT_DATA.map((item, i) => (
-                      <div key={`import-acc-${item.name}-${i}`} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm border border-slate-100/50 dark:border-white/5">
-                        <span className="font-medium text-slate-800 dark:text-slate-200">{item.name}</span>
-                        <span className={cn("font-bold", item.balance >= 0 ? "text-slate-900 dark:text-white" : "text-rose-600 dark:text-rose-400")}>
+                      <div key={`import-acc-${item.name}-${i}`} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl text-sm">
+                        <span className="font-medium text-slate-800">{item.name}</span>
+                        <span className={cn("font-bold", item.balance >= 0 ? "text-slate-900" : "text-rose-600")}>
                           {formatCurrency(item.balance)}
                         </span>
                       </div>
@@ -6550,7 +6380,7 @@ export default function App() {
                 <div className="flex gap-4">
                   <button
                     onClick={() => setIsAccountImportModalOpen(false)}
-                    className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                   >
                     Cancelar
                   </button>
@@ -6582,36 +6412,36 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+                className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  <h2 className="text-2xl font-bold text-slate-900">
                     Importar Dados do {importSource === 'pdf' ? 'PDF' : 'Excel'}
                   </h2>
-                  <button onClick={() => setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <button onClick={() => setIsImportModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                     <X size={24} />
                   </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto mb-6 pr-2">
-                  <p className="text-slate-600 dark:text-slate-400 mb-4">
+                  <p className="text-slate-600 mb-4">
                     Identificamos {transactionsToImport.length} lançamentos no seu {importSource === 'pdf' ? 'relatório "Minha Gestão"' : 'arquivo Excel'}.                     Deseja importar estes dados para sua conta?
                   </p>
                   
                   <div className="space-y-2">
                     {transactionsToImport.slice(0, 10).map((item, i) => (
-                      <div key={`import-tx-${item.description}-${i}`} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm border border-slate-100/50 dark:border-white/5">
+                      <div key={`import-tx-${item.description}-${i}`} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl text-sm">
                         <div>
-                          <p className="font-bold text-slate-800 dark:text-slate-200">{item.description}</p>
-                          <p className="text-slate-500 dark:text-slate-400">{formatDate(item.date)} • {item.subcategory}</p>
+                          <p className="font-bold text-slate-800">{item.description}</p>
+                          <p className="text-slate-500">{formatDate(item.date)} • {item.subcategory}</p>
                         </div>
-                        <p className={cn("font-bold", item.type === 'income' ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                        <p className={cn("font-bold", item.type === 'income' ? "text-emerald-600" : "text-rose-600")}>
                           {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
                         </p>
                       </div>
                     ))}
                     {transactionsToImport.length > 10 && (
-                      <p className="text-center text-slate-400 dark:text-slate-500 text-xs py-2">... e mais {transactionsToImport.length - 10} itens</p>
+                      <p className="text-center text-slate-400 text-xs py-2">... e mais {transactionsToImport.length - 10} itens</p>
                     )}
                   </div>
                 </div>
@@ -6619,7 +6449,7 @@ export default function App() {
                 <div className="flex gap-4">
                   <button
                     onClick={() => setIsImportModalOpen(false)}
-                    className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                   >
                     Cancelar
                   </button>
@@ -6648,111 +6478,43 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Editar Conta</h2>
-                  <button onClick={() => setIsEditAccountModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <h2 className="text-2xl font-bold text-slate-900">Editar Conta</h2>
+                  <button onClick={() => setIsEditAccountModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                     <X size={24} />
                   </button>
                 </div>
 
                 <form onSubmit={handleUpdateAccountBalance} className="space-y-4">
-                  <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome da Conta</label>
-                      <input 
-                        name="name"
-                        type="text" 
-                        defaultValue={accountToEdit.name} 
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipo de Conta</label>
-                      <select
-                        name="type"
-                        defaultValue={accountToEdit.type}
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                        required
-                      >
-                        <option value="checking">Corrente</option>
-                        <option value="savings">Poupança</option>
-                        <option value="credit_card">Cartão de Crédito</option>
-                        <option value="cash">Dinheiro</option>
-                        <option value="investment">Investimento</option>
-                        <option value="other">Outro</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Saldo Atual</label>
-                      <input 
-                        name="balance" 
-                        type="number" 
-                        step="0.01" 
-                        defaultValue={accountToEdit.balance} 
-                        placeholder="Valor do Saldo" 
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Moeda / Divisa</label>
-                      <select
-                        name="currency"
-                        defaultValue={accountToEdit.currency || 'BRL'}
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                        required
-                      >
-                        <option value="BRL">Real (R$ - BRL)</option>
-                        <option value="USD">Dólar (US$ - USD)</option>
-                        <option value="EUR">Euro (€ - EUR)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cotação p/ BRL</label>
-                      <input 
-                        name="exchangeRate" 
-                        type="number" 
-                        step="0.0001" 
-                        defaultValue={accountToEdit.exchangeRate || 1} 
-                        placeholder="Cotação (ex: 5.25)" 
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                        required 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Compor Saldo Oficial</label>
-                      <select
-                        name="includeInMainBalance"
-                        defaultValue={accountToEdit.includeInMainBalance !== false ? 'true' : 'false'}
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                        required
-                      >
-                        <option value="true">Sim (Somar ao Saldo Oficial)</option>
-                        <option value="false">Não (Excluir do Saldo Principal)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Compor Patrimônio Geral</label>
-                      <select
-                        name="includeInNetWorth"
-                        defaultValue={accountToEdit.includeInNetWorth !== false ? 'true' : 'false'}
-                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                        required
-                      >
-                        <option value="true">Sim (Somar ao Patrimônio)</option>
-                        <option value="false">Não (Excluir do Patrimônio)</option>
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Conta</label>
+                    <input 
+                      name="name"
+                      type="text" 
+                      defaultValue={accountToEdit.name} 
+                      className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
+                      required
+                    />
                   </div>
-
-                  <div className="flex gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Saldo Atual</label>
+                    <input 
+                      name="balance" 
+                      type="number" 
+                      step="0.01" 
+                      defaultValue={accountToEdit.balance} 
+                      placeholder="Valor do Saldo" 
+                      className="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                      required 
+                    />
+                  </div>
+                  <div className="flex gap-4 pt-4">
                     <button
                       type="button"
                       onClick={() => setIsEditAccountModalOpen(false)}
-                      className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -6767,39 +6529,38 @@ export default function App() {
               </motion.div>
             </div>
           )}
-
           {isEditCategoryModalOpen && categoryToEdit && (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Editar Centro de Custo / Categoria</h2>
-                  <button onClick={() => setIsEditCategoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <h2 className="text-2xl font-bold text-slate-900">Editar Centro de Custo / Categoria</h2>
+                  <button onClick={() => setIsEditCategoryModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                     <X size={24} />
                   </button>
                 </div>
 
                 <form onSubmit={handleUpdateCategory} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome</label>
                     <input 
                       name="name"
                       type="text" 
                       defaultValue={categoryToEdit.name} 
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipo</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
                     <select 
                       name="type" 
                       defaultValue={categoryToEdit.type}
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     >
                       <option value="expense">Despesa</option>
@@ -6807,11 +6568,11 @@ export default function App() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Centro de Custo (Pai)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Centro de Custo (Pai)</label>
                     <select 
                       name="parentId" 
                       defaultValue={categoryToEdit.parentId || ""}
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Nenhum (Será um Centro de Custo)</option>
                       {categories.filter(c => !c.parentId && c.id !== categoryToEdit.id).map(c => (
@@ -6820,21 +6581,21 @@ export default function App() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Orçamento Mensal (Opcional)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Orçamento Mensal (Opcional)</label>
                     <input 
                       name="monthlyBudget"
                       type="number" 
                       step="0.01"
                       defaultValue={categoryToEdit.monthlyBudget || 0} 
                       placeholder="Ex: 500.00"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div className="flex gap-4 pt-4">
                     <button
                       type="button"
                       onClick={() => setIsEditCategoryModalOpen(false)}
-                      className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -6849,40 +6610,39 @@ export default function App() {
               </motion.div>
             </div>
           )}
-
           {isQuickAddCategoryModalOpen && (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Novo Centro de Custo / Categoria</h2>
-                  <button onClick={() => setIsQuickAddCategoryModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <h2 className="text-2xl font-bold text-slate-900">Novo Centro de Custo / Categoria</h2>
+                  <button onClick={() => setIsQuickAddCategoryModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                     <X size={24} />
                   </button>
                 </div>
 
                 <form onSubmit={handleQuickAddCategory} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nome</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome</label>
                     <input 
                       name="name"
                       type="text" 
                       placeholder="Ex: Casa, Alimentação..."
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                       required
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tipo</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
                     <select 
                       name="type" 
                       defaultValue={transactionType}
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     >
                       <option value="expense">Despesa</option>
@@ -6890,20 +6650,20 @@ export default function App() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Orçamento Mensal (Opcional)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Orçamento Mensal (Opcional)</label>
                     <input 
                       name="monthlyBudget"
                       type="number" 
                       step="0.01"
                       placeholder="Ex: 500.00"
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Centro de Custo (Pai)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Centro de Custo (Pai)</label>
                     <select 
                       name="parentId" 
-                      className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Nenhum (Será um Centro de Custo)</option>
                       {categories.filter(c => !c.parentId && c.type === transactionType).map(c => (
@@ -6915,7 +6675,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => setIsQuickAddCategoryModalOpen(false)}
-                      className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -6937,23 +6697,23 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+                className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Editar Transação</h2>
-                  <button onClick={handleCancelEdit} type="button" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <h2 className="text-2xl font-bold text-slate-900">Editar Transação</h2>
+                  <button onClick={handleCancelEdit} type="button" className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                     <X size={24} />
                   </button>
                 </div>
 
                 <form ref={editFormRef} onSubmit={handleEditTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Tipo</label>
+                    <label className="text-xs font-bold text-slate-500 ml-1">Tipo</label>
                     <select 
                       name="type" 
                       value={transactionType}
                       onChange={(e) => setTransactionType(e.target.value as TransactionType)}
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                      className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" 
                       required
                     >
                       <option value="expense">Despesa</option>
@@ -6962,30 +6722,30 @@ export default function App() {
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Valor</label>
-                    <input name="amount" type="number" step="0.01" defaultValue={transactionToEdit.amount} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required />
+                    <label className="text-xs font-bold text-slate-500 ml-1">Valor</label>
+                    <input name="amount" type="number" step="0.01" defaultValue={transactionToEdit.amount} className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Descrição</label>
-                    <input name="description" type="text" defaultValue={transactionToEdit.description} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required />
+                    <label className="text-xs font-bold text-slate-500 ml-1">Descrição</label>
+                    <input name="description" type="text" defaultValue={transactionToEdit.description} className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required />
                   </div>
                   <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Observações (Opcional)</label>
+                    <label className="text-xs font-bold text-slate-500 ml-1">Observações (Opcional)</label>
                     <textarea 
                       name="notes" 
                       defaultValue={transactionToEdit.notes || ''} 
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none min-h-[80px] resize-none"
+                      className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none min-h-[80px] resize-none"
                       placeholder="Adicione informações adicionais..."
                     ></textarea>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Data</label>
-                    <input name="date" type="date" defaultValue={transactionToEdit.date} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required />
+                    <label className="text-xs font-bold text-slate-500 ml-1">Data</label>
+                    <input name="date" type="date" defaultValue={transactionToEdit.date} className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required />
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Conta {transactionType === 'transfer' ? 'Origem' : ''}</label>
-                    <select name="accountId" defaultValue={transactionToEdit.accountId} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required>
+                    <label className="text-xs font-bold text-slate-500 ml-1">Conta {transactionType === 'transfer' ? 'Origem' : ''}</label>
+                    <select name="accountId" defaultValue={transactionToEdit.accountId} className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                       <option value="">Selecione a Conta</option>
                       {accounts.map(acc => <option key={`edit-tx-acc-from-opt-${acc.id}`} value={acc.id}>{acc.name}</option>)}
                     </select>
@@ -6993,8 +6753,8 @@ export default function App() {
 
                   {transactionType === 'transfer' && (
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Conta Destino</label>
-                      <select name="toAccountId" defaultValue={transactionToEdit.toAccountId || ''} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required>
+                      <label className="text-xs font-bold text-slate-500 ml-1">Conta Destino</label>
+                      <select name="toAccountId" defaultValue={transactionToEdit.toAccountId || ''} className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                         <option value="">Selecione a Conta Destino</option>
                         {accounts.map(acc => <option key={`edit-tx-acc-to-opt-${acc.id}`} value={acc.id}>{acc.name}</option>)}
                       </select>
@@ -7002,11 +6762,11 @@ export default function App() {
                   )}
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Grupo (Opcional)</label>
+                    <label className="text-xs font-bold text-slate-500 ml-1">Grupo (Opcional)</label>
                     <select 
                       name="groupId" 
                       defaultValue={transactionToEdit.groupId || ''}
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     >
                       <option value="">📌 Sem Grupo</option>
                       {transactionGroups.map((g, idx) => <option key={`edit-tx-group-opt-${g.id}-${idx}`} value={g.id}>{g.name}</option>)}
@@ -7016,12 +6776,12 @@ export default function App() {
                   {transactionType !== 'transfer' && (
                     <>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Centro de Custo</label>
+                        <label className="text-xs font-bold text-slate-500 ml-1">Centro de Custo</label>
                         <select 
                           name="costCenterId" 
                           value={selectedCostCenterId}
                           onChange={(e) => setSelectedCostCenterId(e.target.value)}
-                          className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                          className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" 
                           required
                         >
                           <option value="">Selecione o Centro de Custo</option>
@@ -7032,11 +6792,11 @@ export default function App() {
                         </select>
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Categoria</label>
+                        <label className="text-xs font-bold text-slate-500 ml-1">Categoria</label>
                         <select 
                           name="categoryId" 
                           defaultValue={transactionToEdit.categoryId || ''}
-                          className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                          className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" 
                           required
                           disabled={!selectedCostCenterId}
                         >
@@ -7082,7 +6842,7 @@ export default function App() {
                         animate={{ opacity: 1, height: 'auto' }}
                         className="flex flex-col gap-1 pt-2 border-t border-slate-200 dark:border-slate-700"
                       >
-                        <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
                         <input 
                           name="paymentDate" 
                           type="date" 
@@ -7096,8 +6856,8 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Comprovante (Opcional)</label>
-                    <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 bg-slate-50">
+                    <label className="text-xs font-bold text-slate-500 ml-1">Comprovante (Opcional)</label>
+                    <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900">
                       <input 
                         type="file" 
                         accept="image/*,application/pdf"
@@ -7154,7 +6914,7 @@ export default function App() {
                           setIsEditTransactionModalOpen(false);
                           handleDeleteTransactionWithConfirm(transactionToEdit);
                         }}
-                        className="p-3 rounded-xl border border-rose-200 dark:border-rose-900/45 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors bg-white dark:bg-slate-900"
+                        className="p-3 rounded-xl border border-rose-200 text-rose-500 hover:bg-rose-50 transition-colors"
                         title="Excluir Transação"
                       >
                         <Trash2 size={20} />
@@ -7163,7 +6923,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={handleCancelEdit}
-                      className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-900"
+                      className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -7184,31 +6944,31 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] flex flex-col"
+                className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] flex flex-col"
               >
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Detalhamento da Projeção</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                    <h2 className="text-2xl font-bold text-slate-900">Detalhamento da Projeção</h2>
+                    <p className="text-sm text-slate-500 font-medium">
                       {accounts.find(a => a.id === selectedAccountForProjection)?.name}
                     </p>
                   </div>
-                  <button onClick={() => setSelectedAccountForProjection(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <button onClick={() => setSelectedAccountForProjection(null)} className="text-slate-400 hover:text-slate-600">
                     <X size={24} />
                   </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                   {/* Summary Section */}
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                     <div>
-                      <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Saldo Atual</p>
-                      <p className="text-lg font-bold text-slate-700 dark:text-slate-300">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Saldo Atual</p>
+                      <p className="text-lg font-bold text-slate-700">
                         {formatCurrency(accounts.find(a => a.id === selectedAccountForProjection)?.balance || 0)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Saldo Projetado</p>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Saldo Projetado</p>
                       <p className={cn(
                         "text-lg font-bold",
                         (projectedBalancesByAccount.find(a => a.id === selectedAccountForProjection)?.projectedBalance || 0) < 0 ? "text-rose-600" : "text-emerald-600"
@@ -7220,7 +6980,7 @@ export default function App() {
 
                   {/* Pending Transactions */}
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
                       <Calendar size={16} className="text-amber-500" />
                       Lançamentos Pendentes
                     </h3>
@@ -7228,10 +6988,10 @@ export default function App() {
                       {transactions
                         .filter(t => !t.consolidated && (t.accountId === selectedAccountForProjection || t.toAccountId === selectedAccountForProjection))
                         .map(t => (
-                          <div key={`pending-projection-${t.id}`} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-sm">
+                          <div key={`pending-projection-${t.id}`} className="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
                             <div className="flex-1 pr-4">
-                              <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{t.description}</p>
-                              <p className="text-[10px] text-slate-400 dark:text-slate-500">{formatDate(t.date)}</p>
+                              <p className="text-sm font-bold text-slate-700 truncate">{t.description}</p>
+                              <p className="text-[10px] text-slate-400">{formatDate(t.date)}</p>
                             </div>
                             <p className={cn(
                               "text-sm font-bold whitespace-nowrap",
@@ -7249,7 +7009,7 @@ export default function App() {
 
                   {/* Future Recurring */}
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
                       <RefreshCw size={16} className="text-blue-500" />
                       Projeções de Recorrência (até {format(parseISO(dashboardRange.end), 'dd/MM')})
                     </h3>
@@ -7257,10 +7017,10 @@ export default function App() {
                       {futureRecurringDetails
                         .filter(d => d.accountId === selectedAccountForProjection)
                         .map((d, index) => (
-                          <div key={`future-recurring-${d.accountId}-${d.date}-${index}`} className="flex justify-between items-center p-3 bg-blue-50/30 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/35 rounded-xl">
+                          <div key={`future-recurring-${d.accountId}-${d.date}-${index}`} className="flex justify-between items-center p-3 bg-blue-50/30 border border-blue-100 rounded-xl">
                             <div className="flex-1 pr-4">
-                              <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{d.description}</p>
-                              <p className="text-[10px] text-blue-500 dark:text-blue-400 font-medium">Previsão: {formatDate(d.date)}</p>
+                              <p className="text-sm font-bold text-slate-700 truncate">{d.description}</p>
+                              <p className="text-[10px] text-blue-500 font-medium">Previsão: {formatDate(d.date)}</p>
                             </div>
                             <p className={cn(
                               "text-sm font-bold whitespace-nowrap",
@@ -7280,7 +7040,7 @@ export default function App() {
                 <div className="mt-6">
                   <button
                     onClick={() => setSelectedAccountForProjection(null)}
-                    className="w-full py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="w-full py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-colors"
                   >
                     Fechar
                   </button>
