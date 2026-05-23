@@ -60,7 +60,11 @@ service cloud.firestore {
     function isValidAccount(data, userId) {
       return data.userId == userId &&
              data.name is string && data.name.size() > 0 &&
-             data.balance is number;
+             data.balance is number &&
+             (!('currency' in data) || data.currency is string) &&
+             (!('exchangeRate' in data) || data.exchangeRate is number) &&
+             (!('includeInMainBalance' in data) || data.includeInMainBalance is bool) &&
+             (!('includeInNetWorth' in data) || data.includeInNetWorth is bool);
     }
 
     function isValidCategory(data, userId) {

@@ -183,10 +183,13 @@ html.high-contrast .bg-white\/40,
 html.high-contrast .bg-slate-900\/40,
 html.high-contrast .bg-slate-50,
 html.high-contrast .bg-white,
-html.high-contrast .bg-slate-100 {
+html.high-contrast .bg-slate-100,
+html.high-contrast .bg-slate-950 {
   background-color: #ffffff !important;
-  border: 2px solid #000000 !important;
+  border: 2.5px solid #000000 !important;
   box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 html.high-contrast.dark .glass-card,
@@ -195,10 +198,13 @@ html.high-contrast.dark .bg-slate-900\/40,
 html.high-contrast.dark .bg-slate-50,
 html.high-contrast.dark .bg-white,
 html.high-contrast.dark .bg-slate-100,
-html.high-contrast.dark .bg-slate-900 {
+html.high-contrast.dark .bg-slate-900,
+html.high-contrast.dark .bg-slate-950 {
   background-color: #000000 !important;
-  border: 2px solid #ffffff !important;
+  border: 2.5px solid #ffffff !important;
   box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* Primary/Secondary Buttons */

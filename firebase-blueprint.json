@@ -59,8 +59,12 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["checking", "savings", "credit_card", "cash"] },
+        "type": { "type": "string", "enum": ["checking", "savings", "credit_card", "cash", "investment", "other"] },
         "balance": { "type": "number" },
+        "currency": { "type": "string" },
+        "exchangeRate": { "type": "number" },
+        "includeInMainBalance": { "type": "boolean" },
+        "includeInNetWorth": { "type": "boolean" },
         "userId": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
