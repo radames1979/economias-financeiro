@@ -128,7 +128,7 @@ import {
   Scissors,
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
-import { GroupedVirtuoso } from 'react-virtuoso';
+import { GroupedVirtuoso, TableVirtuoso } from 'react-virtuoso';
 import { 
   BarChart, 
   Bar, 
@@ -1513,6 +1513,10 @@ export default function App() {
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(new Date());
   const [dashboardPeriod, setDashboardPeriod] = useState<'month' | 'year'>('month');
+  
+  // Reports sub-tab and financial health date
+  const [reportsSubTab, setReportsSubTab] = useState<'general' | 'health'>('general');
+  const [financialHealthDate, setFinancialHealthDate] = useState<Date>(new Date());
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -1869,10 +1873,6 @@ export default function App() {
     });
   }, [transactions, dashboardRange, searchQuery, categories, accounts, selectedAccountFilter]);
 
-  const paginatedTransactions = useMemo(() => {
-    return filteredTransactionsByDashboard.slice(0, visibleTransactionsCount);
-  }, [filteredTransactionsByDashboard, visibleTransactionsCount]);
-
   const dayGroups = useMemo(() => {
     const groups: {
       dayKey: string;
@@ -1886,8 +1886,8 @@ export default function App() {
     const days: Record<string, typeof groups[number]> = {};
     let lastMonth = '';
 
-    // paginatedTransactions are already sorted descending by date usually, but let's ensure
-    const sorted = [...paginatedTransactions].sort((a, b) => b.date.localeCompare(a.date));
+    // Filtered transactions are sorted descending by date
+    const sorted = [...filteredTransactionsByDashboard].sort((a, b) => b.date.localeCompare(a.date));
 
     sorted.forEach(t => {
       const dKey = t.date;
@@ -1919,7 +1919,7 @@ export default function App() {
     });
 
     return groups;
-  }, [paginatedTransactions]);
+  }, [filteredTransactionsByDashboard]);
 
   const dayGroupCounts = useMemo(() => dayGroups.map(g => g.transactions.length), [dayGroups]);
 
@@ -3234,6 +3234,141 @@ export default function App() {
       prevPeriodEnd: format(prevEnd, 'dd/MM/yy')
     };
   }, [transactions, filteredTransactions, reportStartDate, reportEndDate]);
+
+  const healthStats = useMemo(() => {
+    const currentMonthStart = startOfMonth(financialHealthDate);
+    const currentMonthEnd = endOfMonth(financialHealthDate);
+    const prevMonthDate = subMonths(financialHealthDate, 1);
+    const prevMonthStart = startOfMonth(prevMonthDate);
+    const prevMonthEnd = endOfMonth(prevMonthDate);
+
+    const currentMonthTx = transactions.filter(t => {
+      const d = parseISO(t.date);
+      return isWithinInterval(d, { start: currentMonthStart, end: currentMonthEnd });
+    });
+
+    const prevMonthTx = transactions.filter(t => {
+      const d = parseISO(t.date);
+      return isWithinInterval(d, { start: prevMonthStart, end: prevMonthEnd });
+    });
+
+    // Totals
+    const currentIncome = currentMonthTx.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const currentExpense = currentMonthTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const prevIncome = prevMonthTx.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const prevExpense = prevMonthTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
+    // Growth rates
+    const incomeDiffPercent = prevIncome === 0 ? (currentIncome > 0 ? 100 : 0) : ((currentIncome - prevIncome) / prevIncome) * 100;
+    const expenseDiffPercent = prevExpense === 0 ? (currentExpense > 0 ? 100 : 0) : ((currentExpense - prevExpense) / prevExpense) * 100;
+
+    // Net
+    const currentNet = currentIncome - currentExpense;
+    const prevNet = prevIncome - prevExpense;
+    const netDiffPercent = prevNet === 0 ? (currentNet > 0 ? 100 : 0) : ((currentNet - prevNet) / Math.abs(prevNet || 1)) * 100;
+
+    // Expenses per category
+    const currentCatExpenses: Record<string, number> = {};
+    const prevCatExpenses: Record<string, number> = {};
+
+    currentMonthTx.filter(t => t.type === 'expense').forEach(t => {
+      const catId = t.categoryId || 'sem-categoria';
+      currentCatExpenses[catId] = (currentCatExpenses[catId] || 0) + t.amount;
+    });
+
+    prevMonthTx.filter(t => t.type === 'expense').forEach(t => {
+      const catId = t.categoryId || 'sem-categoria';
+      prevCatExpenses[catId] = (prevCatExpenses[catId] || 0) + t.amount;
+    });
+
+    const allCatIds = Array.from(new Set([...Object.keys(currentCatExpenses), ...Object.keys(prevCatExpenses)]));
+
+    const categoriesComparison = allCatIds.map(catId => {
+      const categoryObj = categories.find(c => c.id === catId);
+      const name = categoryObj?.name || (catId === 'sem-categoria' ? 'Sem Categoria' : 'Categoria Excluída');
+      const color = categoryObj?.color || '#94a3b8';
+      
+      const currentVal = currentCatExpenses[catId] || 0;
+      const prevVal = prevCatExpenses[catId] || 0;
+      const diffVal = currentVal - prevVal;
+      const diffPercent = prevVal === 0 ? (currentVal > 0 ? 100 : 0) : (diffVal / prevVal) * 100;
+
+      return {
+        id: catId,
+        name,
+        color,
+        current: currentVal,
+        prev: prevVal,
+        diff: diffVal,
+        diffPercent
+      };
+    });
+
+    const increases = [...categoriesComparison].filter(c => c.diff > 0).sort((a, b) => b.diff - a.diff);
+    const decreases = [...categoriesComparison].filter(c => c.diff < 0).sort((a, b) => a.diff - b.diff);
+
+    return {
+      currentIncome,
+      currentExpense,
+      prevIncome,
+      prevExpense,
+      currentNet,
+      prevNet,
+      incomeDiffPercent,
+      expenseDiffPercent,
+      netDiffPercent,
+      categoriesComparison,
+      increases,
+      decreases,
+      currentMonthLabel: format(currentMonthStart, 'MMMM yyyy', { locale: ptBR }),
+      prevMonthLabel: format(prevMonthStart, 'MMMM yyyy', { locale: ptBR })
+    };
+  }, [transactions, categories, financialHealthDate]);
+
+  const healthDiagnostic = useMemo(() => {
+    const { currentExpense, prevExpense, increases, decreases, currentNet, currentIncome } = healthStats;
+    if (currentExpense === 0 && prevExpense === 0) {
+      return {
+        title: "Período Sem Dados",
+        description: "Não há transações de despesa registradas nos meses selecionados para realizar o diagnóstico.",
+        status: "neutral" as const
+      };
+    }
+
+    const ratio = currentIncome > 0 ? (currentExpense / currentIncome) * 100 : 100;
+    const diffVal = currentExpense - prevExpense;
+    const isLesser = currentExpense < prevExpense;
+    const topIncrease = increases[0];
+    const topDecrease = decreases[0];
+
+    let title = "Despesas Sob Controle";
+    let description = "";
+    let status: 'good' | 'warning' | 'danger' | 'neutral' = "good";
+
+    if (ratio > 100) {
+      title = "Déficit Mensal";
+      description = `Atenção: Suas despesas superaram suas receitas neste mês em ${formatCurrency(Math.abs(currentNet))}. Recomenda-se revisar gastos imediatos.`;
+      status = "danger" as const;
+    } else if (isLesser) {
+      title = "Excelente Progresso!";
+      description = `Você reduziu suas despesas gerais em ${formatCurrency(Math.abs(diffVal))} (${Math.abs(healthStats.expenseDiffPercent).toFixed(1)}%) comparando com o mês anterior. `;
+      status = "good" as const;
+      
+      if (topDecrease) {
+        description += `O maior destaque positivo foi a categoria "${topDecrease.name}", onde você economizou ${formatCurrency(Math.abs(topDecrease.diff))}.`;
+      }
+    } else {
+      title = "Aumento nos Gastos";
+      description = `Suas despesas gerais aumentaram em ${formatCurrency(diffVal)} (${healthStats.expenseDiffPercent.toFixed(1)}%) em relação ao mês anterior. `;
+      status = "warning" as const;
+
+      if (topIncrease) {
+        description += `O maior aumento ocorreu na categoria "${topIncrease.name}" (+${formatCurrency(topIncrease.diff)}). Considere monitorar este grupo na próxima semana.`;
+      }
+    }
+
+    return { title, description, status };
+  }, [healthStats]);
 
   const expenseAnalysis = useMemo(() => {
     const expenses = annualSummary.monthlyData.map(d => d.expense);
@@ -4696,13 +4831,8 @@ export default function App() {
                       {/* Desktop List View (Virtuoso) */}
                       <div className="hidden md:block" style={{ height: '600px' }}>
                         <GroupedVirtuoso
-                      groupCounts={dayGroupCounts}
-                      endReached={() => {
-                        if (visibleTransactionsCount < filteredTransactionsByDashboard.length) {
-                          setVisibleTransactionsCount(prev => prev + 20);
-                        }
-                      }}
-                      groupContent={(index) => {
+                          groupCounts={dayGroupCounts}
+                          groupContent={(index) => {
                         const dayGroup = dayGroups[index];
                         if (!dayGroup) return null;
 
@@ -4748,6 +4878,7 @@ export default function App() {
                       }}
                       itemContent={(index, groupIndex) => {
                         const dayGroup = dayGroups[groupIndex];
+                        if (!dayGroup) return null;
                         const groupStart = dayGroupCounts.slice(0, groupIndex).reduce((a, b) => a + b, 0);
                         const itemInGroupIndex = index - groupStart;
                         const t = dayGroup.transactions[itemInGroupIndex];
@@ -4861,199 +4992,198 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Mobile Card View */}
-                  <div className="md:hidden space-y-6">
-                    {dayGroups.map((group, idx) => (
-                      <div key={`mobile-day-group-${group.dayKey}`} className="space-y-3">
-                        {group.isFirstInMonth && (
-                          <div className="flex items-center gap-4 py-2 mt-4 first:mt-0">
-                            <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                              {format(parseISO(`${group.monthKey}-01`), 'MMMM yyyy', { locale: ptBR })}
-                            </h4>
-                            <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
-                          </div>
-                        )}
+                  {/* Mobile Card View (Virtuoso Virtualizado) */}
+                  <div className="md:hidden" style={{ height: '650px' }}>
+                    <GroupedVirtuoso
+                      groupCounts={dayGroupCounts}
+                      groupContent={(groupIndex) => {
+                        const group = dayGroups[groupIndex];
+                        if (!group) return null;
+                        return (
+                          <div key={`mobile-day-gp-${group.dayKey}`} className="pt-2 pb-1 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                            {group.isFirstInMonth && (
+                              <div className="flex items-center gap-4 py-2 mt-4 first:mt-0">
+                                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                  {format(parseISO(`${group.monthKey}-01`), 'MMMM yyyy', { locale: ptBR })}
+                                </h4>
+                                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
+                              </div>
+                            )}
 
-                        <div className="flex items-center justify-between px-2 pt-2">
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-lg font-black text-slate-900 dark:text-white">
-                              {format(parseISO(group.dayKey), 'dd')}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                              {format(parseISO(group.dayKey), 'EEEE', { locale: ptBR })}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex flex-col items-end">
-                              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest leading-none mb-0.5">Receita</span>
-                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{formatCurrencyWithPrivacy(group.income)}</span>
+                            <div className="flex items-center justify-between px-2 pt-2">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-black text-slate-900 dark:text-white">
+                                  {format(parseISO(group.dayKey), 'dd')}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                  {format(parseISO(group.dayKey), 'EEEE', { locale: ptBR })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="flex flex-col items-end">
+                                  <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest leading-none mb-0.5">Receita</span>
+                                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{formatCurrencyWithPrivacy(group.income)}</span>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                  <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest leading-none mb-0.5">Despesa</span>
+                                  <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{formatCurrencyWithPrivacy(group.expense)}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex flex-col items-end">
-                              <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest leading-none mb-0.5">Despesa</span>
-                              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{formatCurrencyWithPrivacy(group.expense)}</span>
-                            </div>
                           </div>
-                        </div>
+                        );
+                      }}
+                      itemContent={(index, groupIndex) => {
+                        const group = dayGroups[groupIndex];
+                        if (!group) return null;
+                        const groupStart = dayGroupCounts.slice(0, groupIndex).reduce((acc, count) => acc + count, 0);
+                        const itemInGroupIndex = index - groupStart;
+                        const t = group.transactions[itemInGroupIndex];
 
-                        {group.transactions.map((t, tIdx) => (
-                          <TransactionCard 
-                            key={`mobile-list-${t.id || 'no-id'}-${tIdx}`}
-                            t={t}
-                            accounts={accounts}
-                            categories={categories}
-                            onEdit={(t) => {
-                              setTransactionToEdit(t);
-                              setSelectedCostCenterId(t.costCenterId || '');
-                              setTransactionType(t.type);
-                              setSelectedFile(null);
-                              setShouldRemoveAttachment(false);
-                              setIsEditTransactionModalOpen(true);
-                            }}
-                            onDelete={handleDeleteTransactionWithConfirm}
-                            onToggleConsolidation={handleToggleConsolidation}
-                            formatCurrency={formatCurrencyWithPrivacy}
-                            density={displayDensity}
-                          />
-                        ))}
-                      </div>
-                    ))}
+                        if (!t) return null;
 
-                    {visibleTransactionsCount < filteredTransactionsByDashboard.length && (
-                      <div className="py-4">
-                        <button 
-                          onClick={() => setVisibleTransactionsCount(prev => prev + 20)}
-                          className="w-full py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
-                        >
-                          <ChevronDown size={18} />
-                          Carregar mais transações
-                        </button>
-                      </div>
-                    )}
+                        return (
+                          <div key={`mobile-list-item-${t.id || 'no-id'}-${index}`} className="py-2.5 px-1 bg-white dark:bg-slate-900">
+                            <TransactionCard 
+                              t={t}
+                              accounts={accounts}
+                              categories={categories}
+                              onEdit={(t) => {
+                                setTransactionToEdit(t);
+                                setSelectedCostCenterId(t.costCenterId || '');
+                                setTransactionType(t.type);
+                                setSelectedFile(null);
+                                setShouldRemoveAttachment(false);
+                                setIsEditTransactionModalOpen(true);
+                              }}
+                              onDelete={handleDeleteTransactionWithConfirm}
+                              onToggleConsolidation={handleToggleConsolidation}
+                              formatCurrency={formatCurrencyWithPrivacy}
+                              density={displayDensity}
+                            />
+                          </div>
+                        );
+                      }}
+                    />
                   </div>
                 </>
               ) : (
                 <div className="overflow-x-auto min-h-[400px]">
-                  <table className="w-full border-separate border-spacing-0">
-                    <thead>
-                      <tr className="bg-slate-50/50 dark:bg-white/5">
-                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Data</th>
-                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Descrição</th>
-                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Categoria</th>
-                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Conta</th>
-                        <th className="px-5 py-4 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Status</th>
-                        <th className="px-5 py-4 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Valor</th>
-                        <th className="px-5 py-4 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-200/50 dark:border-white/5">Ações</th>
+                  <TableVirtuoso
+                    style={{ height: '650px', width: '100%' }}
+                    className="w-full border-separate border-spacing-0 no-scrollbar bg-transparent"
+                    data={filteredTransactionsByDashboard}
+                    components={{
+                      Table: (props) => <table {...props} className="w-full border-separate border-spacing-0" />,
+                      TableRow: (props) => <tr {...props} className="group hover:bg-slate-50 dark:hover:bg-cyan-500/[0.03] transition-colors" />
+                    }}
+                    fixedHeaderContent={() => (
+                      <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                        <th className="bg-slate-50 dark:bg-slate-900 px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Data</th>
+                        <th className="bg-slate-50 dark:bg-slate-900 px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Descrição</th>
+                        <th className="bg-slate-50 dark:bg-slate-900 px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Categoria</th>
+                        <th className="bg-slate-50 dark:bg-slate-900 px-5 py-4 text-left text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Conta</th>
+                        <th className="bg-slate-50 dark:bg-slate-900 px-5 py-4 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Status</th>
+                        <th className="bg-slate-50 dark:bg-slate-900 px-5 py-4 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Valor</th>
+                        <th className="bg-slate-50 dark:bg-slate-900 px-5 py-4 text-right text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Ações</th>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTransactionsByDashboard.slice(0, visibleTransactionsCount).map((t, idx) => {
-                        const category = categories.find(c => c.id === t.categoryId);
-                        const costCenter = categories.find(c => c.id === t.costCenterId);
-                        const account = accounts.find(a => a.id === t.accountId);
-                        const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
-                        
-                        return (
-                          <tr key={`table-row-${t.id || 'no-id'}-${idx}`} className="group hover:bg-slate-50 dark:hover:bg-cyan-500/[0.03] transition-colors">
-                            <td className="px-5 py-4 text-xs font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
-                              {format(parseISO(t.date), 'dd/MM/yy')}
-                            </td>
-                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
-                              <div className="flex items-center gap-2">
-                                <span className={cn(
-                                  "w-1.5 h-1.5 rounded-full shrink-0",
-                                  t.type === 'income' ? 'bg-emerald-500' : t.type === 'expense' ? 'bg-rose-500' : 'bg-blue-500'
-                                )} />
-                                <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.description}</span>
-                                {t.attachmentUrl && <Paperclip size={12} className="text-blue-500 opacity-60" />}
-                              </div>
-                              {t.notes && <p className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-0.5 line-clamp-1">{t.notes}</p>}
-                            </td>
-                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
-                              <div className="flex flex-col gap-1">
-                                {costCenter && <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{costCenter.name}</span>}
-                                {category && (
-                                  <span className={cn(
-                                    "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-white w-fit shadow-sm",
-                                    category.color
-                                  )}>
-                                    {category.name}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
-                              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                                {t.type === 'transfer' ? `${account?.name} → ${toAccount?.name}` : account?.name}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
-                              <div className="flex flex-col gap-1 items-center">
-                                <div className="flex items-center gap-1">
-                                  {t.consolidated ? (
-                                    <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                                      <Check size={8} strokeWidth={4} /> Efetivado
-                                    </span>
-                                  ) : (
-                                    <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                                      <Clock size={8} strokeWidth={4} className="animate-pulse" /> Agendado
-                                    </span>
-                                  )}
-                                </div>
-                                {t.paid && (
-                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                    <ShieldCheck size={8} strokeWidth={4} /> Pago
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
+                    )}
+                    itemContent={(idx, t) => {
+                      const category = categories.find(c => c.id === t.categoryId);
+                      const costCenter = categories.find(c => c.id === t.costCenterId);
+                      const account = accounts.find(a => a.id === t.accountId);
+                      const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
+                      
+                      return (
+                        <>
+                          <td className="px-5 py-4 text-xs font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
+                            {format(parseISO(t.date), 'dd/MM/yy')}
+                          </td>
+                          <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                            <div className="flex items-center gap-2">
                               <span className={cn(
-                                "font-mono font-black text-sm",
-                                t.type === 'income' ? 'text-emerald-500' : t.type === 'expense' ? 'text-rose-500' : 'text-blue-500'
-                              )}>
-                                {t.type === 'income' ? '+' : '-'}{formatCurrencyWithPrivacy(t.amount)}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
-                              <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                <button 
-                                  onClick={() => {
-                                    setTransactionToEdit(t);
-                                    setSelectedCostCenterId(t.costCenterId || '');
-                                    setTransactionType(t.type);
-                                    setSelectedFile(null);
-                                    setShouldRemoveAttachment(false);
-                                    setIsEditTransactionModalOpen(true);
-                                  }}
-                                  className="p-2 text-slate-400 hover:text-cyan-500 bg-slate-100 dark:bg-white/5 hover:bg-cyan-500/10 rounded-xl transition-all"
-                                >
-                                  <Edit2 size={14} />
-                                </button>
-                                <button 
-                                  onClick={() => handleDeleteTransactionWithConfirm(t)}
-                                  className="p-2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 rounded-xl transition-all"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                                "w-1.5 h-1.5 rounded-full shrink-0",
+                                t.type === 'income' ? 'bg-emerald-500' : t.type === 'expense' ? 'bg-rose-500' : 'bg-blue-500'
+                              )} />
+                              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.description}</span>
+                              {t.attachmentUrl && <Paperclip size={12} className="text-blue-500 opacity-60" />}
+                            </div>
+                            {t.notes && <p className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-0.5 line-clamp-1">{t.notes}</p>}
+                          </td>
+                          <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                            <div className="flex flex-col gap-1">
+                              {costCenter && <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter">{costCenter.name}</span>}
+                              {category && (
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-white w-fit shadow-sm",
+                                  category.color
+                                )}>
+                                  {category.name}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                              {t.type === 'transfer' ? `${account?.name} → ${toAccount?.name}` : account?.name}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
+                            <div className="flex flex-col gap-1 items-center">
+                              <div className="flex items-center gap-1">
+                                {t.consolidated ? (
+                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">
+                                    <Check size={8} strokeWidth={4} /> Efetivado
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                    <Clock size={8} strokeWidth={4} className="animate-pulse" /> Agendado
+                                  </span>
+                                )}
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-
-                  {visibleTransactionsCount < filteredTransactionsByDashboard.length && (
-                    <div className="p-8 flex justify-center">
-                      <button 
-                        onClick={() => setVisibleTransactionsCount(prev => prev + 20)}
-                        className="px-8 py-3 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-white/10 transition-all active:scale-95 border border-slate-200 dark:border-white/5 shadow-sm"
-                      >
-                        Carregar Mais
-                      </button>
-                    </div>
-                  )}
+                              {t.paid && (
+                                <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                  <ShieldCheck size={8} strokeWidth={4} /> Pago
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
+                            <span className={cn(
+                              "font-mono font-black text-sm",
+                              t.type === 'income' ? 'text-emerald-500' : t.type === 'expense' ? 'text-rose-500' : 'text-blue-500'
+                            )}>
+                              {t.type === 'income' ? '+' : '-'}{formatCurrencyWithPrivacy(t.amount)}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
+                            <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => {
+                                  setTransactionToEdit(t);
+                                  setSelectedCostCenterId(t.costCenterId || '');
+                                  setTransactionType(t.type);
+                                  setSelectedFile(null);
+                                  setShouldRemoveAttachment(false);
+                                  setIsEditTransactionModalOpen(true);
+                                }}
+                                className="p-2 text-slate-400 hover:text-cyan-500 bg-slate-100 dark:bg-white/5 hover:bg-cyan-500/10 rounded-xl transition-all"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteTransactionWithConfirm(t)}
+                                className="p-2 text-slate-400 hover:text-rose-500 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 rounded-xl transition-all"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      );
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -5450,6 +5580,34 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              <div className="flex border-b border-slate-200 dark:border-slate-800 gap-1">
+                <button
+                  onClick={() => setReportsSubTab('general')}
+                  className={cn(
+                    "px-4 py-2.5 text-xs font-black uppercase tracking-widest border-b-2 transition-colors",
+                    reportsSubTab === 'general'
+                      ? "border-blue-500 text-blue-600 dark:text-blue-400 font-black"
+                      : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  )}
+                >
+                  Visão Geral
+                </button>
+                <button
+                  onClick={() => setReportsSubTab('health')}
+                  className={cn(
+                    "px-4 py-2.5 text-xs font-black uppercase tracking-widest border-b-2 transition-colors",
+                    reportsSubTab === 'health'
+                      ? "border-blue-500 text-blue-600 dark:text-blue-400 font-black"
+                      : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  )}
+                >
+                  Saúde Financeira
+                </button>
+              </div>
+
+              {reportsSubTab === 'general' ? (
+                <>
 
               <AnimatePresence>
                 {isReportFiltersOpen && (
@@ -6186,8 +6344,270 @@ export default function App() {
                   </table>
                 </div>
               </Card>
-            </motion.div>
+            </>
+          ) : (
+            <div className="space-y-6 animate-fade-in">
+              {/* Barra de Controle do Período */}
+              <Card className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50/50 dark:from-slate-900 dark:to-slate-900/50 border-blue-100/50 dark:border-slate-800" density={displayDensity}>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl">
+                      <Activity size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">Análise de Saúde Financeira</h3>
+                      <p className="text-xs text-slate-500">Compare o mês selecionado com o período anterior imediato para entender seus hábitos.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                    <button 
+                      onClick={() => setFinancialHealthDate(prev => subMonths(prev, 1))}
+                      className="p-2 text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition-all"
+                      title="Mês Anterior"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs font-black uppercase tracking-wider px-4 text-slate-700 dark:text-slate-200 select-none">
+                      {healthStats.currentMonthLabel}
+                    </span>
+                    <button 
+                      onClick={() => setFinancialHealthDate(prev => addMonths(prev, 1))}
+                      className="p-2 text-slate-600 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition-all"
+                      title="Próximo Mês"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Diagnóstico Geral da Saúde */}
+              <div className={cn(
+                "p-5 rounded-3xl border flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm",
+                healthDiagnostic.status === 'good' ? "bg-emerald-500/[0.04] border-emerald-500/20 text-emerald-800 dark:text-emerald-400" :
+                healthDiagnostic.status === 'warning' ? "bg-amber-500/[0.04] border-amber-500/20 text-amber-800 dark:text-amber-400" :
+                healthDiagnostic.status === 'danger' ? "bg-rose-500/[0.04] border-rose-500/20 text-rose-800 dark:text-rose-400" :
+                "bg-slate-50 border-slate-200 text-slate-700 dark:text-slate-300"
+              )}>
+                <div className="flex items-start gap-4">
+                  <div className={cn(
+                    "p-2.5 rounded-2xl shrink-0 mt-0.5",
+                    healthDiagnostic.status === 'good' ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
+                    healthDiagnostic.status === 'warning' ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                    healthDiagnostic.status === 'danger' ? "bg-rose-500/10 text-rose-600 dark:text-rose-400" :
+                    "bg-slate-100 text-slate-500"
+                  )}>
+                    {healthDiagnostic.status === 'good' ? <Sparkles size={20} /> : <AlertCircle size={20} />}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest leading-none mb-1.5">{healthDiagnostic.title}</h4>
+                    <p className="text-xs font-bold leading-relaxed opacity-90">{healthDiagnostic.description}</p>
+                  </div>
+                </div>
+                <div className="text-[9px] font-black uppercase tracking-widest bg-white dark:bg-slate-900 border border-current rounded-full px-4 py-2 shrink-0 self-start md:self-auto shadow-sm">
+                  {healthDiagnostic.status === 'good' ? 'Saudável' : healthDiagnostic.status === 'warning' ? 'Alerta' : healthDiagnostic.status === 'danger' ? 'Crítico' : 'Informativo'}
+                </div>
+              </div>
+
+              {/* Grid dos KPIs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card density={displayDensity}>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Entradas do Mês</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    {formatCurrency(healthStats.currentIncome)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 font-bold truncate max-w-[130px]">Ant: {formatCurrency(healthStats.prevIncome)}</span>
+                    <span className={cn(
+                      "text-[9px] font-black px-1.5 py-0.5 rounded ml-auto shrink-0",
+                      healthStats.incomeDiffPercent >= 0 ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20" : "bg-rose-50 text-rose-600 dark:bg-rose-950/20"
+                    )}>
+                      {healthStats.incomeDiffPercent >= 0 ? '+' : ''}{healthStats.incomeDiffPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                </Card>
+
+                <Card density={displayDensity}>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Despesas do Mês</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    {formatCurrency(healthStats.currentExpense)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 font-bold truncate max-w-[130px]">Ant: {formatCurrency(healthStats.prevExpense)}</span>
+                    <span className={cn(
+                      "text-[9px] font-black px-1.5 py-0.5 rounded ml-auto shrink-0",
+                      healthStats.expenseDiffPercent <= 0 ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20" : "bg-rose-50 text-rose-600 dark:bg-rose-950/20"
+                    )}>
+                      {healthStats.expenseDiffPercent >= 0 ? '+' : ''}{healthStats.expenseDiffPercent.toFixed(1)}%
+                    </span>
+                  </div>
+                </Card>
+
+                <Card density={displayDensity}>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Resultado Líquido</p>
+                  <p className={cn(
+                    "text-2xl font-black tracking-tighter",
+                    healthStats.currentNet >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                  )}>
+                    {formatCurrency(healthStats.currentNet)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 font-bold truncate max-w-[130px]">Ant: {formatCurrency(healthStats.prevNet)}</span>
+                    <span className={cn(
+                      "text-[9px] font-black px-1.5 py-0.5 rounded ml-auto shrink-0",
+                      healthStats.currentNet >= healthStats.prevNet ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                    )}>
+                      {healthStats.currentNet >= healthStats.prevNet ? 'Melhor' : 'Pior'}
+                    </span>
+                  </div>
+                </Card>
+
+                <Card density={displayDensity}>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Taxa de Poupança</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
+                    {healthStats.currentIncome > 0 ? ((healthStats.currentNet / healthStats.currentIncome) * 100).toFixed(1) : '0.0'}%
+                  </p>
+                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 font-bold truncate max-w-[130px]">Faturamento guardado</span>
+                    <span className="text-[9px] font-black bg-blue-50 text-blue-600 dark:bg-blue-900/20 px-1.5 py-0.5 rounded ml-auto shrink-0">Meta 20%</span>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Destaques de Categorias: Quem mais subiu e quem mais desceu */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Maiores Aumentos (Rising Spends) */}
+                <Card 
+                  title="Alterações Relevantes: Gastos em Alta" 
+                  density={displayDensity}
+                >
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 mb-4">Categorias com as maiores altas nas despesas em relação ao mês passado</p>
+                  <div className="space-y-4">
+                    {healthStats.increases.length === 0 ? (
+                      <div className="py-8 text-center text-slate-400 text-xs italic">
+                        Incrível! Nenhuma categoria registrou aumento de despesas neste mês.
+                      </div>
+                    ) : (
+                      healthStats.increases.slice(0, 5).map((c, idx) => (
+                        <div key={`increase-cat-${c.id}-${idx}`} className="flex items-center justify-between p-3.5 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800/70 transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                            <div>
+                              <p className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">{c.name}</p>
+                              <p className="text-[10px] font-bold text-slate-400">Anterior: {formatCurrency(c.prev)} → Atual: {formatCurrency(c.current)}</p>
+                            </div>
+                          </div>
+                          <div className="text-right flex flex-col items-end shrink-0">
+                            <div className="flex items-center gap-1 text-rose-600 font-bold text-xs">
+                              <TrendingUp size={14} />
+                              <span>+{formatCurrency(c.diff)}</span>
+                            </div>
+                            <span className="text-[8px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/20 uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 shrink-0">
+                              +{c.diffPercent.toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+
+                {/* Maiores Reduções (Frugality Highlights) */}
+                <Card 
+                  title="Alterações Relevantes: Economias Realizadas" 
+                  density={displayDensity}
+                >
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 mb-4">Categorias nas quais você reduziu gastos em relação ao mês passado</p>
+                  <div className="space-y-4">
+                    {healthStats.decreases.length === 0 ? (
+                      <div className="py-8 text-center text-slate-400 text-xs italic">
+                        Nenhuma categoria registrou queda de расходы. Monitore seus custos fixos na próxima semana.
+                      </div>
+                    ) : (
+                      healthStats.decreases.slice(0, 5).map((c, idx) => (
+                        <div key={`decrease-cat-${c.id}-${idx}`} className="flex items-center justify-between p-3.5 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800/70 transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                            <div>
+                              <p className="text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider">{c.name}</p>
+                              <p className="text-[10px] font-bold text-slate-400">Anterior: {formatCurrency(c.prev)} → Atual: {formatCurrency(c.current)}</p>
+                            </div>
+                          </div>
+                          <div className="text-right flex flex-col items-end shrink-0">
+                            <div className="flex items-center gap-1 text-emerald-600 font-bold text-xs">
+                              <TrendingDown size={14} />
+                              <span>-{formatCurrency(Math.abs(c.diff))}</span>
+                            </div>
+                            <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 shrink-0">
+                              {c.diffPercent.toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Gráfico Comparativo de Barras */}
+              <Card 
+                title="Distribuição de Despesas: Histórico Detalhado por Categoria" 
+                density={displayDensity}
+              >
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 mb-4">Comparativo visual direto das saídas entre o mês atual e o anterior</p>
+                <div className="h-96 min-h-0 min-w-0 mt-4">
+                  {healthStats.categoriesComparison.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-slate-400 italic text-xs">
+                      Não há despesas suficientes registradas nos períodos selecionados para gerar o gráfico visual comparativo.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%" minHeight={0}>
+                      <BarChart 
+                        data={healthStats.categoriesComparison.sort((a,b) => b.current - a.current)} 
+                        margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "rgba(255,255,255,0.05)" : "#f1f5f9"} />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }} 
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#64748b', fontSize: 10, fontWeight: 'bold' }} 
+                          tickFormatter={(value) => `R$ ${value >= 1000 ? (value/1000).toFixed(0) + 'k' : value}`}
+                        />
+                        <Tooltip 
+                          cursor={{ fill: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}
+                          contentStyle={{ 
+                            borderRadius: '24px', 
+                            border: 'none', 
+                            boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                            background: isDarkMode ? '#1e293b' : '#ffffff',
+                            color: isDarkMode ? '#fff' : '#0f172a'
+                          }}
+                          formatter={(value: number) => [formatCurrency(value), '']}
+                        />
+                        <Legend 
+                          verticalAlign="top" 
+                          align="right" 
+                          height={36}
+                          iconType="circle"
+                          wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                        />
+                        <Bar dataKey="prev" fill={isDarkMode ? "#334155" : "#e2e8f0"} radius={[4, 4, 0, 0]} name="Mês Anterior" barSize={24} />
+                        <Bar dataKey="current" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Mês Selecionado" barSize={24} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </Card>
+            </div>
           )}
+        </motion.div>
+      )}
 
           {activeTab === 'recurring' && (
             <motion.div
