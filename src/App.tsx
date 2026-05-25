@@ -1410,6 +1410,26 @@ export default function App() {
   const [activeCalcField, setActiveCalcField] = useState<string | null>(null);
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>('all');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('dismissed_notifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const handleDismissNotification = (id: string) => {
+    const updated = [...dismissedNotificationIds, id];
+    setDismissedNotificationIds(updated);
+    localStorage.setItem('dismissed_notifications', JSON.stringify(updated));
+  };
+
+  const handleClearAllNotifications = (ids: string[]) => {
+    const updated = [...dismissedNotificationIds, ...ids];
+    setDismissedNotificationIds(updated);
+    localStorage.setItem('dismissed_notifications', JSON.stringify(updated));
+  };
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
@@ -1761,8 +1781,83 @@ export default function App() {
       }
     });
 
-    return alerts;
-  }, [recurringTransactions, transactions, categories, formatCurrency]);
+    // 3. Low Account Balance Alert (Preventive Safekeeping)
+    accounts.forEach(acc => {
+      if (acc.balance < 0) {
+        alerts.push({
+          id: `negative-balance-${acc.id}`,
+          type: 'danger',
+          title: 'Saldo Negativo',
+          message: `A conta "${acc.name}" possui saldo negativo (${formatCurrency(acc.balance)}). Evite taxas de cheque especial!`,
+        });
+      } else if (acc.balance > 0 && acc.balance < 150) {
+        alerts.push({
+          id: `low-balance-${acc.id}`,
+          type: 'warning',
+          title: 'Saldo Baixo',
+          message: `A conta "${acc.name}" está com apenas ${formatCurrency(acc.balance)}, limite considerado baixo para segurança do dia a dia.`,
+        });
+      }
+    });
+
+    // 4. Monthly Deficit Indicator
+    const totalCurrentIncome = transactions
+      .filter(t => t.type === 'income' && isWithinInterval(parseISO(t.date), { start: firstDayOfMonth, end: lastDayOfMonth }))
+      .reduce((acc, curr) => acc + curr.amount, 0);
+    const totalCurrentExpense = currentMonthExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+
+    if (totalCurrentExpense > totalCurrentIncome && totalCurrentIncome > 0) {
+      alerts.push({
+        id: 'operating-deficit-alert',
+        type: 'danger',
+        title: 'Fluxo Mensal Deficitário',
+        message: `Suas despesas mensais gerais (${formatCurrency(totalCurrentExpense)}) superaram as receitas recebidas (${formatCurrency(totalCurrentIncome)}). Atenção extra recomendada!`,
+      });
+    }
+
+    // 5. Savings Goals Rates
+    const currentNet = totalCurrentIncome - totalCurrentExpense;
+    const savingsRate = totalCurrentIncome > 0 ? (currentNet / totalCurrentIncome) * 100 : 0;
+    if (savingsRate >= 20 && totalCurrentIncome > 0) {
+      alerts.push({
+        id: 'savings-goal-reached-alert',
+        type: 'info',
+        title: 'Meta de Poupança Elevada',
+        message: `Parabéns! Sua taxa de poupança atual de ${savingsRate.toFixed(1)}% superou a meta de 20%. Mantenha seu foco!`,
+      });
+    } else if (savingsRate < 10 && totalCurrentIncome > 0 && today.getDate() > 15) {
+      alerts.push({
+        id: 'savings-goal-warning-alert',
+        type: 'warning',
+        title: 'Meta de Poupança Baixa',
+        message: `Sua taxa de poupança acumulada está em ${savingsRate.toFixed(1)}%. Com mais da metade do mês passada, avalie cortar despesas supérfluas.`,
+      });
+    }
+
+    // 6. Inactivity Reminder (No transaction registered for more than 3 days)
+    let lastTransactionDate: Date | null = null;
+    transactions.forEach(t => {
+      const d = parseISO(t.date);
+      if (!lastTransactionDate || isAfter(d, lastTransactionDate)) {
+        lastTransactionDate = d;
+      }
+    });
+
+    if (lastTransactionDate) {
+      const daysDiff = Math.floor((today.getTime() - lastTransactionDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDiff >= 3) {
+        alerts.push({
+          id: `inactivity-alert-${daysDiff}`,
+          type: 'info',
+          title: 'Lembrete de Registro',
+          message: `Faz ${daysDiff} dias desde o seu último lançamento financeiro. Registrar seus gastos diariamente garante maior previsibilidade!`,
+        });
+      }
+    }
+
+    // Filter out dismissed notification IDs
+    return alerts.filter(alert => !dismissedNotificationIds.includes(alert.id));
+  }, [recurringTransactions, transactions, categories, accounts, dismissedNotificationIds, formatCurrency]);
 
   const totalBalance = useMemo(() => accounts.reduce((acc, curr) => acc + curr.balance, 0), [accounts]);
 
@@ -3942,66 +4037,8 @@ export default function App() {
               <div className="hidden lg:block relative">
                 <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
                   <Bell size={20} />
-                  {notifications.length > 0 && <span className="absolute top-3 right-3 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]"></span>}
+                  {notifications.length > 0 && <span className="absolute top-3.5 right-3.5 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_10px_rgba(244,63,94,0.5)]"></span>}
                 </button>
-                <AnimatePresence>
-                  {isNotificationsOpen && (
-                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 mt-4 w-96 glass-card shadow-2xl z-[100] overflow-hidden">
-                      <div className="p-6 border-b border-white/10 flex justify-between items-center">
-                        <span className="font-extrabold text-sm uppercase tracking-widest text-slate-400">Notificações</span>
-                        <span className="text-[10px] font-black bg-cyan-500 text-white px-2 py-0.5 rounded-full">{notifications.length}</span>
-                      </div>
-                      <div className="max-h-96 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                        {notifications.length === 0 ? (
-                           <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-4">
-                             <Check size={40} className="opacity-20" />
-                             <p className="text-xs font-bold uppercase tracking-widest opacity-50">Tudo limpo por aqui</p>
-                           </div>
-                        ) : (
-                          // Render real notifications if any
-                          notifications.map((n, i) => (
-                            <div key={`notif-item-${n.id || 'no-id'}-${i}`} className={cn(
-                              "p-4 rounded-2xl border flex flex-col gap-1 transition-all hover:scale-[1.02]",
-                              n.type === 'danger' ? "bg-rose-50 dark:bg-rose-500/10 border-rose-100 dark:border-rose-500/20" :
-                              n.type === 'warning' ? "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20" :
-                              "bg-cyan-50 dark:bg-cyan-500/10 border-cyan-100 dark:border-cyan-500/20"
-                            )}>
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                  {n.type === 'danger' ? <AlertCircle size={16} className="text-rose-500" /> :
-                                   n.type === 'warning' ? <Zap size={16} className="text-amber-500" /> :
-                                   <Clock size={16} className="text-cyan-500" />}
-                                  <span className={cn(
-                                    "text-xs font-black uppercase tracking-widest",
-                                    n.type === 'danger' ? "text-rose-600" :
-                                    n.type === 'warning' ? "text-amber-600" :
-                                    "text-cyan-600"
-                                  )}>{n.title}</span>
-                                </div>
-                                {n.date && <span className="text-[9px] font-bold text-slate-400 capitalize">{formatDate(n.date)}</span>}
-                              </div>
-                              <p className="text-xs font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
-                                {n.message}
-                              </p>
-                              {n.categoryId && (
-                                <button 
-                                  onClick={() => {
-                                    setCategoryToEdit(categories.find(c => c.id === n.categoryId) || null);
-                                    setIsEditCategoryModalOpen(true);
-                                    setIsNotificationsOpen(false);
-                                  }}
-                                  className="mt-2 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-cyan-500 transition-colors w-fit"
-                                >
-                                  Ajustar Orçamento
-                                </button>
-                              )}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className={cn(
@@ -8455,6 +8492,216 @@ export default function App() {
             request={confirmation} 
             onClose={() => setConfirmation(null)} 
           />
+        )}
+      </AnimatePresence>
+
+      {/* Dynamic Slide Drawer for Notifications & Financial Health Alerts */}
+      <AnimatePresence>
+        {isNotificationsOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsNotificationsOpen(false)}
+              className="fixed inset-0 bg-slate-900/60 dark:bg-[#020617]/80 backdrop-blur-sm z-[150]"
+            />
+
+            {/* Sliding Drawer Body */}
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-[#0d1527] border-l border-slate-200 dark:border-white/5 shadow-2xl z-[160] flex flex-col pt-safe-top pb-safe-bottom"
+            >
+              {/* Drawer Header */}
+              <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-cyan-500/10 text-cyan-500 rounded-xl">
+                    <Bell size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight">Notificações e Alertas</h3>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Centro de Saúde Financeira</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsNotificationsOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all active:scale-90"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Notification Center Content Container */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+                
+                {/* Browser Notification Opt-In Card */}
+                {'Notification' in window && Notification.permission !== 'granted' && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl shadow-cyan-500/10 dark:shadow-cyan-950/20 flex flex-col gap-3">
+                    <div className="flex gap-3">
+                      <Sparkles size={20} className="shrink-0" />
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-black uppercase tracking-wider block">Notificações no Navegador</span>
+                        <p className="text-[11px] font-medium opacity-90 leading-normal">Seja alertado sobre budgets excedidos e lembretes de despesas diretamente na sua área de trabalho.</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        Notification.requestPermission().then(permission => {
+                          if (permission === 'granted') {
+                            new Notification('Conta Raiz', {
+                              body: 'Parabéns! Notificações do sistema ativadas com sucesso.',
+                            });
+                          }
+                        });
+                      }}
+                      className="w-full bg-white text-cyan-600 hover:bg-cyan-50 transition-colors py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm"
+                    >
+                      Ativar Alertas Nativos
+                    </button>
+                  </div>
+                )}
+
+                {/* Notifications Actions Header (Clear all) */}
+                {notifications.length > 0 && (
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-2xl border border-slate-200/50 dark:border-white/5">
+                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      {notifications.length} {notifications.length === 1 ? 'Alerta Ativo' : 'Alertas Ativos'}
+                    </span>
+                    <button 
+                      onClick={() => handleClearAllNotifications(notifications.map(n => n.id))}
+                      className="text-[10px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest"
+                    >
+                      Limpar Ativos
+                    </button>
+                  </div>
+                )}
+
+                {/* List of Alerts */}
+                <div className="space-y-4">
+                  {notifications.length === 0 ? (
+                    <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-4 text-center">
+                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                        <Check size={32} />
+                      </div>
+                      <div className="space-y-1 max-w-xs">
+                        <p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">Tudo em ordem!</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">Você não possui nenhuma notificação pendente no momento.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div 
+                        key={n.id} 
+                        className={cn(
+                          "p-4 rounded-2xl border flex flex-col gap-2 transition-all hover:scale-[1.01] relative group",
+                          n.type === 'danger' ? "bg-rose-50/60 dark:bg-rose-500/5 border-rose-100 dark:border-rose-500/10" :
+                          n.type === 'warning' ? "bg-amber-50/60 dark:bg-amber-500/5 border-amber-100 dark:border-amber-500/10" :
+                          "bg-cyan-50/60 dark:bg-cyan-500/5 border-cyan-100 dark:border-cyan-500/10"
+                        )}
+                      >
+                        {/* Dismiss (X) button inside item */}
+                        <button 
+                          onClick={() => handleDismissNotification(n.id)}
+                          className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg"
+                          title="Ignorar"
+                        >
+                          <X size={12} />
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          {n.type === 'danger' ? <AlertCircle size={16} className="text-rose-500" /> :
+                           n.type === 'warning' ? <Zap size={16} className="text-amber-500" /> :
+                           <Clock size={16} className="text-cyan-500" />}
+                          <span className={cn(
+                            "text-[10px] font-black uppercase tracking-widest",
+                            n.type === 'danger' ? "text-rose-600 dark:text-rose-400" :
+                            n.type === 'warning' ? "text-amber-600 dark:text-amber-400" :
+                            "text-cyan-600 dark:text-cyan-400"
+                          )}>
+                            {n.title}
+                          </span>
+                        </div>
+                        
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-relaxed pr-6">
+                          {n.message}
+                        </p>
+
+                        <div className="flex items-center gap-3 mt-1">
+                          {n.categoryId && (
+                            <button 
+                              onClick={() => {
+                                setCategoryToEdit(categories.find(c => c.id === n.categoryId) || null);
+                                setIsEditCategoryModalOpen(true);
+                                setIsNotificationsOpen(false);
+                              }}
+                              className="text-[9px] font-black uppercase tracking-widest text-cyan-600 hover:text-cyan-500 transition-colors"
+                            >
+                              Ajustar Orçamento
+                            </button>
+                          )}
+                          {n.date && (
+                            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 ml-auto uppercase tracking-wider">
+                              Prazo: {formatDate(n.date)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Educational Explanation Box (How it works section) */}
+                <div className="p-5 rounded-[24px] border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.01] space-y-4">
+                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                    <Sliders size={14} className="text-cyan-500" />
+                    Como funcionam os Alertas?
+                  </h4>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                    Sua saúde financeira é monitorada automaticamente usando algoritmos locais preventivos. Entenda as regras do motor de saúde:
+                  </p>
+                  
+                  <div className="space-y-3 pt-1">
+                    <div className="flex gap-2.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 shrink-0" />
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Orçamentos sob Controle</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Disparados se os gastos consolidados ultrapassarem 80% ou 100% da verba estipulada em Categorias.</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Saldo de Segurança</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Se o saldo de qualquer conta corrente, investimento ou poupança ficar abaixo de R$ 150,00 ou estiver negativo.</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Dinâmica de Caixa</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Avisa se as despesas mensais estiverem numericamente maiores que as receitas no mês em curso.</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Controle de Inatividade</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Se você esquecer de lançar suas transações por mais de 3 dias consecutivos.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
