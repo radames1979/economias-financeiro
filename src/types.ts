@@ -30,6 +30,7 @@ export interface Transaction {
   attachmentUrl?: string;
   attachmentName?: string;
   notes?: string;
+  convertedAmount?: number;
 }
 
 export interface TransactionGroup {

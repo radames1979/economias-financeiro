@@ -486,9 +486,10 @@ const isRecentTransaction = (t: Transaction): boolean => {
   return checkTime(t.createdAt) || checkTime(t.updatedAt);
 };
 
-const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency, density = 'normal' }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number) => string, density?: DensityType }) => {
+const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency, density = 'normal' }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number, currency?: string) => string, density?: DensityType }) => {
   const category = categories.find(c => c.id === (t.categoryId || t.costCenterId));
   const account = accounts.find(a => a.id === t.accountId);
+  const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
   const d = DISPLAY_DENSITIES[density];
   
   const [isRecent, setIsRecent] = useState(() => isRecentTransaction(t));
@@ -575,15 +576,28 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
       
       <div className={cn("flex items-center", d.cardGap)}>
         <div className="text-right">
-          <p className={cn(
+          <div className={cn(
             "font-mono font-black tracking-tight",
             d.textAmount,
             t.type === 'income' ? "text-emerald-500" : 
             t.type === 'expense' ? "text-rose-500" : 
             "text-cyan-500"
           )}>
-            {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrency(t.amount)}
-          </p>
+            {t.type === 'transfer' ? (
+              <span className="flex flex-col items-end">
+                <span className="text-xs text-slate-500 font-normal">
+                  -{formatCurrency(t.amount, account?.currency || 'BRL')}
+                </span>
+                {account?.currency !== toAccount?.currency && (
+                  <span className="text-xs text-cyan-500 font-bold">
+                    → {formatCurrency(t.convertedAmount !== undefined && t.convertedAmount !== null ? t.convertedAmount : t.amount, toAccount?.currency || 'BRL')}
+                  </span>
+                )}
+              </span>
+            ) : (
+              <>{t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, account?.currency || 'BRL')}</>
+            )}
+          </div>
           <div className="flex justify-end items-center gap-2 mt-1">
             {t.paid && (
               <span className={cn(
@@ -1303,6 +1317,7 @@ export default function App() {
   }, [activeTab]);
 
   const handleTabChange = (tab: any) => {
+    setIsAccountDetailsVisible(false);
     if (activeTab === tab) {
       const root = document.getElementById('root');
       if (root) {
@@ -1979,7 +1994,19 @@ export default function App() {
           if (t.accountId === account.id) {
             projected -= t.amount;
           } else if (t.toAccountId === account.id) {
-            projected += t.amount;
+            const amountToUse = t.convertedAmount !== undefined && t.convertedAmount !== null
+              ? t.convertedAmount
+              : (() => {
+                  const fromAcc = accounts.find(a => a.id === t.accountId);
+                  const fromCurrency = fromAcc?.currency || 'BRL';
+                  const toCurrency = account.currency || 'BRL';
+                  const fromExchangeRate = fromAcc?.exchangeRate || 1;
+                  const toExchangeRate = account.exchangeRate || 1;
+                  return fromCurrency === toCurrency
+                    ? t.amount
+                    : (t.amount * fromExchangeRate) / toExchangeRate;
+                })();
+            projected += amountToUse;
           }
         }
       });
@@ -2314,16 +2341,29 @@ export default function App() {
         let newToBalance = newToAccountRef ? (accountSnaps[newToAccountRef.path]?.balance || 0) : 0;
 
         // 1. REVERT OLD TRANSACTION IMPACT (if it was consolidated)
+        let oldConvertedAmount = transactionToEdit.amount;
         if (transactionToEdit.consolidated) {
           if (transactionToEdit.type === 'transfer' && transactionToEdit.toAccountId) {
+            const oldFromAccount = accountSnaps[oldFromAccountRef.path];
+            const oldToAccount = oldToAccountRef ? accountSnaps[oldToAccountRef.path] : null;
+            
+            const oldFromCurrency = oldFromAccount?.currency || 'BRL';
+            const oldToCurrency = oldToAccount?.currency || 'BRL';
+            const oldFromExchangeRate = oldFromAccount?.exchangeRate || 1;
+            const oldToExchangeRate = oldToAccount?.exchangeRate || 1;
+            
+            oldConvertedAmount = transactionToEdit.convertedAmount !== undefined && transactionToEdit.convertedAmount !== null
+              ? transactionToEdit.convertedAmount 
+              : (oldFromCurrency === oldToCurrency ? transactionToEdit.amount : (transactionToEdit.amount * oldFromExchangeRate) / oldToExchangeRate);
+
             oldFromBalance += transactionToEdit.amount;
-            oldToBalance -= transactionToEdit.amount;
+            oldToBalance -= oldConvertedAmount;
             
             // Update local balances for step 2 if accounts are the same
             if (oldFromAccountRef.path === newFromAccountRef.path) newFromBalance += transactionToEdit.amount;
             if (oldFromAccountRef.path === (newToAccountRef?.path)) newToBalance += transactionToEdit.amount;
-            if (oldToAccountRef?.path === newFromAccountRef.path) newFromBalance -= transactionToEdit.amount;
-            if (oldToAccountRef?.path === (newToAccountRef?.path)) newToBalance -= transactionToEdit.amount;
+            if (oldToAccountRef?.path === newFromAccountRef.path) newFromBalance -= oldConvertedAmount;
+            if (oldToAccountRef?.path === (newToAccountRef?.path)) newToBalance -= oldConvertedAmount;
           } else {
             const revertAmount = transactionToEdit.type === 'income' ? -transactionToEdit.amount : transactionToEdit.amount;
             oldFromBalance += revertAmount;
@@ -2335,16 +2375,33 @@ export default function App() {
         }
 
         // 2. APPLY NEW TRANSACTION IMPACT (if it is consolidated)
+        let newConvertedAmount = amount;
+        if (type === 'transfer') {
+          const newFromAccount = accountSnaps[newFromAccountRef.path];
+          const newToAccount = newToAccountRef ? accountSnaps[newToAccountRef.path] : null;
+          
+          if (newFromAccount && newToAccount) {
+            const newFromCurrency = newFromAccount.currency || 'BRL';
+            const newToCurrency = newToAccount.currency || 'BRL';
+            const newFromExchangeRate = newFromAccount.exchangeRate || 1;
+            const newToExchangeRate = newToAccount.exchangeRate || 1;
+            
+            newConvertedAmount = newFromCurrency === newToCurrency 
+              ? amount 
+              : (amount * newFromExchangeRate) / newToExchangeRate;
+          }
+        }
+
         if (consolidated) {
           if (type === 'transfer') {
             newFromBalance -= amount;
-            newToBalance += amount;
+            newToBalance += newConvertedAmount;
             
             // Update old balances if accounts are the same (for final updates)
             if (newFromAccountRef.path === oldFromAccountRef.path) oldFromBalance -= amount;
             if (newFromAccountRef.path === (oldToAccountRef?.path)) oldToBalance -= amount;
-            if (newToAccountRef?.path === oldFromAccountRef.path) oldFromBalance += amount;
-            if (newToAccountRef?.path === (oldToAccountRef?.path)) oldToBalance += amount;
+            if (newToAccountRef?.path === oldFromAccountRef.path) oldFromBalance += newConvertedAmount;
+            if (newToAccountRef?.path === (oldToAccountRef?.path)) oldToBalance += newConvertedAmount;
           } else {
             const applyAmount = type === 'income' ? amount : -amount;
             newFromBalance += applyAmount;
@@ -2392,10 +2449,12 @@ export default function App() {
           updatedData.categoryId = categoryId;
           updatedData.costCenterId = costCenterId;
           updatedData.toAccountId = null; // Clear if it was a transfer before
+          updatedData.convertedAmount = null;
         } else {
           updatedData.toAccountId = toAccountId;
           updatedData.categoryId = null;
           updatedData.costCenterId = null;
+          updatedData.convertedAmount = newConvertedAmount;
         }
 
         if (groupId) {
@@ -2550,11 +2609,22 @@ export default function App() {
           data.attachmentName = attachment.name;
         }
 
-        if (type !== 'transfer') {
+        let convertedAmount = amount;
+        if (type === 'transfer') {
+          data.toAccountId = toAccountId;
+          if (fromAccountSnap.exists() && toAccountSnap && toAccountSnap.exists()) {
+            const fromCurrency = fromAccountSnap.data().currency || 'BRL';
+            const toCurrency = toAccountSnap.data().currency || 'BRL';
+            const fromExchangeRate = fromAccountSnap.data().exchangeRate || 1;
+            const toExchangeRate = toAccountSnap.data().exchangeRate || 1;
+            convertedAmount = fromCurrency === toCurrency 
+              ? amount 
+              : (amount * fromExchangeRate) / toExchangeRate;
+          }
+          data.convertedAmount = convertedAmount;
+        } else {
           data.categoryId = categoryId;
           data.costCenterId = costCenterId;
-        } else {
-          data.toAccountId = toAccountId;
         }
 
         if (groupId) {
@@ -2574,7 +2644,7 @@ export default function App() {
             }
             if (toAccountRef && toAccountSnap && toAccountSnap.exists()) {
               transaction.update(toAccountRef!, { 
-                balance: toAccountSnap.data().balance + amount,
+                balance: toAccountSnap.data().balance + convertedAmount,
                 updatedAt: serverTimestamp()
               });
             }
@@ -2623,8 +2693,19 @@ export default function App() {
               });
             }
             if (toAccountRef && toAccountSnap && toAccountSnap.exists()) {
+              const convertedToRevert = t.convertedAmount !== undefined && t.convertedAmount !== null
+                ? t.convertedAmount
+                : (() => {
+                    const fromCurrency = fromAccountSnap.data()?.currency || 'BRL';
+                    const toCurrency = toAccountSnap.data()?.currency || 'BRL';
+                    const fromExchangeRate = fromAccountSnap.data()?.exchangeRate || 1;
+                    const toExchangeRate = toAccountSnap.data()?.exchangeRate || 1;
+                    return fromCurrency === toCurrency 
+                      ? t.amount 
+                      : (t.amount * fromExchangeRate) / toExchangeRate;
+                  })();
               transaction.update(toAccountRef!, { 
-                balance: toAccountSnap.data().balance - t.amount,
+                balance: toAccountSnap.data().balance - convertedToRevert,
                 updatedAt: serverTimestamp()
               });
             }
@@ -2691,10 +2772,24 @@ export default function App() {
               });
             }
             if (toAccountSnap && toAccountSnap.exists()) {
+              const convertedToApply = t.convertedAmount !== undefined && t.convertedAmount !== null
+                ? t.convertedAmount
+                : (() => {
+                    const fromCurrency = fromAccountSnap.data()?.currency || 'BRL';
+                    const toCurrency = toAccountSnap.data()?.currency || 'BRL';
+                    const fromExchangeRate = fromAccountSnap.data()?.exchangeRate || 1;
+                    const toExchangeRate = toAccountSnap.data()?.exchangeRate || 1;
+                    return fromCurrency === toCurrency 
+                      ? t.amount 
+                      : (t.amount * fromExchangeRate) / toExchangeRate;
+                  })();
               transaction.update(toAccountRef!, { 
-                balance: toAccountSnap.data().balance + t.amount,
+                balance: toAccountSnap.data().balance + convertedToApply,
                 updatedAt: serverTimestamp()
               });
+              if (t.convertedAmount === undefined || t.convertedAmount === null) {
+                transaction.update(transRef, { convertedAmount: convertedToApply });
+              }
             }
           } else {
             if (fromAccountSnap.exists()) {
@@ -2715,8 +2810,19 @@ export default function App() {
               });
             }
             if (toAccountSnap && toAccountSnap.exists()) {
+              const convertedToRevert = t.convertedAmount !== undefined && t.convertedAmount !== null
+                ? t.convertedAmount
+                : (() => {
+                    const fromCurrency = fromAccountSnap.data()?.currency || 'BRL';
+                    const toCurrency = toAccountSnap.data()?.currency || 'BRL';
+                    const fromExchangeRate = fromAccountSnap.data()?.exchangeRate || 1;
+                    const toExchangeRate = toAccountSnap.data()?.exchangeRate || 1;
+                    return fromCurrency === toCurrency 
+                      ? t.amount 
+                      : (t.amount * fromExchangeRate) / toExchangeRate;
+                  })();
               transaction.update(toAccountRef!, { 
-                balance: toAccountSnap.data().balance - t.amount,
+                balance: toAccountSnap.data().balance - convertedToRevert,
                 updatedAt: serverTimestamp()
               });
             }
@@ -2779,10 +2885,22 @@ export default function App() {
                 });
               }
               if (toAccountSnap && toAccountSnap.exists()) {
+                const convertedToApply = t.convertedAmount !== undefined && t.convertedAmount !== null
+                  ? t.convertedAmount
+                  : (() => {
+                      const fromCurrency = fromAccountSnap.data()?.currency || 'BRL';
+                      const toCurrency = toAccountSnap.data()?.currency || 'BRL';
+                      const fromExchangeRate = fromAccountSnap.data()?.exchangeRate || 1;
+                      const toExchangeRate = toAccountSnap.data()?.exchangeRate || 1;
+                      return fromCurrency === toCurrency 
+                        ? t.amount 
+                        : (t.amount * fromExchangeRate) / toExchangeRate;
+                    })();
                 transaction.update(toAccountRef!, { 
-                  balance: toAccountSnap.data().balance + t.amount,
+                  balance: toAccountSnap.data().balance + convertedToApply,
                   updatedAt: serverTimestamp()
                 });
+                transaction.update(transRef, { convertedAmount: convertedToApply });
               }
             } else {
               if (fromAccountSnap.exists()) {
@@ -6094,7 +6212,7 @@ export default function App() {
                   <input name="startDate" type="date" className="p-3 rounded-xl border border-slate-200 outline-none" required />
                   <select name="accountId" className="p-3 rounded-xl border border-slate-200 outline-none" required>
                     <option value="">Conta</option>
-                    {accounts.map(a => <option key={`recurring-add-acc-opt-${a.id}`} value={a.id}>{a.name}</option>)}
+                    {accounts.map((a, idx) => <option key={`recurring-add-acc-opt-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
                   </select>
                   <div className="flex flex-col gap-4 md:col-span-2 lg:col-span-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -6111,7 +6229,7 @@ export default function App() {
                             <option value="">Selecione o Centro de Custo</option>
                             {categories
                               .filter(c => !c.parentId)
-                              .map(c => <option key={`recurring-add-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                              .map((c, idx) => <option key={`recurring-add-cc-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                           <button 
@@ -6137,7 +6255,7 @@ export default function App() {
                             <option value="">Selecione a Categoria</option>
                             {categories
                               .filter(c => c.parentId === selectedRecurringCostCenterId)
-                              .map(c => <option key={`recurring-add-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                              .map((c, idx) => <option key={`recurring-add-cat-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                           <button 
@@ -6302,7 +6420,7 @@ export default function App() {
         {/* Add Transaction Modal */}
         <AnimatePresence>
           {isAddTransactionModalOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -6390,7 +6508,7 @@ export default function App() {
                             <option value="">Selecione o Centro de Custo</option>
                             {categories
                               .filter(c => !c.parentId && c.type === transactionType)
-                              .map(c => <option key={`add-tx-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                              .map((c, idx) => <option key={`add-tx-cc-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                         </div>
@@ -6406,7 +6524,7 @@ export default function App() {
                             <option value="">Selecione a Categoria</option>
                             {categories
                               .filter(c => c.parentId === selectedCostCenterId)
-                              .map(c => <option key={`add-tx-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                              .map((c, idx) => <option key={`add-tx-cat-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                             }
                           </select>
                         </div>
@@ -6428,7 +6546,7 @@ export default function App() {
                       <label className="text-xs font-bold text-slate-500 ml-1">{transactionType === 'transfer' ? 'Conta de Origem' : 'Conta'}</label>
                       <select name="accountId" defaultValue={defaultAccountIdForModal} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
                         <option value="">Selecione a Conta</option>
-                        {accounts.map(a => <option key={`add-tx-acc-from-opt-${a.id}`} value={a.id}>{a.name}</option>)}
+                        {accounts.map((a, idx) => <option key={`add-tx-acc-from-opt-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
                       </select>
                     </div>
 
@@ -6437,7 +6555,7 @@ export default function App() {
                         <label className="text-xs font-bold text-slate-500 ml-1">Conta de Destino</label>
                         <select name="toAccountId" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
                           <option value="">Selecione a Conta</option>
-                          {accounts.map(a => <option key={`add-tx-acc-to-opt-${a.id}`} value={a.id}>{a.name}</option>)}
+                          {accounts.map((a, idx) => <option key={`add-tx-acc-to-opt-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
                         </select>
                       </div>
                     )}
@@ -6517,7 +6635,7 @@ export default function App() {
         {/* Account Import Modal */}
         <AnimatePresence>
           {isAccountImportModalOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -6579,7 +6697,7 @@ export default function App() {
         {/* Import Modal */}
         <AnimatePresence>
           {isImportModalOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -7029,7 +7147,7 @@ export default function App() {
                           <option value="">Selecione o Centro de Custo</option>
                           {categories
                             .filter(c => !c.parentId && c.type === transactionType)
-                            .map(c => <option key={`edit-tx-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                            .map((c, idx) => <option key={`edit-tx-cc-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
@@ -7045,7 +7163,7 @@ export default function App() {
                           <option value="">Selecione a Categoria</option>
                           {categories
                             .filter(c => c.parentId === selectedCostCenterId)
-                            .map(c => <option key={`edit-tx-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                            .map((c, idx) => <option key={`edit-tx-cat-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
@@ -7291,7 +7409,7 @@ export default function App() {
             </div>
           )}
           {isCalculatorOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 backdrop-blur-sm">
               <CalculatorComponent 
                 value={calcValue} 
                 onValueChange={(val) => {
@@ -7304,7 +7422,7 @@ export default function App() {
 
           {/* Quick Add Modal */}
           {isQuickAddModalOpen && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[150]">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -7403,7 +7521,7 @@ export default function App() {
                       required
                     >
                       <option value="">Selecione a Conta</option>
-                      {accounts.map(a => <option key={`recurring-edit-acc-opt-${a.id}`} value={a.id}>{a.name}</option>)}
+                      {accounts.map((a, idx) => <option key={`recurring-edit-acc-opt-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
                     </select>
                   </div>
 
@@ -7416,7 +7534,7 @@ export default function App() {
                         required
                       >
                         <option value="">Selecione a Conta Destino</option>
-                        {accounts.map(a => <option key={`recurring-edit-to-acc-opt-${a.id}`} value={a.id}>{a.name}</option>)}
+                        {accounts.map((a, idx) => <option key={`recurring-edit-to-acc-opt-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
                       </select>
                     </div>
                   ) : (
@@ -7433,7 +7551,7 @@ export default function App() {
                           <option value="">Selecione o Centro de Custo</option>
                           {categories
                             .filter(c => !c.parentId && c.type === transactionType)
-                            .map(c => <option key={`quick-add-tr-cc-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                            .map((c, idx) => <option key={`quick-add-tr-cc-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
@@ -7448,7 +7566,7 @@ export default function App() {
                           <option value="">Selecione a Categoria</option>
                           {categories
                             .filter(c => c.parentId === selectedCostCenterId)
-                            .map(c => <option key={`quick-add-tr-cat-opt-${c.id}`} value={c.id}>{c.name}</option>)
+                            .map((c, idx) => <option key={`quick-add-tr-cat-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
                           }
                         </select>
                       </div>
@@ -7566,14 +7684,14 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAccountDetailsVisible(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70]"
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[140]"
             />
             <motion.div 
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 top-12 lg:top-0 lg:left-auto lg:right-0 lg:w-[500px] bg-white dark:bg-slate-950 rounded-t-[40px] lg:rounded-l-[40px] lg:rounded-tr-none z-[80] shadow-2xl flex flex-col overflow-hidden pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+              className="fixed bottom-0 left-0 right-0 top-12 lg:top-0 lg:left-auto lg:right-0 lg:w-[500px] bg-white dark:bg-slate-950 rounded-t-[40px] lg:rounded-l-[40px] lg:rounded-tr-none z-[150] shadow-2xl flex flex-col overflow-hidden pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
             >
               <div className="w-12 h-1 bg-slate-200 dark:bg-slate-800 rounded-full mx-auto mt-4 mb-4 lg:hidden" />
               
