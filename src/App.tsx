@@ -164,6 +164,7 @@ import { APP_VERSION, VERSION_HISTORY } from './version';
 import { VersionHistoryModal } from './components/VersionHistoryModal';
 import { AuthModal } from './components/AuthModal';
 import { TransactionGroupModal } from './components/TransactionGroupModal';
+import { LongTermTrendChart } from './components/LongTermTrendChart';
 import { cn, formatCurrency, formatDate } from './lib/utils';
 import { PDF_IMPORT_DATA, ImportTransaction } from './services/pdfImportData';
 import { parseExcelFile, downloadExcelTemplate } from './services/excelImportService';
@@ -6473,6 +6474,14 @@ export default function App() {
                   </div>
                 </Card>
               </div>
+
+              {/* Long Term Trend Chart */}
+              <LongTermTrendChart 
+                monthlyData={annualSummary.monthlyData}
+                isDarkMode={isDarkMode}
+                formatCurrency={formatCurrency}
+                density={displayDensity}
+              />
 
               {/* Destaques de Categorias: Quem mais subiu e quem mais desceu */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
