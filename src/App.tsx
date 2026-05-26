@@ -1047,7 +1047,19 @@ const ConfirmationModal = ({
   </div>
 );
 
-const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onExportBackup, onImportBackup, isLoading, isHighContrast, setIsHighContrast }: { 
+const SettingsModal = ({ 
+  isOpen, 
+  onClose, 
+  displayDensity, 
+  setDisplayDensity, 
+  onExportBackup, 
+  onImportBackup, 
+  isLoading, 
+  isHighContrast, 
+  setIsHighContrast,
+  sessionTimeout,
+  setSessionTimeout
+}: { 
   isOpen: boolean, 
   onClose: () => void, 
   displayDensity: DensityType, 
@@ -1056,7 +1068,9 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onE
   onImportBackup: (e: React.ChangeEvent<HTMLInputElement>) => void,
   isLoading: boolean,
   isHighContrast: boolean,
-  setIsHighContrast: (v: boolean) => void
+  setIsHighContrast: (v: boolean) => void,
+  sessionTimeout: number,
+  setSessionTimeout: (v: number) => void
 }) => {
   if (!isOpen) return null;
   
@@ -1207,6 +1221,47 @@ const SettingsModal = ({ isOpen, onClose, displayDensity, setDisplayDensity, onE
               </div>
             </div>
 
+            {/* Sessão e Segurança */}
+            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500">
+                  <ShieldAlert size={18} />
+                </div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                  Sessão e Segurança
+                </h3>
+              </div>
+
+              <div className="p-5 bg-rose-50/35 dark:bg-rose-500/[0.03] rounded-[32px] border border-rose-100 dark:border-rose-500/10 flex flex-col gap-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    Timeout por Inatividade
+                  </h4>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
+                    Desconecta automaticamente do aplicativo após um período de inatividade, protegendo seus dados financeiros de olhares curiosos.
+                  </p>
+                </div>
+
+                <div className="relative">
+                  <select
+                    value={sessionTimeout}
+                    onChange={(e) => setSessionTimeout(parseInt(e.target.value, 10))}
+                    className="w-full p-3.5 pl-4 pr-10 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500 appearance-none shadow-sm cursor-pointer"
+                  >
+                    <option value={5 * 60 * 1000}>5 Minutos (Máxima Segurança)</option>
+                    <option value={10 * 60 * 1000}>10 Minutos</option>
+                    <option value={15 * 60 * 1000}>15 Minutos (Padrão)</option>
+                    <option value={30 * 60 * 1000}>30 Minutos</option>
+                    <option value={60 * 60 * 1000}>1 Hora</option>
+                    <option value={0}>Desativado (Sessão Infinita)</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                    <ChevronDown size={16} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Backup & Dados */}
             <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
               <div className="flex items-center gap-3">
@@ -1343,32 +1398,69 @@ export default function App() {
     };
   }, []);
 
-  // Inactivity Timeout (15 minutes)
+  const [sessionTimeout, setSessionTimeout] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('sessionTimeout');
+      return saved !== null ? parseInt(saved, 10) : 15 * 60 * 1000;
+    } catch {
+      return 15 * 60 * 1000;
+    }
+  });
+
   useEffect(() => {
-    if (!user) return;
+    localStorage.setItem('sessionTimeout', sessionTimeout.toString());
+  }, [sessionTimeout]);
 
-    let timeoutId: NodeJS.Timeout;
-    const TIMEOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+  const [isTimeoutWarningOpen, setIsTimeoutWarningOpen] = useState(false);
+  const [timeoutCountdown, setTimeoutCountdown] = useState(60);
 
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
+  // Inactivity Timeout & Safety System
+  const lastActiveTimeRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (!user || sessionTimeout === 0) {
+      setIsTimeoutWarningOpen(false);
+      return;
+    }
+
+    lastActiveTimeRef.current = Date.now();
+
+    const checkInterval = setInterval(() => {
+      const now = Date.now();
+      const idleTime = now - lastActiveTimeRef.current;
+      const warningThreshold = Math.max(0, sessionTimeout - 60000); // Trigger warning 60 seconds before expiration
+
+      if (idleTime >= sessionTimeout) {
         logout();
-        alert('Sua sessão expirou devido à inatividade (15 minutos). Por segurança, você foi desconectado.');
-      }, TIMEOUT_DURATION);
+        setIsTimeoutWarningOpen(false);
+      } else if (idleTime >= warningThreshold) {
+        setIsTimeoutWarningOpen(true);
+        setTimeoutCountdown(Math.ceil((sessionTimeout - idleTime) / 1000));
+      } else {
+        setIsTimeoutWarningOpen(false);
+      }
+    }, 1000);
+
+    const resetTimerOnUserAction = () => {
+      // Do not auto-reset when modal warning is open (requires active click inside modal)
+      if (!isTimeoutWarningOpen) {
+        lastActiveTimeRef.current = Date.now();
+      }
     };
 
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    const handleActivity = () => resetTimer();
-
-    events.forEach(event => document.addEventListener(event, handleActivity));
-    resetTimer();
+    events.forEach(event => document.addEventListener(event, resetTimerOnUserAction));
 
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      events.forEach(event => document.removeEventListener(event, handleActivity));
+      clearInterval(checkInterval);
+      events.forEach(event => document.removeEventListener(event, resetTimerOnUserAction));
     };
-  }, [user]);
+  }, [user, sessionTimeout, isTimeoutWarningOpen]);
+
+  const handleKeepSessionAlive = () => {
+    lastActiveTimeRef.current = Date.now();
+    setIsTimeoutWarningOpen(false);
+  };
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionGroups, setTransactionGroups] = useState<TransactionGroup[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1430,6 +1522,7 @@ export default function App() {
     setDismissedNotificationIds(updated);
     localStorage.setItem('dismissed_notifications', JSON.stringify(updated));
   };
+
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
@@ -8482,6 +8575,8 @@ export default function App() {
             isLoading={isLoading}
             isHighContrast={isHighContrast}
             setIsHighContrast={setIsHighContrast}
+            sessionTimeout={sessionTimeout}
+            setSessionTimeout={setSessionTimeout}
           />
         )}
       </AnimatePresence>
@@ -8715,6 +8810,70 @@ export default function App() {
         onClose={() => setIsTransactionGroupModalOpen(false)}
         groups={transactionGroups}
       />
+
+      {/* Inactivity Timeout Warning Modal */}
+      <AnimatePresence>
+        {isTimeoutWarningOpen && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 dark:bg-[#020617]/85 backdrop-blur-md"
+            />
+
+            {/* Modal Box */}
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white dark:bg-[#0d1527] w-full max-w-sm rounded-[40px] shadow-2xl p-8 border border-slate-200 dark:border-white/5 relative z-10 flex flex-col items-center text-center gap-6"
+            >
+              <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center relative">
+                <ShieldAlert size={32} className="animate-bounce" />
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500 text-[10px] text-white font-black items-center justify-center">!</span>
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sessão Expirando!</h3>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Por medidas de segurança, sua sessão será encerrada devido à inatividade em:
+                </p>
+              </div>
+
+              {/* Countdown Circular Badge */}
+              <div className="py-2.5 px-6 bg-slate-100 dark:bg-white/5 rounded-full border border-slate-200/50 dark:border-white/5 flex items-center gap-2.5">
+                <Clock size={16} className="text-rose-500" />
+                <span className="text-xl font-black text-rose-500 font-mono tracking-wider">
+                  {timeoutCountdown}s
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3 w-full">
+                <button 
+                  onClick={handleKeepSessionAlive}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-lg hover:shadow-xl active:scale-95"
+                >
+                  Manter Conectado
+                </button>
+                <button 
+                  onClick={() => {
+                    logout();
+                    setIsTimeoutWarningOpen(false);
+                  }}
+                  className="w-full py-3 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-black uppercase tracking-widest text-[10px] rounded-2xl transition-all active:scale-95"
+                >
+                  Sair Agora
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
