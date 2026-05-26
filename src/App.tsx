@@ -3659,6 +3659,112 @@ export default function App() {
     return totals;
   }, [transactions]);
 
+  const savingsRecommendations = useMemo(() => {
+    const expensesByCategoryAndMonth: Record<string, Record<string, number>> = {};
+    const allMonthsSet = new Set<string>();
+
+    transactions.filter(t => t.type === 'expense').forEach(t => {
+      if (!t.date) return;
+      const monthPrefix = t.date.substring(0, 7); // yyyy-MM
+      allMonthsSet.add(monthPrefix);
+
+      const subCat = categories.find(c => c.id === t.categoryId);
+      const parentCat = categories.find(c => c.id === t.costCenterId) || (subCat?.parentId ? categories.find(c => c.id === subCat.parentId) : subCat);
+      const catId = parentCat?.id || 'unassigned';
+
+      if (!expensesByCategoryAndMonth[catId]) {
+        expensesByCategoryAndMonth[catId] = {};
+      }
+      expensesByCategoryAndMonth[catId][monthPrefix] = (expensesByCategoryAndMonth[catId][monthPrefix] || 0) + t.amount;
+    });
+
+    const targetDate = financialHealthDate || new Date();
+    const last3Months = [
+      format(targetDate, 'yyyy-MM'),
+      format(subMonths(targetDate, 1), 'yyyy-MM'),
+      format(subMonths(targetDate, 2), 'yyyy-MM')
+    ];
+
+    const recommendations: {
+      categoryId: string;
+      categoryName: string;
+      categoryColor: string;
+      recentAverage: number;
+      historicalAverage: number;
+      increasePercent: number;
+      excessSpend: number;
+      tip: string;
+    }[] = [];
+
+    Object.keys(expensesByCategoryAndMonth).forEach(catId => {
+      const parentCat = categories.find(c => c.id === catId);
+      const catName = parentCat?.name || (catId === 'unassigned' ? 'Sem Categoria' : 'Categoria Excluída');
+      const catColor = parentCat?.color || '#cbd5e1';
+
+      const monthData = expensesByCategoryAndMonth[catId];
+
+      let recentTotal = 0;
+      let recentMonthsCount = 0;
+      last3Months.forEach(m => {
+        if (monthData[m] !== undefined) {
+          recentTotal += monthData[m];
+        }
+        recentMonthsCount++;
+      });
+      const recentAverage = recentTotal / Math.max(recentMonthsCount, 1);
+
+      let historicalTotal = 0;
+      let historicalMonthsCount = 0;
+      Object.keys(monthData).forEach(m => {
+        if (!last3Months.includes(m)) {
+          historicalTotal += monthData[m];
+          historicalMonthsCount++;
+        }
+      });
+
+      const mCount = Object.keys(monthData).length;
+      const historicalAverage = historicalMonthsCount > 0 
+        ? (historicalTotal / historicalMonthsCount)
+        : (Object.values(monthData).reduce((a, b) => a + b, 0) / Math.max(mCount, 1));
+
+      if (recentAverage > historicalAverage && historicalAverage > 10) {
+        const increasePercent = ((recentAverage - historicalAverage) / historicalAverage) * 100;
+        const excessSpend = recentAverage - historicalAverage;
+
+        let tip = "Procure verificar despesas pequenas recorrentes que podem passar despercebidas de dia a dia.";
+        const normalizedName = catName.toLowerCase();
+        if (normalizedName.includes('aliment') || normalizedName.includes('restaurante') || normalizedName.includes('comida') || normalizedName.includes('supermercado') || normalizedName.includes('jantar')) {
+          tip = "Planeje compras semanais de mercado e limite pedidos por delivery a ocasiões especiais. Cozinhar mais em casa pode reduzir os custos de alimentação em até 30%.";
+        } else if (normalizedName.includes('transporte') || normalizedName.includes('uber') || normalizedName.includes('99') || normalizedName.includes('combust') || normalizedName.includes('carro') || normalizedName.includes('viagem')) {
+          tip = "Avalie alternar o uso do carro com transporte público, combinar caronas ou otimizar seus trajetos para diminuir o consumo de combustível e custos com apps de corrida.";
+        } else if (normalizedName.includes('lazer') || normalizedName.includes('entreten') || normalizedName.includes('viag') || normalizedName.includes('hobb') || normalizedName.includes('festa') || normalizedName.includes('show')) {
+          tip = "Defina um orçamento fixo 'mesada de lazer' para o mês e procure opções de entretenimento gratuitas ou cupons de desconto sob medida.";
+        } else if (normalizedName.includes('moradia') || normalizedName.includes('casa') || normalizedName.includes('conta') || normalizedName.includes('energia') || normalizedName.includes('luz') || normalizedName.includes('água') || normalizedName.includes('aluguel') || normalizedName.includes('internet')) {
+          tip = "Monitore o consumo elétrico tirando aparelhos em standby da tomada e tente renegociar contratos de internet ou streaming que raramente são utilizados.";
+        } else if (normalizedName.includes('compras') || normalizedName.includes('vestuário') || normalizedName.includes('roupa') || normalizedName.includes('eletrôn') || normalizedName.includes('presente')) {
+          tip = "Utilize a regra das 48 horas: quando quiser comprar algo, aguarde dois dias para ponderar se é uma real necessidade ou apenas um desejo momentâneo.";
+        } else if (normalizedName.includes('assinatura') || normalizedName.includes('serviço') || normalizedName.includes('mensalidad') || normalizedName.includes('netflix') || normalizedName.includes('spotify')) {
+          tip = "Faça uma varredura nas suas assinaturas de aplicativos, canais e clubes de benefícios. Cancele os que não foram acessados nos últimos 30 dias.";
+        } else if (normalizedName.includes('saúde') || normalizedName.includes('farmácia') || normalizedName.includes('médic') || normalizedName.includes('reméd')) {
+          tip = "Verifique convênios de farmácia ou planos de fidelidade que oferecem até 60% de desconto em medicamentos de uso contínuo.";
+        }
+
+        recommendations.push({
+          categoryId: catId,
+          categoryName: catName,
+          categoryColor: catColor,
+          recentAverage,
+          historicalAverage,
+          increasePercent,
+          excessSpend,
+          tip
+        });
+      }
+    });
+
+    return recommendations.sort((a, b) => b.excessSpend - a.excessSpend);
+  }, [transactions, categories, financialHealthDate]);
+
   const expenseAnalysis = useMemo(() => {
     const expenses = annualSummary.monthlyData.map(d => d.expense);
     const total = expenses.reduce((acc, curr) => acc + curr, 0);
@@ -6049,6 +6155,88 @@ export default function App() {
                   <p className="text-[10px] font-bold text-slate-400 mt-2">Total de registros</p>
                 </Card>
               </div>
+
+              {/* Card de Sugestões de Economia */}
+              <Card title="💡 Sugestões de Economia Inteligentes" density={displayDensity}>
+                <p className="text-[10px] text-slate-400 -mt-2 mb-6 uppercase tracking-widest font-black">
+                  Análise comparativa das despesas recorrentes dos últimos 3 meses vs. média histórica para recomendar cortes de gastos eficientes
+                </p>
+
+                {savingsRecommendations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center p-8 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-2xl border border-emerald-100 dark:border-emerald-950/30">
+                    <div className="p-3 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full mb-3">
+                      <Check className="w-6 h-6" strokeWidth={3} />
+                    </div>
+                    <h3 className="text-sm font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest mb-1 font-sans">Metas sob controle</h3>
+                    <p className="text-xs text-emerald-600/90 dark:text-emerald-500 font-bold max-w-lg">
+                      Parabéns! Todas as suas categorias principais de despesas parecem estar equilibradas e dentro ou abaixo de sua média histórica de gastos nos últimos 3 meses.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-bold leading-relaxed">
+                      Detectamos <span className="font-bold text-rose-500">{savingsRecommendations.length} categorias</span> com consumo acima do padrão histórico nos últimos 3 meses. Reduzir custos nestas categorias trará o maior impacto financeiro no seu saldo:
+                    </p>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      {savingsRecommendations.map((rec) => (
+                        <div 
+                          key={`savings-rec-${rec.categoryId}`} 
+                          className="flex flex-col justify-between p-5 rounded-3xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-200 dark:hover:border-white/10 transition-all shadow-sm"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-3">
+                              <div className="flex items-center gap-2">
+                                <span 
+                                  className="w-3 h-3 rounded-full shrink-0" 
+                                  style={{ backgroundColor: rec.categoryColor }}
+                                />
+                                <span className="font-bold text-xs text-slate-800 dark:text-white tracking-tight uppercase">
+                                  {rec.categoryName}
+                                </span>
+                              </div>
+                              <span className="flex items-center gap-1 text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-2 py-1 rounded-lg">
+                                <TrendingUp className="w-3 h-3" strokeWidth={3} />
+                                +{rec.increasePercent.toFixed(1)}% vs. média
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 bg-white dark:bg-slate-900/30 rounded-2xl p-3 border border-slate-100 dark:border-white/5 mb-4 font-mono">
+                              <div>
+                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Média Anterior</p>
+                                <p className="text-[11px] font-black text-slate-700 dark:text-slate-300">
+                                  {formatCurrency(rec.historicalAverage)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Média Recente</p>
+                                <p className="text-[11px] font-black text-rose-600 dark:text-rose-400">
+                                  {formatCurrency(rec.recentAverage)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider mb-0.5">Desvio Mensal</p>
+                                <p className="text-[11px] font-black text-slate-800 dark:text-white">
+                                  +{formatCurrency(rec.excessSpend)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2.5 p-3 rounded-2xl bg-amber-500/5 dark:bg-amber-950/10 border border-amber-500/10 dark:border-amber-950/25">
+                            <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                              <p className="text-[8px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Ação Corretiva Sugerida</p>
+                              <p className="text-xs font-bold leading-relaxed text-slate-600 dark:text-slate-300">
+                                {rec.tip}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Card>
 
               {/* Gráficos Principais */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
