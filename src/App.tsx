@@ -487,11 +487,43 @@ const isRecentTransaction = (t: Transaction): boolean => {
   return checkTime(t.createdAt) || checkTime(t.updatedAt);
 };
 
-const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleConsolidation, formatCurrency, density = 'normal' }: { t: Transaction, accounts: Account[], categories: Category[], onEdit: (t: Transaction) => void, onDelete: (t: Transaction) => void, onToggleConsolidation: (t: Transaction) => void, formatCurrency: (v: number, currency?: string) => string, density?: DensityType }) => {
+const TransactionCard = ({ 
+  t, 
+  accounts, 
+  categories, 
+  onEdit, 
+  onDelete, 
+  onToggleConsolidation, 
+  formatCurrency, 
+  density = 'normal',
+  monthlyTotalsMap
+}: { 
+  t: Transaction, 
+  accounts: Account[], 
+  categories: Category[], 
+  onEdit: (t: Transaction) => void, 
+  onDelete: (t: Transaction) => void, 
+  onToggleConsolidation: (t: Transaction) => void, 
+  formatCurrency: (v: number, currency?: string) => string, 
+  density?: DensityType,
+  monthlyTotalsMap?: Record<string, { income: number; expense: number }>
+}) => {
   const category = categories.find(c => c.id === (t.categoryId || t.costCenterId));
   const account = accounts.find(a => a.id === t.accountId);
   const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
   const d = DISPLAY_DENSITIES[density];
+  
+  const getPercentage = () => {
+    if (!monthlyTotalsMap || (t.type !== 'income' && t.type !== 'expense')) return null;
+    const monthPrefix = t.date?.substring(0, 7);
+    if (!monthPrefix) return null;
+    const totals = monthlyTotalsMap[monthPrefix];
+    if (!totals) return null;
+    const total = t.type === 'income' ? totals.income : totals.expense;
+    if (!total || total === 0) return null;
+    return (t.amount / total) * 100;
+  };
+  const percentage = getPercentage();
   
   const [isRecent, setIsRecent] = useState(() => isRecentTransaction(t));
 
@@ -599,6 +631,11 @@ const TransactionCard = ({ t, accounts, categories, onEdit, onDelete, onToggleCo
               <>{t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, account?.currency || 'BRL')}</>
             )}
           </div>
+          {percentage !== null && (
+            <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 font-mono" title={`Representa ${percentage.toFixed(1)}% do total de ${t.type === 'income' ? 'receitas' : 'despesas'} deste mês`}>
+              {percentage.toFixed(1)}% do mês
+            </div>
+          )}
           <div className="flex justify-end items-center gap-2 mt-1">
             {t.paid && (
               <span className={cn(
@@ -1675,6 +1712,7 @@ export default function App() {
   const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [reportEndDate, setReportEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
+  const [annualChartShowPercentage, setAnnualChartShowPercentage] = useState(false);
   const [reportFilterCategory, setReportFilterCategory] = useState('');
   const [reportDrillDownCategory, setReportDrillDownCategory] = useState<string | null>(null);
   const [reportFilterAccount, setReportFilterAccount] = useState('');
@@ -3604,6 +3642,23 @@ export default function App() {
     return { title, description, status };
   }, [healthStats]);
 
+  const monthlyTotalsMap = useMemo(() => {
+    const totals: Record<string, { income: number; expense: number }> = {};
+    transactions.forEach(t => {
+      if (!t.date) return;
+      const monthPrefix = t.date.substring(0, 7); // yyyy-MM
+      if (!totals[monthPrefix]) {
+        totals[monthPrefix] = { income: 0, expense: 0 };
+      }
+      if (t.type === 'income') {
+        totals[monthPrefix].income += t.amount;
+      } else if (t.type === 'expense') {
+        totals[monthPrefix].expense += t.amount;
+      }
+    });
+    return totals;
+  }, [transactions]);
+
   const expenseAnalysis = useMemo(() => {
     const expenses = annualSummary.monthlyData.map(d => d.expense);
     const total = expenses.reduce((acc, curr) => acc + curr, 0);
@@ -3613,6 +3668,34 @@ export default function App() {
     
     return { average, max, peakMonth, total };
   }, [annualSummary]);
+
+  const processedChartData = useMemo(() => {
+    return annualSummary.monthlyData.map(d => {
+      const percentage = d.income > 0 ? (d.expense / d.income) * 100 : 0;
+      return {
+        ...d,
+        percentage: parseFloat(percentage.toFixed(1))
+      };
+    });
+  }, [annualSummary.monthlyData]);
+
+  const chartMax = useMemo(() => {
+    if (annualChartShowPercentage) {
+      const percentages = processedChartData.map(d => d.percentage);
+      return percentages.length > 0 ? Math.max(...percentages) : 0;
+    } else {
+      return expenseAnalysis.max;
+    }
+  }, [annualChartShowPercentage, processedChartData, expenseAnalysis.max]);
+
+  const chartPeakMonth = useMemo(() => {
+    if (annualChartShowPercentage) {
+      const maxPct = chartMax;
+      return processedChartData.find(d => d.percentage === maxPct)?.fullMonth || 'N/A';
+    } else {
+      return expenseAnalysis.peakMonth || 'N/A';
+    }
+  }, [annualChartShowPercentage, chartMax, processedChartData, expenseAnalysis.peakMonth]);
 
   const exportToCSV = () => {
     const headers = ['Data', 'Descrição', 'Tipo', 'Valor', 'Conta', 'Categoria'];
@@ -4411,6 +4494,7 @@ export default function App() {
                                 onToggleConsolidation={handleToggleConsolidation}
                                 formatCurrency={formatCurrency}
                                 density={displayDensity}
+                                monthlyTotalsMap={monthlyTotalsMap}
                               />
                             ))}
                           </div>
@@ -4694,17 +4778,55 @@ export default function App() {
                 )}
 
                 {/* Bento Row 3: Long term evolution */}
-                <Card title="Evolução Anual de Despesas" className="lg:col-span-4" density={displayDensity}>
+                <Card 
+                  title="Evolução Anual de Despesas" 
+                  className="lg:col-span-4" 
+                  density={displayDensity}
+                  extra={
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-1 rounded-2xl border border-slate-200/50 dark:border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => setAnnualChartShowPercentage(false)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                          !annualChartShowPercentage
+                            ? "bg-white dark:bg-slate-800 shadow-sm text-cyan-600 dark:text-cyan-400"
+                            : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        )}
+                      >
+                        Nominal (R$)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAnnualChartShowPercentage(true)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                          annualChartShowPercentage
+                            ? "bg-white dark:bg-slate-800 shadow-sm text-cyan-600 dark:text-cyan-400"
+                            : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        )}
+                      >
+                        % da Renda
+                      </button>
+                    </div>
+                  }
+                >
                   <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm text-slate-500">Fluxo de gastos mensais em {reportYear}</p>
+                    <p className="text-sm text-slate-500">
+                      {annualChartShowPercentage 
+                        ? `Porcentagem de gastos mensais em relação à renda em ${reportYear}`
+                        : `Fluxo de gastos mensais em ${reportYear}`}
+                    </p>
                     <div className="text-right">
                       <p className="text-xs text-slate-400 uppercase font-bold tracking-wider">Mês de Pico</p>
-                      <p className="text-sm font-black text-rose-600 uppercase">{expenseAnalysis.peakMonth || 'N/A'} ({formatCurrencyWithPrivacy(expenseAnalysis.max)})</p>
+                      <p className="text-sm font-black text-rose-600 uppercase">
+                        {chartPeakMonth || 'N/A'} ({annualChartShowPercentage ? `${chartMax.toFixed(1)}%` : formatCurrencyWithPrivacy(expenseAnalysis.max)})
+                      </p>
                     </div>
                   </div>
                   <div className="h-80 min-h-0 min-w-0">
                     <ResponsiveContainer width="100%" height="100%" minHeight={0}>
-                      <BarChart data={annualSummary.monthlyData}>
+                      <BarChart data={processedChartData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.2} />
                         <XAxis 
                           dataKey="month" 
@@ -4717,6 +4839,7 @@ export default function App() {
                           axisLine={false} 
                           tickLine={false} 
                           tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                          tickFormatter={(v) => annualChartShowPercentage ? `${v}%` : formatCurrencyWithPrivacy(v)}
                         />
                         <Tooltip 
                           contentStyle={{ 
@@ -4727,25 +4850,36 @@ export default function App() {
                             padding: '16px'
                           }}
                           itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                          formatter={(value: number) => [formatCurrencyWithPrivacy(value), 'Despesa']}
+                          formatter={(value: number) => {
+                            if (annualChartShowPercentage) {
+                              return [`${value}%`, 'Porcentagem'];
+                            } else {
+                              return [formatCurrencyWithPrivacy(value), 'Despesa'];
+                            }
+                          }}
                         />
                         <Bar 
-                          dataKey="expense" 
+                          dataKey={annualChartShowPercentage ? "percentage" : "expense"} 
                           radius={[10, 10, 0, 0]}
                           isAnimationActive={true}
                           animationDuration={1500}
                           animationBegin={300}
                           animationEasing="ease-out"
                         >
-                          {annualSummary.monthlyData.map((entry, index) => (
-                            <Cell 
-                              key={`dashboard-annual-cell-${index}`} 
-                              fill={entry.expense > 0 && entry.expense === expenseAnalysis.max ? '#f43f5e' : (isDarkMode ? '#334155' : '#cbd5e1')} 
-                              style={{ 
-                                filter: entry.expense > 0 && entry.expense === expenseAnalysis.max ? 'drop-shadow(0 0 8px rgba(244, 63, 94, 0.4))' : 'none'
-                              }}
-                            />
-                          ))}
+                          {processedChartData.map((entry, index) => {
+                            const isPeak = annualChartShowPercentage 
+                              ? (entry.percentage > 0 && entry.percentage === chartMax)
+                              : (entry.expense > 0 && entry.expense === expenseAnalysis.max);
+                            return (
+                              <Cell 
+                                key={`dashboard-annual-cell-${index}`} 
+                                fill={isPeak ? '#f43f5e' : (isDarkMode ? '#334155' : '#cbd5e1')} 
+                                style={{ 
+                                  filter: isPeak ? 'drop-shadow(0 0 8px rgba(244, 63, 94, 0.4))' : 'none'
+                                }}
+                              />
+                            );
+                          })}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -5129,13 +5263,28 @@ export default function App() {
                                 {t.consolidated ? "CONSOLIDADO" : "PENDENTE"}
                               </button>
                             </div>
-                            <div className={cn(
-                              "w-32 text-right font-bold", 
-                              t.type === 'income' ? "text-emerald-600" : 
-                              t.type === 'expense' ? "text-rose-600" : 
-                              "text-blue-600"
-                            )}>
-                              {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrencyWithPrivacy(t.amount)}
+                            <div className="w-32 flex flex-col items-end justify-center font-bold">
+                              <span className={cn(
+                                t.type === 'income' ? "text-emerald-600" : 
+                                t.type === 'expense' ? "text-rose-600" : 
+                                "text-blue-600"
+                              )}>
+                                {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}{formatCurrencyWithPrivacy(t.amount)}
+                              </span>
+                              {(() => {
+                                if (t.type !== 'income' && t.type !== 'expense') return null;
+                                const monthPrefix = t.date?.substring(0, 7);
+                                const totals = monthlyTotalsMap[monthPrefix];
+                                if (!totals) return null;
+                                const total = t.type === 'income' ? totals.income : totals.expense;
+                                if (!total) return null;
+                                const pct = (t.amount / total) * 100;
+                                return (
+                                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 font-mono mt-0.5" title={`Representa ${pct.toFixed(1)}% do total de ${t.type === 'income' ? 'receitas' : 'despesas'} deste mês`}>
+                                    {pct.toFixed(1)}% do mês
+                                  </span>
+                                );
+                              })()}
                             </div>
                             <div className="w-24 text-right">
                               <div className="flex justify-end gap-2">
@@ -5237,6 +5386,7 @@ export default function App() {
                               onToggleConsolidation={handleToggleConsolidation}
                               formatCurrency={formatCurrencyWithPrivacy}
                               density={displayDensity}
+                              monthlyTotalsMap={monthlyTotalsMap}
                             />
                           </div>
                         );
@@ -5326,12 +5476,28 @@ export default function App() {
                             </div>
                           </td>
                           <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
-                            <span className={cn(
-                              "font-mono font-black text-sm",
-                              t.type === 'income' ? 'text-emerald-500' : t.type === 'expense' ? 'text-rose-500' : 'text-blue-500'
-                            )}>
-                              {t.type === 'income' ? '+' : '-'}{formatCurrencyWithPrivacy(t.amount)}
-                            </span>
+                            <div className="flex flex-col items-end">
+                              <span className={cn(
+                                "font-mono font-black text-sm",
+                                t.type === 'income' ? 'text-emerald-500' : t.type === 'expense' ? 'text-rose-500' : 'text-blue-500'
+                              )}>
+                                {t.type === 'income' ? '+' : '-'}{formatCurrencyWithPrivacy(t.amount)}
+                              </span>
+                              {(() => {
+                                if (t.type !== 'income' && t.type !== 'expense') return null;
+                                const monthPrefix = t.date?.substring(0, 7);
+                                const totals = monthlyTotalsMap[monthPrefix];
+                                if (!totals) return null;
+                                const total = t.type === 'income' ? totals.income : totals.expense;
+                                if (!total) return null;
+                                const pct = (t.amount / total) * 100;
+                                return (
+                                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 font-mono mt-0.5" title={`Representa ${pct.toFixed(1)}% do total de ${t.type === 'income' ? 'receitas' : 'despesas'} deste mês`}>
+                                    {pct.toFixed(1)}% do mês
+                                  </span>
+                                );
+                              })()}
+                            </div>
                           </td>
                           <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
                             <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
@@ -8421,6 +8587,7 @@ export default function App() {
                                 }}
                                 onToggleConsolidation={handleToggleConsolidation}
                                 density={displayDensity}
+                                monthlyTotalsMap={monthlyTotalsMap}
                               />
                             ))}
                           </div>
