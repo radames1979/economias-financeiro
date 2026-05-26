@@ -1356,7 +1356,14 @@ export default function App() {
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<Account | null>(null);
   const [isAccountDetailsVisible, setIsAccountDetailsVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<{ isPremium?: boolean } | null>(null);
+  const [profile, setProfile] = useState<{ 
+    isPremium?: boolean;
+    isDarkMode?: boolean;
+    isHighContrast?: boolean;
+    isPrivacyMode?: boolean;
+    displayDensity?: string;
+    sessionTimeout?: number;
+  } | null>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>(() => {
     const saved = localStorage.getItem('activeTab');
@@ -1409,7 +1416,10 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('sessionTimeout', sessionTimeout.toString());
-  }, [sessionTimeout]);
+    if (user && profile && profile.sessionTimeout !== sessionTimeout) {
+      updateDoc(doc(db, 'users', user.uid), { sessionTimeout }).catch(() => {});
+    }
+  }, [sessionTimeout, user, profile]);
 
   const [isTimeoutWarningOpen, setIsTimeoutWarningOpen] = useState(false);
   const [timeoutCountdown, setTimeoutCountdown] = useState(60);
@@ -1474,7 +1484,10 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('isPrivacyMode', isPrivacyMode.toString());
-  }, [isPrivacyMode]);
+    if (user && profile && profile.isPrivacyMode !== isPrivacyMode) {
+      updateDoc(doc(db, 'users', user.uid), { isPrivacyMode }).catch(() => {});
+    }
+  }, [isPrivacyMode, user, profile]);
   const [displayDensity, setDisplayDensity] = useState<DensityType>(() => {
     const saved = localStorage.getItem('displayDensity');
     return (saved as DensityType) || 'normal';
@@ -1482,7 +1495,10 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('displayDensity', displayDensity);
-  }, [displayDensity]);
+    if (user && profile && profile.displayDensity !== displayDensity) {
+      updateDoc(doc(db, 'users', user.uid), { displayDensity }).catch(() => {});
+    }
+  }, [displayDensity, user, profile]);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isTransactionGroupModalOpen, setIsTransactionGroupModalOpen] = useState(false);
@@ -1699,7 +1715,10 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
     localStorage.setItem('darkMode', isDarkMode.toString());
-  }, [isDarkMode]);
+    if (user && profile && profile.isDarkMode !== isDarkMode) {
+      updateDoc(doc(db, 'users', user.uid), { isDarkMode }).catch(() => {});
+    }
+  }, [isDarkMode, user, profile]);
 
   useEffect(() => {
     if (isHighContrast) {
@@ -1708,7 +1727,10 @@ export default function App() {
       document.documentElement.classList.remove('high-contrast');
     }
     localStorage.setItem('highContrast', isHighContrast.toString());
-  }, [isHighContrast]);
+    if (user && profile && profile.isHighContrast !== isHighContrast) {
+      updateDoc(doc(db, 'users', user.uid), { isHighContrast }).catch(() => {});
+    }
+  }, [isHighContrast, user, profile]);
 
   const formatCurrencyWithPrivacy = (amount: number, currency: string = 'BRL') => {
     if (isPrivacyMode) {
@@ -1726,14 +1748,19 @@ export default function App() {
         const userRef = doc(db, 'users', user.uid);
         const snapshot = await getDocFromServer(userRef).catch(() => null);
         if (!snapshot?.exists()) {
-          // Initialize profile
+          // Initialize profile with current local preferences
           await setDoc(userRef, {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL,
             createdAt: serverTimestamp(),
-            isPremium: false
+            isPremium: false,
+            isDarkMode,
+            isHighContrast,
+            isPrivacyMode,
+            displayDensity,
+            sessionTimeout
           }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
           });
@@ -1742,7 +1769,7 @@ export default function App() {
       setLoading(false);
     });
     return unsubscribe;
-  }, []);
+  }, [isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout]);
 
   useEffect(() => {
     if (!user) {
@@ -1751,13 +1778,31 @@ export default function App() {
     }
     const unsub = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
       if (snapshot.exists()) {
-        setProfile(snapshot.data() as any);
+        const data = snapshot.data();
+        setProfile(data as any);
+
+        // Sync cloud settings to local state only if they differ
+        if (data.isDarkMode !== undefined && data.isDarkMode !== isDarkMode) {
+          setIsDarkMode(data.isDarkMode);
+        }
+         if (data.isHighContrast !== undefined && data.isHighContrast !== isHighContrast) {
+          setIsHighContrast(data.isHighContrast);
+        }
+        if (data.isPrivacyMode !== undefined && data.isPrivacyMode !== isPrivacyMode) {
+          setIsPrivacyMode(data.isPrivacyMode);
+        }
+        if (data.displayDensity !== undefined && data.displayDensity !== displayDensity) {
+          setDisplayDensity(data.displayDensity as DensityType);
+        }
+        if (data.sessionTimeout !== undefined && data.sessionTimeout !== sessionTimeout) {
+          setSessionTimeout(data.sessionTimeout);
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
     return unsub;
-  }, [user]);
+  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
