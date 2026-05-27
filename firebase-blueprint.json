@@ -106,6 +106,22 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["type", "amount", "frequency", "startDate", "accountId", "userId", "active"]
+    },
+    "SentEmail": {
+      "title": "Sent Email",
+      "description": "Weekly report summary email sent to the user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "totalSpent": { "type": "number" },
+        "totalIncome": { "type": "number" }
+      },
+      "required": ["userId", "email", "subject", "body", "sentAt"]
     }
   },
   "firestore": {
@@ -132,6 +148,10 @@
     "/users/{userId}/transaction_groups/{groupId}": {
       "schema": "TransactionGroup",
       "description": "User's transaction groups"
+    },
+    "/users/{userId}/sent_emails/{emailId}": {
+      "schema": "SentEmail",
+      "description": "Weekly reports/emails sent to the user"
     }
   }
 }

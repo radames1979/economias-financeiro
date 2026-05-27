@@ -126,6 +126,7 @@ import {
   Wine,
   Camera,
   Scissors,
+  Mail,
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
 import { GroupedVirtuoso, TableVirtuoso } from 'react-virtuoso';
@@ -1105,7 +1106,10 @@ const SettingsModal = ({
   isHighContrast, 
   setIsHighContrast,
   sessionTimeout,
-  setSessionTimeout
+  setSessionTimeout,
+  receiveWeeklySummary,
+  setReceiveWeeklySummary,
+  onTriggerWeeklySummaryNow
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -1117,7 +1121,10 @@ const SettingsModal = ({
   isHighContrast: boolean,
   setIsHighContrast: (v: boolean) => void,
   sessionTimeout: number,
-  setSessionTimeout: (v: number) => void
+  setSessionTimeout: (v: number) => void,
+  receiveWeeklySummary: boolean,
+  setReceiveWeeklySummary: (v: boolean) => void,
+  onTriggerWeeklySummaryNow: () => void
 }) => {
   if (!isOpen) return null;
   
@@ -1309,6 +1316,60 @@ const SettingsModal = ({
               </div>
             </div>
 
+            {/* Notificações por E-mail */}
+            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500">
+                  <Mail size={18} />
+                </div>
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                  Resumos por E-mail
+                </h3>
+              </div>
+
+              <div className="p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[32px] border border-emerald-100 dark:border-emerald-900/20 flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-white">Resumo Financeiro Semanal</h4>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
+                      Receba um balanço semanal consolidado de seus gastos e receitas diretamente em seu e-mail.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setReceiveWeeklySummary(!receiveWeeklySummary)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none flex transition-all active:scale-95",
+                      receiveWeeklySummary ? "bg-emerald-600" : "bg-slate-200 dark:bg-slate-800"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out self-center",
+                        receiveWeeklySummary ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                {receiveWeeklySummary && (
+                  <div className="pt-3 border-t border-emerald-100/50 dark:border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <span className="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Serviço de Email Ativado
+                    </span>
+                    <button
+                      onClick={onTriggerWeeklySummaryNow}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-md hover:shadow-emerald-500/25"
+                    >
+                      Disparar Resumo Agora
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Backup & Dados */}
             <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
               <div className="flex items-center gap-3">
@@ -1410,6 +1471,8 @@ export default function App() {
     isPrivacyMode?: boolean;
     displayDensity?: string;
     sessionTimeout?: number;
+    receiveWeeklySummary?: boolean;
+    lastWeeklySummarySentAt?: string;
   } | null>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>(() => {
@@ -1546,6 +1609,20 @@ export default function App() {
       updateDoc(doc(db, 'users', user.uid), { displayDensity }).catch(() => {});
     }
   }, [displayDensity, user, profile]);
+
+  const [receiveWeeklySummary, setReceiveWeeklySummary] = useState(() => {
+    return localStorage.getItem('receiveWeeklySummary') === 'true';
+  });
+  const [sentEmails, setSentEmails] = useState<any[]>([]);
+  const [selectedEmailToView, setSelectedEmailToView] = useState<any>(null);
+  const [notificationTab, setNotificationTab] = useState<'alerts' | 'emails'>('alerts');
+
+  useEffect(() => {
+    localStorage.setItem('receiveWeeklySummary', receiveWeeklySummary.toString());
+    if (user && profile && profile.receiveWeeklySummary !== receiveWeeklySummary) {
+      updateDoc(doc(db, 'users', user.uid), { receiveWeeklySummary }).catch(() => {});
+    }
+  }, [receiveWeeklySummary, user, profile]);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isTransactionGroupModalOpen, setIsTransactionGroupModalOpen] = useState(false);
@@ -1809,7 +1886,9 @@ export default function App() {
             isHighContrast,
             isPrivacyMode,
             displayDensity,
-            sessionTimeout
+            sessionTimeout,
+            receiveWeeklySummary: false,
+            lastWeeklySummarySentAt: null
           }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
           });
@@ -1846,12 +1925,15 @@ export default function App() {
         if (data.sessionTimeout !== undefined && data.sessionTimeout !== sessionTimeout) {
           setSessionTimeout(data.sessionTimeout);
         }
+        if (data.receiveWeeklySummary !== undefined && data.receiveWeeklySummary !== receiveWeeklySummary) {
+          setReceiveWeeklySummary(data.receiveWeeklySummary);
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
     return unsub;
-  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout]);
+  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout, receiveWeeklySummary]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1891,14 +1973,182 @@ export default function App() {
       setTransactionGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TransactionGroup)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/transaction_groups`));
 
+    const unsubSentEmails = onSnapshot(collection(db, `users/${user.uid}/sent_emails`), (snapshot) => {
+      setSentEmails(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)).sort((a,b) => (b.sentAt || '').localeCompare(a.sentAt || '')));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/sent_emails`));
+
     return () => {
       unsubTransactions();
       unsubAccounts();
       unsubCategories();
       unsubRecurring();
       unsubGroups();
+      unsubSentEmails();
     };
   }, [user]);
+
+  const handleTriggerWeeklySummary = async (isManual: boolean = false) => {
+    if (!user) return;
+    
+    const now = new Date();
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    
+    const formatDateShort = (dt: Date) => {
+      return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    const dateRangeStr = `${formatDateShort(sevenDaysAgo)} a ${formatDateShort(now)}`;
+    
+    const weeklyTransactions = transactions.filter(t => {
+      const tDate = new Date(t.date);
+      return tDate >= sevenDaysAgo && tDate <= now;
+    });
+
+    const weeklyExpenses = weeklyTransactions.filter(t => t.type === 'expense');
+    const weeklyIncome = weeklyTransactions.filter(t => t.type === 'income');
+
+    const totalSpent = weeklyExpenses.reduce((sum, t) => sum + t.amount, 0);
+    const totalIncome = weeklyIncome.reduce((sum, t) => sum + t.amount, 0);
+
+    const expensesByCategory: { [catId: string]: { name: string, amount: number, color: string } } = {};
+    weeklyExpenses.forEach(t => {
+      const cat = categories.find(c => c.id === t.categoryId);
+      const catId = t.categoryId || 'default';
+      const catName = cat ? cat.name : 'Outros';
+      const catColor = cat ? cat.color : '#94a3b8';
+      
+      if (!expensesByCategory[catId]) {
+        expensesByCategory[catId] = { name: catName, amount: 0, color: catColor };
+      }
+      expensesByCategory[catId].amount += t.amount;
+    });
+
+    const sortedCategoryExpenses = Object.values(expensesByCategory).sort((a,b) => b.amount - a.amount);
+
+    const topCategoryMarkup = sortedCategoryExpenses.map(cat => {
+      const percentage = totalSpent > 0 ? ((cat.amount / totalSpent) * 100).toFixed(1) : '0.0';
+      return `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: #334155;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${cat.color};"></span>
+          <span style="font-size: 13px; font-weight: bold;">${cat.name}</span>
+        </div>
+        <span style="font-family: monospace; font-size: 13px; font-weight: bold;">R$ ${cat.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (${percentage}%)</span>
+      </div>`;
+    }).join('');
+
+    let recommendation = "Muito bem! Seus gastos estão divididos equilibradamente.";
+    if (sortedCategoryExpenses.length > 0) {
+      const topCat = sortedCategoryExpenses[0];
+      const potentialSavings = (topCat.amount * 0.1).toFixed(2);
+      recommendation = `Sua maior categoria de gastos foi <strong>${topCat.name}</strong>, representando R$ ${topCat.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Se você reduzir apenas 10% do consumo nesta categoria na próxima semana, você economizará <strong>R$ ${Number(potentialSavings).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong>!`;
+    }
+
+    const subject = `Resumo Financeiro Semanal Conta Raiz: ${dateRangeStr}`;
+    const body = `
+      <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #f8fafc; border-radius: 20px; border: 1px solid #e2e8f0; color: #1e293b;">
+        <div style="text-align: center; padding-bottom: 16px; border-bottom: 2px solid #e2e8f0; margin-bottom: 24px;">
+          <h1 style="font-size: 24px; font-weight: 950; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: -0.05em;">CONTA RAIZ</h1>
+          <p style="font-size: 10px; font-weight: 800; color: #2563eb; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 0.2em;">Gestão Financeira Essencial</p>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <p style="font-size: 16px; font-weight: bold; margin: 0 0 8px; color: #0f172a;">Olá, ${user.displayName || 'Usuário Conta Raiz'}!</p>
+          <p style="font-size: 14px; margin: 0; line-height: 1.5; color: #475569;">Aqui está o seu demonstrativo financeiro automatizado, correspondente ao período de <strong>${dateRangeStr}</strong>.</p>
+        </div>
+
+        <table style="width: 100%; border-collapse: separate; border-spacing: 12px 0; margin-bottom: 24px; margin-left: -12px; margin-right: -12px;">
+          <tr>
+            <td style="width: 50%; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+              <p style="font-size: 10px; font-weight: 800; color: #ef4444; text-transform: uppercase; margin: 0 0 4px; letter-spacing: 0.1em;">Total de Gastos</p>
+              <h3 style="font-size: 20px; font-weight: 900; margin: 0; color: #ef4444; font-family: monospace;">R$ ${totalSpent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+            </td>
+            <td style="width: 50%; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+              <p style="font-size: 10px; font-weight: 800; color: #10b981; text-transform: uppercase; margin: 0 0 4px; letter-spacing: 0.1em;">Total de Receitas</p>
+              <h3 style="font-size: 20px; font-weight: 900; margin: 0; color: #10b981; font-family: monospace;">R$ ${totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
+            </td>
+          </tr>
+        </table>
+
+        <div style="background-color: #f0f9ff; border: 1px solid #e0f2fe; border-radius: 16px; padding: 16px; margin-bottom: 24px;">
+          <span style="font-size: 10px; font-weight: 800; color: #0369a1; text-transform: uppercase;">Saldo Líquido da Semana</span>
+          <h2 style="font-size: 22px; font-weight: 900; margin: 4px 0 0; color: #0369a1; font-family: monospace;">
+            R$ ${(totalIncome - totalSpent).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </h2>
+        </div>
+
+        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 24px;">
+          <h4 style="font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;">
+            Despesas por Categoria
+          </h4>
+          ${topCategoryMarkup || '<p style="font-size: 13px; color: #64748b; margin: 0;">Nenhuma despesa registrada no período.</p>'}
+        </div>
+
+        <div style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 16px; padding: 16px; display: flex; gap: 12px; margin-bottom: 24px;">
+          <div style="font-size: 20px; line-height: 1;">💡</div>
+          <div>
+            <p style="font-size: 10px; font-weight: 800; color: #b45309; text-transform: uppercase; margin: 0 0 2px;">Dica Inteligente</p>
+            <p style="font-size: 13px; margin: 0; line-height: 1.4; color: #78350f;">${recommendation}</p>
+          </div>
+        </div>
+
+        <div style="text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 32px;">
+          <p style="margin: 0 0 4px;">Este e-mail foi gerado automaticamente pelo Conta Raiz.</p>
+          <p style="margin: 0;">Você autorizou notificações financeiras. Para cancelar a inscrição, altere as configurações no painel do aplicativo.</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      const emailCollection = collection(db, `users/${user.uid}/sent_emails`);
+      await addDoc(emailCollection, {
+        userId: user.uid,
+        email: user.email || 'usuario@contaraiz.com.br',
+        subject,
+        body,
+        sentAt: now.toISOString(),
+        totalSpent,
+        totalIncome
+      });
+
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        lastWeeklySummarySentAt: now.toISOString()
+      });
+
+      if (isManual) {
+        alert(`Sucesso! O resumo semanal ("${subject}") foi gerado por e-mail para ${user.email}.`);
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/sent_emails`);
+    }
+  };
+
+  // Check and run weekly summary if needed
+  useEffect(() => {
+    if (user && profile && receiveWeeklySummary && transactions.length > 0) {
+      const lastSentStr = profile.lastWeeklySummarySentAt;
+      const now = new Date();
+      let shouldSend = false;
+
+      if (!lastSentStr) {
+        shouldSend = true;
+      } else {
+        const lastSent = new Date(lastSentStr);
+        const diffTime = Math.abs(now.getTime() - lastSent.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays >= 7) {
+          shouldSend = true;
+        }
+      }
+
+      if (shouldSend) {
+        handleTriggerWeeklySummary(false).catch(err => {
+          console.error("Erro no envio automatizado do resumo:", err);
+        });
+      }
+    }
+  }, [user, profile, receiveWeeklySummary, transactions, categories]);
 
   // Process recurring transactions
   useEffect(() => {
@@ -9050,6 +9300,9 @@ export default function App() {
             setIsHighContrast={setIsHighContrast}
             sessionTimeout={sessionTimeout}
             setSessionTimeout={setSessionTimeout}
+            receiveWeeklySummary={receiveWeeklySummary}
+            setReceiveWeeklySummary={setReceiveWeeklySummary}
+            onTriggerWeeklySummaryNow={() => handleTriggerWeeklySummary(true)}
           />
         )}
       </AnimatePresence>
@@ -9060,6 +9313,91 @@ export default function App() {
             request={confirmation} 
             onClose={() => setConfirmation(null)} 
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedEmailToView && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md"
+            onClick={() => setSelectedEmailToView(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-slate-100 dark:bg-[#0b0f19] w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10 flex flex-col max-h-[85vh]"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-6 bg-white dark:bg-[#111827] border-b border-slate-200 dark:border-white/5 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-emerald-500 rounded-2xl text-white shadow-lg">
+                    <Mail size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight uppercase">Histórico de Resumo Semanal</h3>
+                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Serviço de E-mail do Firebase</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedEmailToView(null)}
+                  className="p-3 hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Envelope details */}
+              <div className="px-8 py-4 bg-white dark:bg-[#111827]/50 border-b border-slate-100 dark:border-white/5 space-y-1.5 text-slate-800 dark:text-slate-200">
+                <div className="flex gap-2 text-[11px]">
+                  <span className="font-bold text-slate-400 dark:text-slate-500 uppercase w-12 text-right">De:</span>
+                  <span className="font-bold">Conta Raiz <code className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-500">&lt;noreply@contaraiz.com.br&gt;</code></span>
+                </div>
+                <div className="flex gap-2 text-[11px]">
+                  <span className="font-bold text-slate-400 dark:text-slate-500 uppercase w-12 text-right">Para:</span>
+                  <span className="font-bold">Bernardo <code className="text-[10px] bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-emerald-500">&lt;{selectedEmailToView.email || user?.email || 'usuario@contaraiz.com.br'}&gt;</code></span>
+                </div>
+                <div className="flex gap-2 text-[11px]">
+                  <span className="font-bold text-slate-400 dark:text-slate-500 uppercase w-12 text-right">Assunto:</span>
+                  <span className="font-black">{selectedEmailToView.subject}</span>
+                </div>
+                <div className="flex gap-2 text-[11px]">
+                  <span className="font-bold text-slate-400 dark:text-slate-500 uppercase w-12 text-right">Enviado:</span>
+                  <span className="font-bold">
+                    {new Date(selectedEmailToView.sentAt).toLocaleString('pt-BR', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Email Content Frame */}
+              <div className="p-8 overflow-y-auto flex-1 custom-scrollbar bg-slate-150/40">
+                <div 
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-[#1e293b]"
+                  dangerouslySetInnerHTML={{ __html: selectedEmailToView.body }}
+                />
+              </div>
+
+              {/* Modal stats / footer */}
+              <div className="p-6 bg-white dark:bg-[#111827] border-t border-slate-200 dark:border-white/5 flex justify-between items-center text-[10px]">
+                <span className="font-bold text-slate-400 dark:text-slate-500 uppercase">
+                  Metadados: ID {selectedEmailToView.id.substring(0,8)}...
+                </span>
+                <button
+                  onClick={() => setSelectedEmailToView(null)}
+                  className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-black uppercase text-[10px] text-slate-800 dark:text-white tracking-widest transition-all"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -9085,7 +9423,7 @@ export default function App() {
               className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-[#0d1527] border-l border-slate-200 dark:border-white/5 shadow-2xl z-[160] flex flex-col pt-safe-top pb-safe-bottom"
             >
               {/* Drawer Header */}
-              <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
+              <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-cyan-500/10 text-cyan-500 rounded-xl">
                     <Bell size={20} />
@@ -9102,170 +9440,255 @@ export default function App() {
                   <X size={18} />
                 </button>
               </div>
+               {/* Drawer Tabs */}
+              <div className="flex border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-[#1a253c] p-1.5 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setNotificationTab('alerts')}
+                  className={cn(
+                    "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                    notificationTab === 'alerts'
+                      ? "bg-white dark:bg-[#0d1527] text-cyan-500 shadow-sm border border-slate-100 dark:border-white/5"
+                      : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                  )}
+                >
+                  Alertas ({notifications.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotificationTab('emails')}
+                  className={cn(
+                    "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5",
+                    notificationTab === 'emails'
+                      ? "bg-white dark:bg-[#0d1527] text-emerald-500 shadow-sm border border-slate-100 dark:border-white/5"
+                      : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                  )}
+                >
+                  E-mails ({sentEmails.length})
+                </button>
+              </div>
 
               {/* Notification Center Content Container */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
                 
-                {/* Browser Notification Opt-In Card */}
-                {'Notification' in window && Notification.permission !== 'granted' && (
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl shadow-cyan-500/10 dark:shadow-cyan-950/20 flex flex-col gap-3">
-                    <div className="flex gap-3">
-                      <Sparkles size={20} className="shrink-0" />
-                      <div className="space-y-0.5">
-                        <span className="text-xs font-black uppercase tracking-wider block">Notificações no Navegador</span>
-                        <p className="text-[11px] font-medium opacity-90 leading-normal">Seja alertado sobre budgets excedidos e lembretes de despesas diretamente na sua área de trabalho.</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => {
-                        Notification.requestPermission().then(permission => {
-                          if (permission === 'granted') {
-                            new Notification('Conta Raiz', {
-                              body: 'Parabéns! Notificações do sistema ativadas com sucesso.',
-                            });
-                          }
-                        });
-                      }}
-                      className="w-full bg-white text-cyan-600 hover:bg-cyan-50 transition-colors py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm"
-                    >
-                      Ativar Alertas Nativos
-                    </button>
-                  </div>
-                )}
-
-                {/* Notifications Actions Header (Clear all) */}
-                {notifications.length > 0 && (
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-2xl border border-slate-200/50 dark:border-white/5">
-                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                      {notifications.length} {notifications.length === 1 ? 'Alerta Ativo' : 'Alertas Ativos'}
-                    </span>
-                    <button 
-                      onClick={() => handleClearAllNotifications(notifications.map(n => n.id))}
-                      className="text-[10px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest"
-                    >
-                      Limpar Ativos
-                    </button>
-                  </div>
-                )}
-
-                {/* List of Alerts */}
-                <div className="space-y-4">
-                  {notifications.length === 0 ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-4 text-center">
-                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                        <Check size={32} />
-                      </div>
-                      <div className="space-y-1 max-w-xs">
-                        <p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">Tudo em ordem!</p>
-                        <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">Você não possui nenhuma notificação pendente no momento.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div 
-                        key={n.id} 
-                        className={cn(
-                          "p-4 rounded-2xl border flex flex-col gap-2 transition-all hover:scale-[1.01] relative group",
-                          n.type === 'danger' ? "bg-rose-50/60 dark:bg-rose-500/5 border-rose-100 dark:border-rose-500/10" :
-                          n.type === 'warning' ? "bg-amber-50/60 dark:bg-amber-500/5 border-amber-100 dark:border-amber-500/10" :
-                          "bg-cyan-50/60 dark:bg-cyan-500/5 border-cyan-100 dark:border-cyan-500/10"
-                        )}
-                      >
-                        {/* Dismiss (X) button inside item */}
+                {notificationTab === 'alerts' ? (
+                  <>
+                    {/* Browser Notification Opt-In Card */}
+                    {'Notification' in window && Notification.permission !== 'granted' && (
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-xl shadow-cyan-500/10 dark:shadow-cyan-950/20 flex flex-col gap-3">
+                        <div className="flex gap-3">
+                          <Sparkles size={20} className="shrink-0" />
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-black uppercase tracking-wider block">Notificações no Navegador</span>
+                            <p className="text-[11px] font-medium opacity-90 leading-normal">Seja alertado sobre budgets excedidos e lembretes de despesas diretamente na sua área de trabalho.</p>
+                          </div>
+                        </div>
                         <button 
-                          onClick={() => handleDismissNotification(n.id)}
-                          className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg"
-                          title="Ignorar"
+                          onClick={() => {
+                            Notification.requestPermission().then(permission => {
+                              if (permission === 'granted') {
+                                new Notification('Conta Raiz', {
+                                  body: 'Parabéns! Notificações do sistema ativadas com sucesso.',
+                                });
+                              }
+                            });
+                          }}
+                          className="w-full bg-white text-cyan-600 hover:bg-cyan-50 transition-colors py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm"
                         >
-                          <X size={12} />
+                          Ativar Alertas Nativos
                         </button>
+                      </div>
+                    )}
 
-                        <div className="flex items-center gap-2">
-                          {n.type === 'danger' ? <AlertCircle size={16} className="text-rose-500" /> :
-                           n.type === 'warning' ? <Zap size={16} className="text-amber-500" /> :
-                           <Clock size={16} className="text-cyan-500" />}
-                          <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest",
-                            n.type === 'danger' ? "text-rose-600 dark:text-rose-400" :
-                            n.type === 'warning' ? "text-amber-600 dark:text-amber-400" :
-                            "text-cyan-600 dark:text-cyan-400"
-                          )}>
-                            {n.title}
-                          </span>
+                    {/* Notifications Actions Header (Clear all) */}
+                    {notifications.length > 0 && (
+                      <div className="flex justify-between items-center bg-slate-50 dark:bg-white/5 p-3 rounded-2xl border border-slate-200/50 dark:border-white/5">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                          {notifications.length} {notifications.length === 1 ? 'Alerta Ativo' : 'Alertas Ativos'}
+                        </span>
+                        <button 
+                          onClick={() => handleClearAllNotifications(notifications.map(n => n.id))}
+                          className="text-[10px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest"
+                        >
+                          Limpar Ativos
+                        </button>
+                      </div>
+                    )}
+
+                    {/* List of Alerts */}
+                    <div className="space-y-4">
+                      {notifications.length === 0 ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-4 text-center">
+                          <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                            <Check size={32} />
+                          </div>
+                          <div className="space-y-1 max-w-xs">
+                            <p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">Tudo em ordem!</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">Você não possui nenhuma notificação pendente no momento.</p>
+                          </div>
                         </div>
-                        
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-relaxed pr-6">
-                          {n.message}
-                        </p>
-
-                        <div className="flex items-center gap-3 mt-1">
-                          {n.categoryId && (
+                      ) : (
+                        notifications.map((n) => (
+                          <div 
+                            key={n.id} 
+                            className={cn(
+                              "p-4 rounded-2xl border flex flex-col gap-2 transition-all hover:scale-[1.01] relative group",
+                              n.type === 'danger' ? "bg-rose-50/60 dark:bg-rose-500/5 border-rose-100 dark:border-rose-500/10" :
+                              n.type === 'warning' ? "bg-amber-50/60 dark:bg-amber-500/5 border-amber-100 dark:border-amber-500/10" :
+                              "bg-cyan-50/60 dark:bg-cyan-500/5 border-cyan-100 dark:border-cyan-500/10"
+                            )}
+                          >
                             <button 
-                              onClick={() => {
-                                setCategoryToEdit(categories.find(c => c.id === n.categoryId) || null);
-                                setIsEditCategoryModalOpen(true);
-                                setIsNotificationsOpen(false);
-                              }}
-                              className="text-[9px] font-black uppercase tracking-widest text-cyan-600 hover:text-cyan-500 transition-colors"
+                              onClick={() => handleDismissNotification(n.id)}
+                              className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg"
+                              title="Ignorar"
                             >
-                              Ajustar Orçamento
+                              <X size={12} />
                             </button>
-                          )}
-                          {n.date && (
-                            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 ml-auto uppercase tracking-wider">
-                              Prazo: {formatDate(n.date)}
-                            </span>
-                          )}
+
+                            <div className="flex items-center gap-2">
+                              {n.type === 'danger' ? <AlertCircle size={16} className="text-rose-500" /> :
+                               n.type === 'warning' ? <Zap size={16} className="text-amber-500" /> :
+                               <Clock size={16} className="text-cyan-500" />}
+                              <span className={cn(
+                                "text-[10px] font-black uppercase tracking-widest",
+                                n.type === 'danger' ? "text-rose-600 dark:text-rose-400" :
+                                n.type === 'warning' ? "text-amber-600 dark:text-amber-400" :
+                                "text-cyan-600 dark:text-cyan-400"
+                              )}>
+                                {n.title}
+                              </span>
+                            </div>
+                            
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-relaxed pr-6">
+                              {n.message}
+                            </p>
+
+                            <div className="flex items-center gap-3 mt-1">
+                              {n.categoryId && (
+                                <button 
+                                  onClick={() => {
+                                    setCategoryToEdit(categories.find(c => c.id === n.categoryId) || null);
+                                    setIsEditCategoryModalOpen(true);
+                                    setIsNotificationsOpen(false);
+                                  }}
+                                  className="text-[9px] font-black uppercase tracking-widest text-cyan-600 hover:text-cyan-500 transition-colors"
+                                >
+                                  Ajustar Orçamento
+                                </button>
+                              )}
+                              {n.date && (
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 ml-auto uppercase tracking-wider">
+                                  Prazo: {formatDate(n.date)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Educational Explanation Box (How it works section) */}
+                    <div className="p-5 rounded-[24px] border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.01] space-y-4">
+                      <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                        <Sliders size={14} className="text-cyan-500" />
+                        Como funcionam os Alertas?
+                      </h4>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                        Sua saúde financeira é monitorada automaticamente usando algoritmos locais preventivos. Entenda as regras do motor de saúde:
+                      </p>
+                      
+                      <div className="space-y-3 pt-1">
+                        <div className="flex gap-2.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 shrink-0" />
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Orçamentos sob Controle</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Disparados se os gastos consolidados ultrapassarem 80% ou 100% da verba estipulada em Categorias.</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Saldo de Segurança</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Se o saldo de qualquer conta corrente, investimento ou poupança ficar abaixo de R$ 150,00 ou estiver negativo.</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Dinâmica de Caixa</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Avisa se as despesas mensais estiverem numericamente maiores que as receitas no mês em curso.</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Controle de Inatividade</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Se você esquecer de lançar suas transações por mais de 3 dias consecutivos.</span>
+                          </div>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Educational Explanation Box (How it works section) */}
-                <div className="p-5 rounded-[24px] border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.01] space-y-4">
-                  <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
-                    <Sliders size={14} className="text-cyan-500" />
-                    Como funcionam os Alertas?
-                  </h4>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
-                    Sua saúde financeira é monitorada automaticamente usando algoritmos locais preventivos. Entenda as regras do motor de saúde:
-                  </p>
-                  
-                  <div className="space-y-3 pt-1">
-                    <div className="flex gap-2.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 shrink-0" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Orçamentos sob Controle</span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Disparados se os gastos consolidados ultrapassarem 80% ou 100% da verba estipulada em Categorias.</span>
-                      </div>
                     </div>
-
-                    <div className="flex gap-2.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Saldo de Segurança</span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Se o saldo de qualquer conta corrente, investimento ou poupança ficar abaixo de R$ 150,00 ou estiver negativo.</span>
+                  </>
+                ) : (
+                  <>
+                    {/* E-mails List from Firebase */}
+                    {sentEmails.length === 0 ? (
+                      <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-4 text-center">
+                        <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                          <Mail size={32} />
+                        </div>
+                        <div className="space-y-1 max-w-xs">
+                          <p className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">Nenhum e-mail enviado</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">Você começará a receber resumos semanais de e-mail após ativar a autorização de resumo em Configurações.</p>
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="flex gap-2.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Dinâmica de Caixa</span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Avisa se as despesas mensais estiverem numericamente maiores que as receitas no mês em curso.</span>
+                    ) : (
+                      <div className="space-y-3.5">
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-loose">
+                          Histórico de resumos gerados pelo serviço Conta Raiz no Firebase Firestore:
+                        </p>
+                        {sentEmails.map((email) => {
+                          const formattedDate = new Date(email.sentAt).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          });
+                          return (
+                            <button
+                              key={email.id}
+                              onClick={() => setSelectedEmailToView(email)}
+                              className="w-full text-left p-5 rounded-[26px] border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-[#152033] hover:border-emerald-300 dark:hover:border-emerald-500/30 transition-all flex flex-col gap-2.5 group relative overflow-hidden active:scale-[0.99]"
+                            >
+                              <div className="flex justify-between items-start w-full">
+                                <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                                  {formattedDate}
+                                </span>
+                                <span className="text-[9px] font-black uppercase text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full">
+                                  Entregue
+                                </span>
+                              </div>
+                              <h4 className="text-xs font-black text-slate-900 dark:text-white group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
+                                {email.subject}
+                              </h4>
+                              <div className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tight">
+                                <span>Destinatário: {email.email}</span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-1.5 transition-all text-[8px] font-black uppercase tracking-widest text-emerald-500 group-hover:translate-x-1 duration-150">
+                                Visualizar E-mail Completo →
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
-                    </div>
-
-                    <div className="flex gap-2.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Controle de Inatividade</span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500 block leading-normal">Se você esquecer de lançar suas transações por mais de 3 dias consecutivos.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                    )}
+                  </>
+                )}
 
               </div>
             </motion.div>

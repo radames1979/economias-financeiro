@@ -80,11 +80,26 @@ service cloud.firestore {
              data.type in ['income', 'expense'];
     }
 
+    function isValidSentEmail(data, userId) {
+      return data.userId == userId &&
+             data.email is string &&
+             data.subject is string &&
+             data.body is string &&
+             data.sentAt is string;
+    }
+
     // Rules matching blueprint paths
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) || isAdmin();
+
+      match /sent_emails/{emailId} {
+        allow list, get: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidSentEmail(incoming(), userId);
+        allow update: if isOwner(userId) && isValidSentEmail(incoming(), userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
 
       match /transactions/{transactionId} {
         allow list: if isOwner(userId);
