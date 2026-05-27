@@ -600,9 +600,19 @@ const TransactionCard = ({
             )}
             {t.attachmentUrl && <Paperclip size={12} className="text-slate-400" />}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={cn("font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full", d.textCategory)}>{account?.name || '---'}</span>
-            <span className={cn("font-bold text-slate-400 dark:text-slate-600 truncate", d.textCategory)}>{category?.name}</span>
+            {category?.name && <span className={cn("font-bold text-slate-400 dark:text-slate-600 truncate", d.textCategory)}>{category.name}</span>}
+            {(() => {
+              const priority = t.priority || 'medium';
+              if (priority === 'high') {
+                return <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 uppercase tracking-wider shrink-0 border border-rose-500/10">ALTA</span>;
+              } else if (priority === 'low') {
+                return <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 uppercase tracking-wider shrink-0 border border-emerald-500/10">BAIXA</span>;
+              } else {
+                return <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 uppercase tracking-wider shrink-0 border border-amber-500/10">MÉDIA</span>;
+              }
+            })()}
           </div>
         </div>
       </div>
@@ -1554,6 +1564,7 @@ export default function App() {
   const [calcValue, setCalcValue] = useState('');
   const [activeCalcField, setActiveCalcField] = useState<string | null>(null);
   const [selectedAccountFilter, setSelectedAccountFilter] = useState<string>('all');
+  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>('all');
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>(() => {
     try {
@@ -2127,6 +2138,11 @@ export default function App() {
 
       if (selectedAccountFilter !== 'all' && t.accountId !== selectedAccountFilter) return false;
 
+      if (selectedPriorityFilter !== 'all') {
+        const priority = t.priority || 'medium';
+        if (priority !== selectedPriorityFilter) return false;
+      }
+
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const categoryName = categories.find(c => c.id === t.categoryId)?.name?.toLowerCase() || '';
@@ -2143,7 +2159,7 @@ export default function App() {
 
       return true;
     });
-  }, [transactions, dashboardRange, searchQuery, categories, accounts, selectedAccountFilter]);
+  }, [transactions, dashboardRange, searchQuery, categories, accounts, selectedAccountFilter, selectedPriorityFilter]);
 
   const dayGroups = useMemo(() => {
     const groups: {
@@ -2560,6 +2576,7 @@ export default function App() {
     const consolidated = formData.get('consolidated') === 'on';
     const paid = formData.get('paid') === 'on';
     const paymentDate = formData.get('paymentDate') as string;
+    const priority = (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium';
 
     if (type === 'transfer' && accountId === toAccountId) {
       alert('A conta de origem e destino não podem ser a mesma.');
@@ -2700,6 +2717,7 @@ export default function App() {
           accountId,
           consolidated,
           paid,
+          priority,
           updatedAt: serverTimestamp()
         };
 
@@ -2835,6 +2853,7 @@ export default function App() {
     const consolidated = formData.get('consolidated') === 'on';
     const paid = formData.get('paid') === 'on';
     const paymentDate = formData.get('paymentDate') as string;
+    const priority = (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium';
 
     if (type === 'transfer' && accountId === toAccountId) {
       alert('A conta de origem e destino não podem ser a mesma.');
@@ -2870,6 +2889,7 @@ export default function App() {
           createdAt: serverTimestamp(),
           consolidated,
           paid,
+          priority,
         };
 
         if (paid && paymentDate) {
@@ -5153,6 +5173,12 @@ export default function App() {
                     {transactionGroups.map((g, idx) => <option key={`quick-add-group-opt-${g.id}-${idx}`} value={g.id}>{g.name}</option>)}
                   </select>
 
+                  <select name="priority" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+                    <option value="medium">🟡 Prioridade: Média</option>
+                    <option value="low">🟢 Prioridade: Baixa</option>
+                    <option value="high">🔴 Prioridade: Alta</option>
+                  </select>
+
                   {transactionType === 'transfer' && (
                     <select name="toAccountId" className="p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" required>
                       <option value="">Conta de Destino</option>
@@ -5229,6 +5255,17 @@ export default function App() {
                       {accounts.map((account, idx) => (
                         <option key={`filter-acc-opt-${account.id || idx}-${idx}`} value={account.id}>{account.name}</option>
                       ))}
+                    </select>
+
+                    <select
+                      value={selectedPriorityFilter}
+                      onChange={(e) => setSelectedPriorityFilter(e.target.value)}
+                      className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold shadow-sm min-w-[180px]"
+                    >
+                      <option value="all">🎯 Todas as Prioridades</option>
+                      <option value="high">🔴 Prioridade Alta</option>
+                      <option value="medium">🟡 Prioridade Média</option>
+                      <option value="low">🟢 Prioridade Baixa</option>
                     </select>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -5540,6 +5577,16 @@ export default function App() {
                               )} />
                               <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{t.description}</span>
                               {t.attachmentUrl && <Paperclip size={12} className="text-blue-500 opacity-60" />}
+                              {(() => {
+                                const priority = t.priority || 'medium';
+                                if (priority === 'high') {
+                                  return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 uppercase tracking-wider shrink-0 border border-rose-500/10">ALTA</span>;
+                                } else if (priority === 'low') {
+                                  return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 uppercase tracking-wider shrink-0 border border-emerald-500/10">BAIXA</span>;
+                                } else {
+                                  return <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-450 uppercase tracking-wider shrink-0 border border-amber-500/10">MÉDIA</span>;
+                                }
+                              })()}
                             </div>
                             {t.notes && <p className="text-[10px] text-slate-400 dark:text-slate-500 italic mt-0.5 line-clamp-1">{t.notes}</p>}
                           </td>
@@ -7501,6 +7548,19 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-col gap-1">
+                      <label className="text-xs font-bold text-slate-500 ml-1">Prioridade</label>
+                      <select 
+                        name="priority" 
+                        defaultValue="medium"
+                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="medium">🟡 Prioridade Média</option>
+                        <option value="low">🟢 Prioridade Baixa</option>
+                        <option value="high">🔴 Prioridade Alta</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-slate-500 ml-1">{transactionType === 'transfer' ? 'Conta de Origem' : 'Conta'}</label>
                       <select name="accountId" defaultValue={defaultAccountIdForModal} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required>
                         <option value="">Selecione a Conta</option>
@@ -8088,6 +8148,19 @@ export default function App() {
                     >
                       <option value="">📌 Sem Grupo</option>
                       {transactionGroups.map((g, idx) => <option key={`edit-tx-group-opt-${g.id}-${idx}`} value={g.id}>{g.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Prioridade</label>
+                    <select 
+                      name="priority" 
+                      defaultValue={transactionToEdit.priority || 'medium'}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="medium">🟡 Prioridade Média</option>
+                      <option value="low">🟢 Prioridade Baixa</option>
+                      <option value="high">🔴 Prioridade Alta</option>
                     </select>
                   </div>
 

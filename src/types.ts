@@ -31,6 +31,7 @@ export interface Transaction {
   attachmentName?: string;
   notes?: string;
   convertedAmount?: number;
+  priority?: 'low' | 'medium' | 'high';
 }
 
 export interface TransactionGroup {
