@@ -127,6 +127,7 @@ import {
   Camera,
   Scissors,
   Mail,
+  Target,
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
 import { GroupedVirtuoso, TableVirtuoso } from 'react-virtuoso';
@@ -166,6 +167,7 @@ import { VersionHistoryModal } from './components/VersionHistoryModal';
 import { AuthModal } from './components/AuthModal';
 import { TransactionGroupModal } from './components/TransactionGroupModal';
 import { LongTermTrendChart } from './components/LongTermTrendChart';
+import { FinancialGoalsModal } from './components/FinancialGoalsModal';
 import { cn, formatCurrency, formatDate } from './lib/utils';
 import { PDF_IMPORT_DATA, ImportTransaction } from './services/pdfImportData';
 import { parseExcelFile, downloadExcelTemplate } from './services/excelImportService';
@@ -1625,6 +1627,10 @@ export default function App() {
   }, [receiveWeeklySummary, user, profile]);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isFinancialGoalsModalOpen, setIsFinancialGoalsModalOpen] = useState(false);
+  const [savingsGoal, setSavingsGoal] = useState<number>(() => {
+    return Number(localStorage.getItem('savingsGoal') || '0');
+  });
   const [isTransactionGroupModalOpen, setIsTransactionGroupModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -1928,12 +1934,30 @@ export default function App() {
         if (data.receiveWeeklySummary !== undefined && data.receiveWeeklySummary !== receiveWeeklySummary) {
           setReceiveWeeklySummary(data.receiveWeeklySummary);
         }
+        if (data.savingsGoal !== undefined && data.savingsGoal !== savingsGoal) {
+          setSavingsGoal(data.savingsGoal);
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
     return unsub;
-  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout, receiveWeeklySummary]);
+  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout, receiveWeeklySummary, savingsGoal]);
+
+  useEffect(() => {
+    localStorage.setItem('savingsGoal', savingsGoal.toString());
+  }, [savingsGoal]);
+
+  const handleSaveSavingsGoal = async (val: number) => {
+    setSavingsGoal(val);
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), { savingsGoal: val });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      }
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2310,6 +2334,15 @@ export default function App() {
   const netWorth = useMemo(() => {
     return accounts
       .filter(a => a.includeInNetWorth !== false)
+      .reduce((acc, curr) => {
+        const rate = curr.exchangeRate || 1;
+        return acc + (curr.balance * rate);
+      }, 0);
+  }, [accounts]);
+
+  const savingsAndInvestmentsSum = useMemo(() => {
+    return accounts
+      .filter(a => a.type === 'savings' || a.type === 'investment')
       .reduce((acc, curr) => {
         const rate = curr.exchangeRate || 1;
         return acc + (curr.balance * rate);
@@ -4890,6 +4923,51 @@ export default function App() {
                 </Card>
 
                 <div className="flex flex-col gap-6">
+                  {/* METAS FINANCEIRAS CARD */}
+                  <Card title="Metas Financeiras" className="overflow-hidden relative" density={displayDensity}>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Meta de Economia</p>
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white mt-1">
+                            {savingsGoal > 0 ? formatCurrencyWithPrivacy(savingsGoal) : 'Nenhuma definida'}
+                          </h4>
+                        </div>
+                        <div className="p-2.5 bg-cyan-500/10 text-cyan-500 rounded-xl">
+                          <Target size={18} />
+                        </div>
+                      </div>
+
+                      {savingsGoal > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-tight">
+                            <span>Progresso ({savingsGoal > 0 ? Math.min(Math.round((netWorth / savingsGoal) * 100), 100) : 0}%)</span>
+                            <span>{formatCurrencyWithPrivacy(netWorth)}</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${savingsGoal > 0 ? Math.min(Math.round((netWorth / savingsGoal) * 100), 100) : 0}%` }}
+                              className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full"
+                              transition={{ duration: 0.8, ease: "easeOut" }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-normal">
+                          Configure um objetivo de poupança para acompanhar seu progresso automaticamente.
+                        </p>
+                      )}
+
+                      <button
+                        onClick={() => setIsFinancialGoalsModalOpen(true)}
+                        className="w-full mt-2 py-3 px-4 bg-slate-50 hover:bg-slate-100 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 transition-all flex items-center justify-center gap-1.5 active:scale-95 border border-slate-100 dark:border-white/5"
+                      >
+                        {savingsGoal > 0 ? 'Ajustar Meta' : 'Definir Primeira Meta'}
+                      </button>
+                    </div>
+                  </Card>
+
                   <Card title="Portfólio" className="flex-1 overflow-hidden relative" density={displayDensity}>
                     <div className="space-y-4 relative z-10">
                       {accounts.slice(0, 4).map((account, idx) => (
@@ -9306,6 +9384,21 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      <FinancialGoalsModal 
+        isOpen={isFinancialGoalsModalOpen} 
+        onClose={() => setIsFinancialGoalsModalOpen(false)}
+        savingsGoal={savingsGoal}
+        onSaveSavingsGoal={handleSaveSavingsGoal}
+        formatCurrency={formatCurrency}
+        formatCurrencyWithPrivacy={formatCurrencyWithPrivacy}
+        netWorth={netWorth}
+        savingsAndInvestmentsSum={savingsAndInvestmentsSum}
+        totalIncome={totalIncome}
+        totalExpense={totalExpense}
+        isDarkMode={isDarkMode}
+        isHighContrast={isHighContrast}
+      />
 
       <AnimatePresence>
         {confirmation && (
