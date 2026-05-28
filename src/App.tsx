@@ -1111,7 +1111,10 @@ const SettingsModal = ({
   setSessionTimeout,
   receiveWeeklySummary,
   setReceiveWeeklySummary,
-  onTriggerWeeklySummaryNow
+  onTriggerWeeklySummaryNow,
+  isDarkMode,
+  setIsDarkMode,
+  onOpenTransactionGroups
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -1126,8 +1129,13 @@ const SettingsModal = ({
   setSessionTimeout: (v: number) => void,
   receiveWeeklySummary: boolean,
   setReceiveWeeklySummary: (v: boolean) => void,
-  onTriggerWeeklySummaryNow: () => void
+  onTriggerWeeklySummaryNow: () => void,
+  isDarkMode: boolean,
+  setIsDarkMode: (v: boolean) => void,
+  onOpenTransactionGroups: () => void
 }) => {
+  const [localTab, setLocalTab] = useState<'appearance' | 'security' | 'data'>('appearance');
+
   if (!isOpen) return null;
   
   return (
@@ -1145,9 +1153,10 @@ const SettingsModal = ({
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden border border-slate-200 dark:border-white/5"
+          className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden border border-slate-200 dark:border-white/5"
           onClick={e => e.stopPropagation()}
         >
+          {/* Header */}
           <div className="p-8 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-blue-500 rounded-2xl text-white shadow-lg shadow-blue-500/20">
@@ -1157,7 +1166,7 @@ const SettingsModal = ({
                 <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase">Configurações</h2>
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-cyan-500" />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Personalize sua interface</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Personalize sua experiência</p>
                 </div>
               </div>
             </div>
@@ -1169,289 +1178,451 @@ const SettingsModal = ({
             </button>
           </div>
 
-          <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-            {/* Visualização Section */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-500">
-                  <Layout size={18} />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
-                  Visualização
-                </h3>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {[
-                  { id: 'super-compact' as const, label: 'Super Compacto', desc: 'Densidade máxima para telas pequenas' },
-                  { id: 'compact' as const, label: 'Compacto', desc: 'Espaçamento reduzido' },
-                  { id: 'normal' as const, label: 'Normal', desc: 'Equilíbrio padrão' },
-                  { id: 'relaxed' as const, label: 'Relaxado', desc: 'Mais espaço e respiro' },
-                  { id: 'super-relaxed' as const, label: 'Super Relaxado', desc: 'Imersão e legibilidade máxima' },
-                ].map((density) => (
-                  <button
-                    key={density.id}
-                    onClick={() => setDisplayDensity(density.id)}
-                    className={cn(
-                      "p-4 rounded-[28px] border-2 transition-all flex flex-col gap-1 items-start text-left group relative overflow-hidden",
-                      displayDensity === density.id
-                        ? "bg-cyan-500/5 border-cyan-500 shadow-xl shadow-cyan-500/10"
-                        : "bg-slate-100/30 dark:bg-white/5 border-transparent hover:border-slate-200 dark:hover:border-white/10 active:scale-95"
-                    )}
-                  >
-                    <div className="flex justify-between items-center w-full relative z-10">
-                      <span className={cn(
-                        "text-[9px] font-black uppercase tracking-widest",
-                        displayDensity === density.id ? "text-cyan-500" : "text-slate-400 dark:text-slate-500"
-                      )}>
-                        {density.id === 'super-compact' ? 'Mínimo' : 
-                         density.id === 'compact' ? 'Pequeno' : 
-                         density.id === 'normal' ? 'Médio' : 
-                         density.id === 'relaxed' ? 'Grande' : 'Livre'}
-                      </span>
-                      {displayDensity === density.id && (
-                        <motion.div layoutId="active-dot" className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
-                      )}
-                    </div>
-                    <span className={cn(
-                      "text-sm font-black tracking-tight relative z-10",
-                      displayDensity === density.id ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"
-                    )}>
-                      {density.label}
-                    </span>
-                    <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity uppercase tracking-tighter relative z-10">
-                      {density.desc}
-                    </span>
-                    
-                    {displayDensity === density.id && (
-                      <div className="absolute top-0 right-0 w-12 h-12 bg-cyan-500/10 blur-2xl rounded-full" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {/* Subheader / Tab selector */}
+          <div className="px-8 pt-4 pb-2 bg-slate-50/20 dark:bg-white/2 border-b border-slate-150 dark:border-white/5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <button 
+              onClick={() => setLocalTab('appearance')}
+              className={cn(
+                "px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 whitespace-nowrap active:scale-95",
+                localTab === 'appearance' 
+                  ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/15" 
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-705"
+              )}
+            >
+              <Layout size={14} />
+              Aparência
+            </button>
+            <button 
+              onClick={() => setLocalTab('security')}
+              className={cn(
+                "px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 whitespace-nowrap active:scale-95",
+                localTab === 'security' 
+                  ? "bg-purple-500 text-white shadow-lg shadow-purple-500/15" 
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-705"
+              )}
+            >
+              <ShieldAlert size={14} />
+              Segurança & Resumo
+            </button>
+            <button 
+              onClick={() => setLocalTab('data')}
+              className={cn(
+                "px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 whitespace-nowrap active:scale-95",
+                localTab === 'data' 
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/15" 
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-705"
+              )}
+            >
+              <Database size={14} />
+              Dados & Backup
+            </button>
+          </div>
 
-            <div className="p-6 bg-slate-50 dark:bg-white/5 rounded-[32px] border border-slate-100 dark:border-white/5 flex items-start gap-4">
-              <div className="mt-1 p-2 bg-blue-500/10 rounded-lg text-blue-500">
-                <Sliders size={14} />
-              </div>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 leading-relaxed uppercase tracking-wider">
-                A densidade visual altera o espaçamento, tamanho de ícones e fontes em todo o aplicativo, permitindo que você visualize mais informações ou tenha uma interface mais limpa.
-              </p>
-            </div>
-
-            {/* Acessibilidade */}
-            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500">
-                  <Accessibility size={18} />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
-                  Acessibilidade
-                </h3>
-              </div>
-
-              <div className="p-5 bg-purple-50/50 dark:bg-purple-900/10 rounded-[32px] border border-purple-100 dark:border-purple-900/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-black text-slate-900 dark:text-white">Modo de Alto Contraste</h4>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
-                    Ajusta as cores do texto e bordas para garantir legibilidade máxima.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsHighContrast(!isHighContrast)}
-                  className={cn(
-                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                    isHighContrast ? "bg-purple-600" : "bg-slate-200 dark:bg-slate-800"
-                  )}
+          {/* Body Content with Scroll */}
+          <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-8">
+            <AnimatePresence mode="wait">
+              {localTab === 'appearance' && (
+                <motion.div
+                  key="appearance-tab"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-8"
                 >
-                  <span
-                    className={cn(
-                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
-                      isHighContrast ? "translate-x-5" : "translate-x-0"
-                    )}
-                  />
-                </button>
-              </div>
-            </div>
+                  {/* Tema do Sistema (Claro vs Escuro card selector) */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-slate-500/10 rounded-xl text-slate-500">
+                        {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
+                      </div>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Tema do Sistema
+                      </h3>
+                    </div>
 
-            {/* Sessão e Segurança */}
-            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500">
-                  <ShieldAlert size={18} />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
-                  Sessão e Segurança
-                </h3>
-              </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Light Card */}
+                      <button
+                        onClick={() => setIsDarkMode(false)}
+                        className={cn(
+                          "p-5 rounded-[28px] border-2 flex items-center justify-between transition-all group active:scale-95 relative overflow-hidden text-left",
+                          !isDarkMode 
+                            ? "bg-cyan-500/5 border-cyan-500 shadow-xl shadow-cyan-500/5" 
+                            : "bg-slate-100/30 dark:bg-white/5 border-transparent hover:border-slate-200 dark:hover:border-white/10"
+                        )}
+                      >
+                        <div className="space-y-1 relative z-10">
+                          <span className={cn(
+                            "text-[9px] font-black uppercase tracking-widest block",
+                            !isDarkMode ? "text-cyan-500" : "text-slate-400 dark:text-slate-500"
+                          )}>Tema Ativo</span>
+                          <span className="text-base font-black tracking-tight text-slate-900 dark:text-white block">Aparência Clara</span>
+                        </div>
+                        <div className={cn(
+                          "p-3 rounded-2xl relative z-10 transition-colors",
+                          !isDarkMode ? "bg-cyan-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                        )}>
+                          <Sun size={18} />
+                        </div>
+                        {!isDarkMode && <div className="absolute top-0 right-0 w-12 h-12 bg-cyan-500/10 blur-2xl rounded-full" />}
+                      </button>
 
-              <div className="p-5 bg-rose-50/35 dark:bg-rose-500/[0.03] rounded-[32px] border border-rose-100 dark:border-rose-500/10 flex flex-col gap-4">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    Timeout por Inatividade
-                  </h4>
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
-                    Desconecta automaticamente do aplicativo após um período de inatividade, protegendo seus dados financeiros de olhares curiosos.
-                  </p>
-                </div>
-
-                <div className="relative">
-                  <select
-                    value={sessionTimeout}
-                    onChange={(e) => setSessionTimeout(parseInt(e.target.value, 10))}
-                    className="w-full p-3.5 pl-4 pr-10 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500 appearance-none shadow-sm cursor-pointer"
-                  >
-                    <option value={5 * 60 * 1000}>5 Minutos (Máxima Segurança)</option>
-                    <option value={10 * 60 * 1000}>10 Minutos</option>
-                    <option value={15 * 60 * 1000}>15 Minutos (Padrão)</option>
-                    <option value={30 * 60 * 1000}>30 Minutos</option>
-                    <option value={60 * 60 * 1000}>1 Hora</option>
-                    <option value={0}>Desativado (Sessão Infinita)</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
-                    <ChevronDown size={16} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Notificações por E-mail */}
-            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500">
-                  <Mail size={18} />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
-                  Resumos por E-mail
-                </h3>
-              </div>
-
-              <div className="p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[32px] border border-emerald-100 dark:border-emerald-900/20 flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-black text-slate-900 dark:text-white">Resumo Financeiro Semanal</h4>
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
-                      Receba um balanço semanal consolidado de seus gastos e receitas diretamente em seu e-mail.
-                    </p>
+                      {/* Dark Card */}
+                      <button
+                        onClick={() => setIsDarkMode(true)}
+                        className={cn(
+                          "p-5 rounded-[28px] border-2 flex items-center justify-between transition-all group active:scale-95 relative overflow-hidden text-left",
+                          isDarkMode 
+                            ? "bg-cyan-500/5 border-cyan-500 shadow-xl shadow-cyan-500/5" 
+                            : "bg-slate-100/30 dark:bg-white/5 border-transparent hover:border-slate-200 dark:hover:border-white/10"
+                        )}
+                      >
+                        <div className="space-y-1 relative z-10">
+                          <span className={cn(
+                            "text-[9px] font-black uppercase tracking-widest block",
+                            isDarkMode ? "text-cyan-500" : "text-slate-400 dark:text-slate-500"
+                          )}>Tema Ativo</span>
+                          <span className="text-base font-black tracking-tight text-slate-900 dark:text-white block">Aparência Escura</span>
+                        </div>
+                        <div className={cn(
+                          "p-3 rounded-2xl relative z-10 transition-colors",
+                          isDarkMode ? "bg-cyan-500 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                        )}>
+                          <Moon size={18} />
+                        </div>
+                        {isDarkMode && <div className="absolute top-0 right-0 w-12 h-12 bg-cyan-500/10 blur-2xl rounded-full" />}
+                      </button>
+                    </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setReceiveWeeklySummary(!receiveWeeklySummary)}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none flex transition-all active:scale-95",
-                      receiveWeeklySummary ? "bg-emerald-600" : "bg-slate-200 dark:bg-slate-800"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out self-center",
-                        receiveWeeklySummary ? "translate-x-5" : "translate-x-0"
+                  {/* Densidade Visual Section */}
+                  <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-500">
+                        <Layout size={18} />
+                      </div>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Densidade Visual
+                      </h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {[
+                        { id: 'super-compact' as const, label: 'Super Compacto', desc: 'Densidade máxima' },
+                        { id: 'compact' as const, label: 'Compacto', desc: 'Espaço reduzido' },
+                        { id: 'normal' as const, label: 'Normal', desc: 'Equilíbrio padrão' },
+                        { id: 'relaxed' as const, label: 'Relaxado', desc: 'Mais respiro' },
+                        { id: 'super-relaxed' as const, label: 'Super Relaxado', desc: 'Imersão máxima' },
+                      ].map((density) => (
+                        <button
+                          key={density.id}
+                          onClick={() => setDisplayDensity(density.id)}
+                          className={cn(
+                            "p-4 rounded-[28px] border-2 transition-all flex flex-col gap-1 items-start text-left group relative overflow-hidden",
+                            displayDensity === density.id
+                              ? "bg-cyan-500/5 border-cyan-500 shadow-xl shadow-cyan-500/10"
+                              : "bg-slate-100/30 dark:bg-white/5 border-transparent hover:border-slate-200 dark:hover:border-white/10 active:scale-95"
+                          )}
+                        >
+                          <div className="flex justify-between items-center w-full relative z-10">
+                            <span className={cn(
+                              "text-[9px] font-black uppercase tracking-widest",
+                              displayDensity === density.id ? "text-cyan-500" : "text-slate-400 dark:text-slate-500"
+                            )}>
+                              {density.id === 'super-compact' ? 'Mínimo' : 
+                               density.id === 'compact' ? 'Pequeno' : 
+                               density.id === 'normal' ? 'Médio' : 
+                               density.id === 'relaxed' ? 'Grande' : 'Livre'}
+                            </span>
+                            {displayDensity === density.id && (
+                              <div className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+                            )}
+                          </div>
+                          <span className={cn(
+                            "text-sm font-black tracking-tight relative z-10",
+                            displayDensity === density.id ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400"
+                          )}>
+                            {density.label}
+                          </span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-600 opacity-100 group-hover:opacity-100 transition-opacity uppercase tracking-tighter relative z-10">
+                            {density.desc}
+                          </span>
+                          
+                          {displayDensity === density.id && (
+                            <div className="absolute top-0 right-0 w-12 h-12 bg-cyan-500/10 blur-2xl rounded-full" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Acessibilidade */}
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500">
+                        <Accessibility size={18} />
+                      </div>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Acessibilidade
+                      </h3>
+                    </div>
+
+                    <div className="p-5 bg-purple-50/50 dark:bg-purple-900/10 rounded-[32px] border border-purple-100 dark:border-purple-900/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">Modo de Alto Contraste</h4>
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
+                          Ajusta as cores do texto e bordas para garantir legibilidade máxima.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsHighContrast(!isHighContrast)}
+                        className={cn(
+                          "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none flex transition-all active:scale-95",
+                          isHighContrast ? "bg-purple-600" : "bg-slate-200 dark:bg-slate-800"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                            isHighContrast ? "translate-x-5" : "translate-x-0"
+                          )}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {localTab === 'security' && (
+                <motion.div
+                  key="security-tab"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-8"
+                >
+                  {/* Sessão e Segurança */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500">
+                        <ShieldAlert size={18} />
+                      </div>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Sessão de Segurança
+                      </h3>
+                    </div>
+
+                    <div className="p-5 bg-rose-50/35 dark:bg-rose-500/[0.03] rounded-[32px] border border-rose-100 dark:border-rose-500/10 flex flex-col gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                          Timeout por Inatividade
+                        </h4>
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
+                          Desconecta automaticamente do aplicativo após um período de inatividade, protegendo seus dados financeiros.
+                        </p>
+                      </div>
+
+                      <div className="relative">
+                        <select
+                          value={sessionTimeout}
+                          onChange={(e) => setSessionTimeout(parseInt(e.target.value, 10))}
+                          className="w-full p-3.5 pl-4 pr-10 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-rose-500 appearance-none shadow-sm cursor-pointer"
+                        >
+                          <option value={5 * 60 * 1000}>5 Minutos (Máxima Segurança)</option>
+                          <option value={10 * 60 * 1000}>10 Minutos</option>
+                          <option value={15 * 60 * 1000}>15 Minutos (Padrão)</option>
+                          <option value={30 * 60 * 1000}>30 Minutos</option>
+                          <option value={60 * 60 * 1000}>1 Hora</option>
+                          <option value={0}>Desativado (Sessão Infinita)</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                          <ChevronDown size={16} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notificações por E-mail */}
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500">
+                        <Mail size={18} />
+                      </div>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Resumos por E-mail
+                      </h3>
+                    </div>
+
+                    <div className="p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[32px] border border-emerald-100 dark:border-emerald-900/20 flex flex-col gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white">Resumo Financeiro Semanal</h4>
+                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
+                            Receba um balanço semanal de seus ganhos e despesas diretamente em seu email cadastrado.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setReceiveWeeklySummary(!receiveWeeklySummary)}
+                          className={cn(
+                            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none flex transition-all active:scale-95",
+                            receiveWeeklySummary ? "bg-emerald-600" : "bg-slate-200 dark:bg-slate-800"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out self-center",
+                              receiveWeeklySummary ? "translate-x-5" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      </div>
+
+                      {receiveWeeklySummary && (
+                        <div className="pt-3 border-t border-emerald-100/50 dark:border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                          <span className="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Serviço de Email Ativado
+                          </span>
+                          <button
+                            onClick={onTriggerWeeklySummaryNow}
+                            className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-md hover:shadow-emerald-500/25"
+                          >
+                            Disparar Resumo Agora
+                          </button>
+                        </div>
                       )}
-                    />
-                  </button>
-                </div>
-
-                {receiveWeeklySummary && (
-                  <div className="pt-3 border-t border-emerald-100/50 dark:border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <span className="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Serviço de Email Ativado
-                    </span>
-                    <button
-                      onClick={onTriggerWeeklySummaryNow}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-md hover:shadow-emerald-500/25"
-                    >
-                      Disparar Resumo Agora
-                    </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
+                </motion.div>
+              )}
 
-            {/* Backup & Dados */}
-            <div className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
-                  <Database size={18} />
-                </div>
-                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
-                  Backup & Dados
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Export Card */}
-                <div className="p-5 bg-blue-50/50 dark:bg-blue-900/10 rounded-[32px] border border-blue-100 dark:border-blue-900/20 flex flex-col justify-between">
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-500 rounded-xl text-white shadow-lg shadow-blue-500/10">
-                        <Download size={16} />
+              {localTab === 'data' && (
+                <motion.div
+                  key="data-tab"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-8"
+                >
+                  {/* Grupos de Transações */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-yellow-500/10 rounded-xl text-yellow-500">
+                        <LayoutGrid size={18} />
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black text-slate-900 dark:text-white">Exportar JSON</h4>
-                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight mt-0.5 leading-tight">
-                          Baixe todos os seus dados financeiros para controle pessoal.
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Organização & Grupos
+                      </h3>
+                    </div>
+
+                    <div className="p-5 bg-yellow-50/50 dark:bg-yellow-500/[0.03] rounded-[32px] border border-yellow-100 dark:border-yellow-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">Grupos de Transações</h4>
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
+                          Monitore eventos, reformas ou viagens de forma simplificada.
                         </p>
                       </div>
+
+                      <button
+                        onClick={() => {
+                          onClose();
+                          onOpenTransactionGroups();
+                        }}
+                        className="px-5 py-3 rounded-2xl bg-yellow-500 hover:bg-yellow-600 text-white font-black uppercase tracking-widest text-[10px] transition-all shadow-md hover:shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <LayoutGrid size={14} />
+                        Gerenciar Grupos
+                      </button>
                     </div>
                   </div>
 
-                  <button 
-                    onClick={onExportBackup}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Gera...
-                      </>
-                    ) : (
-                      <>
-                        <Download size={14} />
-                        Exportar Backup
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Import Card */}
-                <div className="p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[32px] border border-emerald-100 dark:border-emerald-900/20 flex flex-col justify-between">
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-emerald-505 rounded-xl text-white bg-emerald-500 shadow-lg shadow-emerald-500/10">
-                        <FileUp size={16} />
+                  {/* Backup & Dados */}
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
+                        <Database size={18} />
                       </div>
-                      <div>
-                        <h4 className="text-sm font-black text-slate-900 dark:text-white">Importar JSON</h4>
-                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight mt-0.5 leading-tight">
-                          Restaure contas, despesas, e categorias de um backup anterior.
-                        </p>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Segurança de Backup
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                      {/* Export Card */}
+                      <div className="p-5 bg-blue-50/50 dark:bg-blue-900/10 rounded-[32px] border border-blue-100 dark:border-blue-900/20 flex flex-col justify-between">
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-blue-500 rounded-xl text-white shadow-lg shadow-blue-500/10">
+                              <Download size={16} />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-black text-slate-900 dark:text-white">Exportar JSON</h4>
+                              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight mt-0.5 leading-tight">
+                                Baixe todos os seus dados financeiros para controle pessoal.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={onExportBackup}
+                          disabled={isLoading}
+                          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50"
+                        >
+                          {isLoading ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Gera...
+                            </>
+                          ) : (
+                            <>
+                              <Download size={14} />
+                              Exportar Backup
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Import Card */}
+                      <div className="p-5 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[32px] border border-emerald-100 dark:border-emerald-900/20 flex flex-col justify-between">
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-emerald-500 rounded-xl text-white shadow-lg shadow-emerald-500/10">
+                              <FileUp size={16} />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-black text-slate-900 dark:text-white">Importar JSON</h4>
+                              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight mt-0.5 leading-tight">
+                                Restaure suas contas de um arquivo gerado anteriormente.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <label 
+                          className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg cursor-pointer text-center active:scale-95"
+                        >
+                          <FileUp size={14} />
+                          Importar Backup
+                          <input type="file" accept=".json" onChange={onImportBackup} className="hidden" />
+                        </label>
                       </div>
                     </div>
+
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex gap-3">
+                      <ShieldAlert size={16} className="text-amber-500 shrink-0" />
+                      <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase leading-snug tracking-tighter">
+                        Este arquivo contém dados sensíveis. Mantenha em local seguro. O backup inclui contas, transações, categorias e agendamentos.
+                      </p>
+                    </div>
                   </div>
-
-                  <label 
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg cursor-pointer text-center active:scale-95"
-                  >
-                    <FileUp size={14} />
-                    Importar Backup
-                    <input type="file" accept=".json" onChange={onImportBackup} className="hidden" />
-                  </label>
-                </div>
-              </div>
-
-              <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex gap-3">
-                <ShieldAlert size={16} className="text-amber-500 shrink-0" />
-                <p className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase leading-snug tracking-tighter">
-                  Este arquivo contém dados sensíveis. Mantenha em local seguro. O backup inclui contas, transações, categorias e agendamentos.
-                </p>
-              </div>
-            </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
       </motion.div>
@@ -4567,22 +4738,13 @@ export default function App() {
               {isPrivacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
             
-            {/* Transaction Groups */}
+            {/* Settings */}
             <button 
-              onClick={() => setIsTransactionGroupModalOpen(true)} 
+              onClick={() => setIsSettingsModalOpen(true)} 
               className="p-2 bg-slate-100 dark:bg-white/5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5"
-              title="Grupos de Transações"
+              title="Configurações"
             >
-              <LayoutGrid size={16} />
-            </button>
-
-            {/* Dark Mode */}
-            <button 
-              onClick={() => setIsDarkMode(!isDarkMode)} 
-              className="p-2 bg-slate-100 dark:bg-white/5 rounded-xl text-slate-600 dark:text-slate-400 hover:text-cyan-500 transition-all active:scale-95 border border-slate-200 dark:border-white/5"
-              title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
-            >
-              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+              <Sliders size={16} />
             </button>
 
             {/* Notifications */}
@@ -4679,20 +4841,10 @@ export default function App() {
               )}>
                 {isPrivacyMode ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
-              <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95">
-                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-              </button>
 
-              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95 group relative">
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95 group relative" title="Configurações">
                 <Sliders size={20} className="group-hover:rotate-180 transition-transform duration-500" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-500 rounded-full border-2 border-white dark:border-slate-950 shadow-sm" />
-              </button>
-              <button 
-                onClick={() => setIsTransactionGroupModalOpen(true)} 
-                className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow-md transition-all active:scale-95"
-                title="Grupos de Transações"
-              >
-                <LayoutGrid size={20} />
               </button>
             </div>
           </header>
@@ -9381,6 +9533,9 @@ export default function App() {
             receiveWeeklySummary={receiveWeeklySummary}
             setReceiveWeeklySummary={setReceiveWeeklySummary}
             onTriggerWeeklySummaryNow={() => handleTriggerWeeklySummary(true)}
+            isDarkMode={isDarkMode}
+            setIsDarkMode={setIsDarkMode}
+            onOpenTransactionGroups={() => setIsTransactionGroupModalOpen(true)}
           />
         )}
       </AnimatePresence>
