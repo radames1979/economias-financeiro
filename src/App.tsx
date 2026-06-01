@@ -174,6 +174,12 @@ import { parseExcelFile, downloadExcelTemplate } from './services/excelImportSer
 import { ACCOUNT_IMPORT_DATA, ImportAccount } from './services/accountImportData';
 import { processRecurringTransactions } from './services/recurringTransactionService';
 import { Transaction, Account, Category, TransactionType, AccountType, RecurringTransaction, Frequency, TransactionGroup } from './types';
+import { 
+  checkAndTriggerDueReminders, 
+  requestNotificationPermission, 
+  isNotificationSupported 
+} from './services/notificationService';
+import { registerFCMToken } from './services/fcm';
 
 // --- Constants & Types ---
 
@@ -1114,7 +1120,12 @@ const SettingsModal = ({
   onTriggerWeeklySummaryNow,
   isDarkMode,
   setIsDarkMode,
-  onOpenTransactionGroups
+  onOpenTransactionGroups,
+  isNotificationsEnabled,
+  onToggleNotifications,
+  notificationDaysBefore,
+  onSetNotificationDaysBefore,
+  fcmToken
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -1132,7 +1143,12 @@ const SettingsModal = ({
   onTriggerWeeklySummaryNow: () => void,
   isDarkMode: boolean,
   setIsDarkMode: (v: boolean) => void,
-  onOpenTransactionGroups: () => void
+  onOpenTransactionGroups: () => void,
+  isNotificationsEnabled: boolean,
+  onToggleNotifications: () => void,
+  notificationDaysBefore: number,
+  onSetNotificationDaysBefore: (v: number) => void,
+  fcmToken: string | null
 }) => {
   const [localTab, setLocalTab] = useState<'appearance' | 'security' | 'data'>('appearance');
 
@@ -1497,6 +1513,84 @@ const SettingsModal = ({
                       )}
                     </div>
                   </div>
+
+                  {/* Notificações do Sistema e Push */}
+                  <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
+                        <Bell size={18} />
+                      </div>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em]">
+                        Notificações de Alertas
+                      </h3>
+                    </div>
+
+                    <div className="p-5 bg-blue-50/50 dark:bg-white/5 rounded-[32px] border border-blue-100 dark:border-blue-900/20 flex flex-col gap-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            Notificações Ativas & Push (PWA)
+                          </h4>
+                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight leading-tight">
+                            Receba alertas visuais diretamente no seu dispositivo sobre contas a vencer e transações críticas.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={onToggleNotifications}
+                          className={cn(
+                            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none flex transition-all active:scale-95",
+                            isNotificationsEnabled ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-800"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out self-center",
+                              isNotificationsEnabled ? "translate-x-5" : "translate-x-0"
+                            )}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-100 dark:border-white/5 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                            Antecedência dos Alertas:
+                          </label>
+                          <span className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase bg-blue-100/60 dark:bg-blue-950/40 px-2 py-0.5 rounded-md">
+                            {notificationDaysBefore === 0 ? 'No dia do vencimento' : `${notificationDaysBefore} dias antes`}
+                          </span>
+                        </div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight leading-none">
+                          Escolha quantos dias antes do vencimento você quer ser avisado sobre despesas e agendamentos pendentes.
+                        </p>
+                        <div className="flex items-center gap-3 pt-1">
+                          <input
+                            type="range"
+                            min="0"
+                            max="7"
+                            step="1"
+                            value={notificationDaysBefore}
+                            onChange={(e) => onSetNotificationDaysBefore(parseInt(e.target.value, 10))}
+                            className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+                          <div className="flex justify-between text-[10px] font-bold text-slate-400 w-12 text-right">
+                            {notificationDaysBefore}d
+                          </div>
+                        </div>
+                      </div>
+
+                      {fcmToken && (
+                        <div className="pt-3 border-t border-blue-100/55 dark:border-white/5 flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                          <span className="text-[8px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">
+                            Push Token Registrado e Vinculado ao Perfil
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </motion.div>
               )}
 
@@ -1646,6 +1740,10 @@ export default function App() {
     sessionTimeout?: number;
     receiveWeeklySummary?: boolean;
     lastWeeklySummarySentAt?: string;
+    isNotificationsEnabled?: boolean;
+    notificationDaysBefore?: number;
+    fcmToken?: string | null;
+    pushEnabled?: boolean;
   } | null>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'categories' | 'reports' | 'recurring'>(() => {
@@ -1804,6 +1902,16 @@ export default function App() {
   });
   const [isTransactionGroupModalOpen, setIsTransactionGroupModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isNotificationsEnabled, setIsNotificationsEnabled] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return localStorage.getItem('notification_permission_granted') === 'true' && Notification.permission === 'granted';
+    }
+    return false;
+  });
+  const [notificationDaysBefore, setNotificationDaysBefore] = useState<number>(() => {
+    return Number(localStorage.getItem('notificationDaysBefore') || '3');
+  });
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     if (saved !== null) return saved === 'true';
@@ -2065,7 +2173,11 @@ export default function App() {
             displayDensity,
             sessionTimeout,
             receiveWeeklySummary: false,
-            lastWeeklySummarySentAt: null
+            lastWeeklySummarySentAt: null,
+            isNotificationsEnabled,
+            notificationDaysBefore,
+            fcmToken: null,
+            pushEnabled: false
           }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
           });
@@ -2074,7 +2186,7 @@ export default function App() {
       setLoading(false);
     });
     return unsubscribe;
-  }, [isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout]);
+  }, [isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout, isNotificationsEnabled, notificationDaysBefore]);
 
   useEffect(() => {
     if (!user) {
@@ -2108,12 +2220,21 @@ export default function App() {
         if (data.savingsGoal !== undefined && data.savingsGoal !== savingsGoal) {
           setSavingsGoal(data.savingsGoal);
         }
+        if (data.isNotificationsEnabled !== undefined && data.isNotificationsEnabled !== isNotificationsEnabled) {
+          setIsNotificationsEnabled(data.isNotificationsEnabled);
+        }
+        if (data.notificationDaysBefore !== undefined && data.notificationDaysBefore !== notificationDaysBefore) {
+          setNotificationDaysBefore(data.notificationDaysBefore);
+        }
+        if (data.fcmToken !== undefined && data.fcmToken !== fcmToken) {
+          setFcmToken(data.fcmToken);
+        }
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
     return unsub;
-  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout, receiveWeeklySummary, savingsGoal]);
+  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout, receiveWeeklySummary, savingsGoal, isNotificationsEnabled, notificationDaysBefore, fcmToken]);
 
   useEffect(() => {
     localStorage.setItem('savingsGoal', savingsGoal.toString());
@@ -2126,6 +2247,47 @@ export default function App() {
         await updateDoc(doc(db, 'users', user.uid), { savingsGoal: val });
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('notificationDaysBefore', notificationDaysBefore.toString());
+    if (user && profile && profile.notificationDaysBefore !== notificationDaysBefore) {
+      updateDoc(doc(db, 'users', user.uid), { notificationDaysBefore }).catch(() => {});
+    }
+  }, [notificationDaysBefore, user, profile]);
+
+  useEffect(() => {
+    localStorage.setItem('notification_permission_granted', isNotificationsEnabled.toString());
+    if (user && profile && profile.isNotificationsEnabled !== isNotificationsEnabled) {
+      updateDoc(doc(db, 'users', user.uid), { isNotificationsEnabled }).catch(() => {});
+    }
+  }, [isNotificationsEnabled, user, profile]);
+
+  useEffect(() => {
+    if (user && isNotificationsEnabled) {
+      registerFCMToken(user.uid).then(token => {
+        if (token) setFcmToken(token);
+      }).catch(err => console.log('FCM automatic check deferred:', err));
+    }
+  }, [user, isNotificationsEnabled]);
+
+  const handleToggleNotifications = async () => {
+    if (isNotificationsEnabled) {
+      setIsNotificationsEnabled(false);
+      if (user) {
+        await updateDoc(doc(db, 'users', user.uid), { isNotificationsEnabled: false }).catch(() => {});
+      }
+    } else {
+      const granted = await requestNotificationPermission();
+      setIsNotificationsEnabled(granted);
+      if (granted && user) {
+        await updateDoc(doc(db, 'users', user.uid), { isNotificationsEnabled: true }).catch(() => {});
+        const token = await registerFCMToken(user.uid);
+        if (token) {
+          setFcmToken(token);
+        }
       }
     }
   };
@@ -2351,6 +2513,13 @@ export default function App() {
       processRecurringTransactions(user.uid, recurringTransactions);
     }
   }, [user?.uid, recurringTransactions]);
+
+  // Trigger system notifications for bills due in the upcoming days
+  useEffect(() => {
+    if (isNotificationsEnabled && (recurringTransactions.length > 0 || transactions.length > 0)) {
+      checkAndTriggerDueReminders(recurringTransactions, transactions, notificationDaysBefore);
+    }
+  }, [isNotificationsEnabled, recurringTransactions, transactions, notificationDaysBefore]);
 
   const notifications = useMemo(() => {
     const alerts: Notification[] = [];
@@ -9536,6 +9705,11 @@ export default function App() {
             isDarkMode={isDarkMode}
             setIsDarkMode={setIsDarkMode}
             onOpenTransactionGroups={() => setIsTransactionGroupModalOpen(true)}
+            isNotificationsEnabled={isNotificationsEnabled}
+            onToggleNotifications={handleToggleNotifications}
+            notificationDaysBefore={notificationDaysBefore}
+            onSetNotificationDaysBefore={setNotificationDaysBefore}
+            fcmToken={fcmToken}
           />
         )}
       </AnimatePresence>

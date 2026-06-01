@@ -10,7 +10,12 @@
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "savingsGoal": { "type": "number", "description": "User's financial/savings goal target amount" }
+        "savingsGoal": { "type": "number", "description": "User's financial/savings goal target amount" },
+        "isNotificationsEnabled": { "type": "boolean", "description": "Whether system browser notifications are enabled" },
+        "notificationDaysBefore": { "type": "number", "description": "Number of days before bills/reminders are due to alert the user" },
+        "fcmToken": { "type": "string", "description": "Firebase Cloud Messaging client push token" },
+        "fcmRegisteredAt": { "type": "string", "format": "date-time", "description": "UTC timestamp of token registration" },
+        "pushEnabled": { "type": "boolean", "description": "Whether push notifications are registered and active" }
       },
       "required": ["uid", "email"]
     },
