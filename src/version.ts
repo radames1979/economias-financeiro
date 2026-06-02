@@ -1,6 +1,25 @@
-export const APP_VERSION = "1.5.1";
+export const APP_VERSION = "1.6.1";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.6.1",
+    date: "2026-06-02",
+    changes: [
+      "Adicionado componente de 'Acesso Rápido' inteligente no Dashboard com os 3 tipos de transações mais utilizados para lançamentos instantâneos",
+      "Reorganização da navegação inferior móvel, priorizando o acesso direto à aba de 'Contas' no lugar de Análises",
+      "Correção de layout no modal de 'Notificações e Alertas' para suportar as margens seguras (safe-area-inset) no iOS, saneando o conflito com a bateria e o notch"
+    ]
+  },
+  {
+    version: "1.6.0",
+    date: "2026-06-02",
+    changes: [
+      "Consolidação completa do formulário de transações reunindo anexação de comprovantes e observações em um único portal robusto",
+      "Correção de contraste crítico em campos de texto no visual Dark Mode (resolvendo texto branco sobre fundo branco)",
+      "Estabilização do slider de antecedência de alertas, corrigindo a vibração/flickering infinito no dashboard via isolamento de dependências no Firestore",
+      "Fluidez no ativador de notificações push PWA, mitigando o travamento ao alternar o seletor quando permissões nativas estão bloqueadas"
+    ]
+  },
   {
     version: "1.5.1",
     date: "2026-05-16",

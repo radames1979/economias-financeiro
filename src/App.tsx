@@ -2025,11 +2025,20 @@ export default function App() {
   const [isEditTransactionModalOpen, setIsEditTransactionModalOpen] = useState(false);
   const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
   const [defaultAccountIdForModal, setDefaultAccountIdForModal] = useState<string>('');
+  const [addTxDescription, setAddTxDescription] = useState('');
+  const [addTxCategoryId, setAddTxCategoryId] = useState('');
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
   const [transactionViewMode, setTransactionViewMode] = useState<'list' | 'table'>('list');
   const [isPaid, setIsPaid] = useState(false);
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [shouldRemoveAttachment, setShouldRemoveAttachment] = useState(false);
+
+  useEffect(() => {
+    if (!isAddTransactionModalOpen) {
+      setAddTxDescription('');
+      setAddTxCategoryId('');
+    }
+  }, [isAddTransactionModalOpen]);
 
   useEffect(() => {
     if (transactionToEdit) {
@@ -2998,6 +3007,79 @@ export default function App() {
 
   const totalIncome = useMemo(() => dashboardTransactions.filter(t => t.type === 'income').reduce((acc, curr) => acc + curr.amount, 0), [dashboardTransactions]);
   const totalExpense = useMemo(() => dashboardTransactions.filter(t => t.type === 'expense').reduce((acc, curr) => acc + curr.amount, 0), [dashboardTransactions]);
+
+  const quickAccessPresets = useMemo(() => {
+    const counts: Record<string, {
+      count: number;
+      type: TransactionType;
+      costCenterId: string;
+      categoryId: string;
+      description: string;
+      accountId: string;
+    }> = {};
+
+    transactions.forEach(t => {
+      const key = `${t.type}_${t.costCenterId || ''}_${t.categoryId || ''}_${t.description || ''}`;
+      if (!counts[key]) {
+        counts[key] = {
+          count: 0,
+          type: t.type,
+          costCenterId: t.costCenterId || '',
+          categoryId: t.categoryId || '',
+          description: t.description || '',
+          accountId: t.accountId || '',
+        };
+      }
+      counts[key].count += 1;
+    });
+
+    const sorted = Object.values(counts).sort((a, b) => b.count - a.count);
+    const presets = sorted.slice(0, 3);
+
+    const defaults = [
+      {
+        type: 'expense' as TransactionType,
+        costCenterId: '',
+        categoryId: '',
+        description: 'Supermercado',
+        accountId: accounts[0]?.id || '',
+        count: 0
+      },
+      {
+        type: 'expense' as TransactionType,
+        costCenterId: '',
+        categoryId: '',
+        description: 'Lanche / Café',
+        accountId: accounts[0]?.id || '',
+        count: 0
+      },
+      {
+        type: 'income' as TransactionType,
+        costCenterId: '',
+        categoryId: '',
+        description: 'Pix Recebido',
+        accountId: accounts[0]?.id || '',
+        count: 0
+      }
+    ];
+
+    for (const d of defaults) {
+      if (presets.length >= 3) break;
+      const exists = presets.some(p => p.type === d.type && p.description.toLowerCase() === d.description.toLowerCase());
+      if (!exists) {
+        presets.push({
+          type: d.type,
+          costCenterId: d.costCenterId,
+          categoryId: d.categoryId,
+          description: d.description,
+          accountId: d.accountId,
+          count: 0
+        });
+      }
+    }
+
+    return presets;
+  }, [transactions, accounts]);
 
   const chartData = useMemo(() => {
     // Show the last 7 days of the selected period
@@ -5186,6 +5268,93 @@ export default function App() {
                   ))}
                 </div>
               )}
+
+              {/* Componente de Acesso Rápido */}
+              <div className={cn(
+                "p-5 rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 shadow-sm space-y-4",
+                displayDensity === 'super-compact' ? 'p-3' : 
+                displayDensity === 'compact' ? 'p-4' : 'p-5 md:p-6'
+              )}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                    </span>
+                    <h3 className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] leading-none">
+                      Acesso Rápido
+                    </h3>
+                  </div>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">
+                    Lançamento Instantâneo
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {quickAccessPresets.map((preset, idx) => {
+                    const costCenter = categories.find(c => c.id === preset.costCenterId);
+                    const category = categories.find(c => c.id === preset.categoryId);
+                    const account = accounts.find(a => a.id === preset.accountId);
+
+                    const isExpense = preset.type === 'expense';
+                    const isIncome = preset.type === 'income';
+                    const isTransfer = preset.type === 'transfer';
+
+                    const accentClass = isIncome 
+                      ? "border-emerald-500/10 hover:border-emerald-500/30 bg-emerald-500/[0.02] hover:bg-emerald-500/[0.05] dark:bg-emerald-500/[0.02]" 
+                      : isTransfer
+                      ? "border-cyan-500/10 hover:border-cyan-500/30 bg-cyan-500/[0.02] hover:bg-cyan-500/[0.05] dark:bg-cyan-500/[0.02]"
+                      : "border-rose-500/10 hover:border-rose-500/30 bg-rose-500/[0.02] hover:bg-rose-500/[0.05] dark:bg-rose-500/[0.02]";
+
+                    return (
+                      <motion.button
+                        key={`quick-add-${idx}-${preset.description}`}
+                        whileHover={{ scale: 1.01, y: -1 }}
+                        whileTap={{ scale: 0.99 }}
+                        onClick={() => {
+                          setTransactionType(preset.type);
+                          setSelectedCostCenterId(preset.costCenterId || '');
+                          setAddTxCategoryId(preset.categoryId || '');
+                          setAddTxDescription(preset.description || '');
+                          setDefaultAccountIdForModal(preset.accountId || accounts[0]?.id || '');
+                          setAmountValue('');
+                          setIsPaid(false);
+                          setIsAddTransactionModalOpen(true);
+                        }}
+                        className={cn(
+                          "group flex items-center justify-between p-3 rounded-2xl border text-left transition-all backdrop-blur-md cursor-pointer",
+                          accentClass
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={cn(
+                            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs",
+                            isIncome ? "bg-emerald-500/10 text-emerald-500" :
+                            isTransfer ? "bg-cyan-500/10 text-cyan-500" :
+                            "bg-rose-500/10 text-rose-500"
+                          )}>
+                            {isTransfer ? <ArrowRightLeft size={16} /> : <CategoryIcon iconName={category?.icon || costCenter?.icon || findBestIcon(preset.description)} size={16} />}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-xs font-extrabold truncate text-slate-800 dark:text-slate-200">
+                              {preset.description}
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 truncate uppercase tracking-widest mt-0.5">
+                              {isTransfer ? 'Transferência' : (category?.name || costCenter?.name || (preset.type === 'income' ? 'Receita' : 'Despesa'))}
+                              {account ? ` • ${account.name}` : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 p-1 bg-white/80 dark:bg-slate-800 border border-slate-200/50 dark:border-white/5 rounded-lg shadow-xs group-hover:text-cyan-500 group-hover:border-cyan-500/30 transition-all text-slate-400">
+                          <Plus size={12} />
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
 
               <div className={cn(
                 "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4",
@@ -8143,7 +8312,15 @@ export default function App() {
 
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-bold text-slate-500 ml-1">Descrição</label>
-                      <input name="description" type="text" placeholder="Descrição" className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" required />
+                      <input 
+                        name="description" 
+                        type="text" 
+                        placeholder="Descrição" 
+                        value={addTxDescription}
+                        onChange={(e) => setAddTxDescription(e.target.value)}
+                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                        required 
+                      />
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -8174,6 +8351,8 @@ export default function App() {
                           <label className="text-xs font-bold text-slate-500 ml-1">Categoria</label>
                           <select 
                             name="categoryId" 
+                            value={addTxCategoryId}
+                            onChange={(e) => setAddTxCategoryId(e.target.value)}
                             className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" 
                             required
                             disabled={!selectedCostCenterId}
@@ -9320,7 +9499,7 @@ export default function App() {
         <nav className="relative flex justify-around items-center px-4 pt-3 pb-[calc(0.7rem+env(safe-area-inset-bottom))]">
           <MobileNavItem icon={LayoutDashboard} active={activeTab === 'dashboard'} label="Painel" onClick={() => handleTabChange('dashboard')} />
           <MobileNavItem icon={ArrowUpCircle} active={activeTab === 'transactions'} label="Extrato" onClick={() => handleTabChange('transactions')} />
-          <MobileNavItem icon={PieChartIcon} active={activeTab === 'reports'} label="Análises" onClick={() => handleTabChange('reports')} />
+          <MobileNavItem icon={CreditCard} active={activeTab === 'accounts'} label="Contas" onClick={() => handleTabChange('accounts')} />
           <MobileNavItem 
             icon={Menu} 
             active={isMobileMenuOpen} 
@@ -9636,7 +9815,7 @@ export default function App() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-[#0d1527] border-l border-slate-200 dark:border-white/5 shadow-2xl z-[160] flex flex-col pt-safe-top pb-safe-bottom"
+              className="fixed inset-y-0 right-0 w-full max-w-md bg-white dark:bg-[#0d1527] border-l border-slate-200 dark:border-white/5 shadow-2xl z-[160] flex flex-col pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
             >
               {/* Drawer Header */}
               <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between shrink-0">
@@ -9732,7 +9911,7 @@ export default function App() {
                     )}
 
                     {/* List of Alerts */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {notifications.length === 0 ? (
                         <div className="py-12 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-4 text-center">
                           <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
@@ -9748,57 +9927,78 @@ export default function App() {
                           <div 
                             key={n.id} 
                             className={cn(
-                              "p-4 rounded-2xl border flex flex-col gap-2 transition-all hover:scale-[1.01] relative group",
-                              n.type === 'danger' ? "bg-rose-50/60 dark:bg-rose-500/5 border-rose-100 dark:border-rose-500/10" :
-                              n.type === 'warning' ? "bg-amber-50/60 dark:bg-amber-500/5 border-amber-100 dark:border-amber-500/10" :
-                              "bg-cyan-50/60 dark:bg-cyan-500/5 border-cyan-100 dark:border-cyan-500/10"
+                              "p-3 rounded-xl border-t border-r border-b border-l-4 flex gap-3 transition-all hover:translate-x-0.5 relative group items-start shadow-sm",
+                              n.type === 'danger' 
+                                ? "bg-rose-50/70 dark:bg-rose-500/5 border-slate-200/60 dark:border-white/5 border-l-rose-500 text-slate-900 dark:text-slate-200" 
+                                : n.type === 'warning' 
+                                ? "bg-amber-50/70 dark:bg-amber-500/5 border-slate-200/60 dark:border-white/5 border-l-amber-500 text-slate-900 dark:text-slate-200" 
+                                : "bg-blue-50/70 dark:bg-blue-500/5 border-slate-200/60 dark:border-white/5 border-l-blue-500 text-slate-900 dark:text-slate-200"
                             )}
                           >
+                            {/* Left Icon Panel */}
+                            <div className={cn(
+                              "p-2 rounded-lg shrink-0 mt-0.5",
+                              n.type === 'danger' ? "bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400" :
+                              n.type === 'warning' ? "bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400" :
+                              "bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                            )}>
+                              {n.type === 'danger' ? <AlertCircle size={15} /> :
+                               n.type === 'warning' ? <Zap size={15} /> :
+                               <Clock size={15} />}
+                            </div>
+
+                            {/* Middle Details Panel */}
+                            <div className="flex-1 min-w-0 pr-4">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={cn(
+                                  "text-[9px] font-black uppercase tracking-widest",
+                                  n.type === 'danger' ? "text-rose-700 dark:text-rose-400" :
+                                  n.type === 'warning' ? "text-amber-700 dark:text-amber-400" :
+                                  "text-blue-700 dark:text-blue-400"
+                                )}>
+                                  {n.title}
+                                </span>
+                                
+                                {n.categoryId && (
+                                  <span className="text-[8px] bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                    Orçamento
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 mt-1 leading-normal">
+                                {n.message}
+                              </p>
+
+                              <div className="flex items-center gap-3 mt-1.5 pt-1.5 border-t border-slate-200/40 dark:border-white/5">
+                                {n.categoryId && (
+                                  <button 
+                                    onClick={() => {
+                                      setCategoryToEdit(categories.find(c => c.id === n.categoryId) || null);
+                                      setIsEditCategoryModalOpen(true);
+                                      setIsNotificationsOpen(false);
+                                    }}
+                                    className="text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center gap-1"
+                                  >
+                                    Ajustar Orçamento &rarr;
+                                  </button>
+                                )}
+                                {n.date && (
+                                  <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 ml-auto uppercase tracking-wider">
+                                    Prazo: {formatDate(n.date)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Right Action Close Button */}
                             <button 
                               onClick={() => handleDismissNotification(n.id)}
-                              className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg"
-                              title="Ignorar"
+                              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 hover:bg-slate-200/50 dark:hover:bg-white/10 rounded-lg transition-colors absolute top-2.5 right-2.5"
+                              title="Ignorar Alerta"
                             >
                               <X size={12} />
                             </button>
-
-                            <div className="flex items-center gap-2">
-                              {n.type === 'danger' ? <AlertCircle size={16} className="text-rose-500" /> :
-                               n.type === 'warning' ? <Zap size={16} className="text-amber-500" /> :
-                               <Clock size={16} className="text-cyan-500" />}
-                              <span className={cn(
-                                "text-[10px] font-black uppercase tracking-widest",
-                                n.type === 'danger' ? "text-rose-600 dark:text-rose-400" :
-                                n.type === 'warning' ? "text-amber-600 dark:text-amber-400" :
-                                "text-cyan-600 dark:text-cyan-400"
-                              )}>
-                                {n.title}
-                              </span>
-                            </div>
-                            
-                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-relaxed pr-6">
-                              {n.message}
-                            </p>
-
-                            <div className="flex items-center gap-3 mt-1">
-                              {n.categoryId && (
-                                <button 
-                                  onClick={() => {
-                                    setCategoryToEdit(categories.find(c => c.id === n.categoryId) || null);
-                                    setIsEditCategoryModalOpen(true);
-                                    setIsNotificationsOpen(false);
-                                  }}
-                                  className="text-[9px] font-black uppercase tracking-widest text-cyan-600 hover:text-cyan-500 transition-colors"
-                                >
-                                  Ajustar Orçamento
-                                </button>
-                              )}
-                              {n.date && (
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 ml-auto uppercase tracking-wider">
-                                  Prazo: {formatDate(n.date)}
-                                </span>
-                              )}
-                            </div>
                           </div>
                         ))
                       )}
