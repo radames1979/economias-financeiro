@@ -1903,10 +1903,7 @@ export default function App() {
   const [isTransactionGroupModalOpen, setIsTransactionGroupModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState<boolean>(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      return localStorage.getItem('notification_permission_granted') === 'true' && Notification.permission === 'granted';
-    }
-    return false;
+    return localStorage.getItem('notification_permission_granted') === 'true';
   });
   const [notificationDaysBefore, setNotificationDaysBefore] = useState<number>(() => {
     return Number(localStorage.getItem('notificationDaysBefore') || '3');
@@ -2050,7 +2047,6 @@ export default function App() {
   const [selectedAccountForProjection, setSelectedAccountForProjection] = useState<string | null>(null);
 
   // Dashboard Date State
-  const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
   const [dashboardDate, setDashboardDate] = useState(new Date());
   const [dashboardPeriod, setDashboardPeriod] = useState<'month' | 'year'>('month');
   
@@ -2199,34 +2195,34 @@ export default function App() {
         setProfile(data as any);
 
         // Sync cloud settings to local state only if they differ
-        if (data.isDarkMode !== undefined && data.isDarkMode !== isDarkMode) {
+        if (data.isDarkMode !== undefined) {
           setIsDarkMode(data.isDarkMode);
         }
-         if (data.isHighContrast !== undefined && data.isHighContrast !== isHighContrast) {
+        if (data.isHighContrast !== undefined) {
           setIsHighContrast(data.isHighContrast);
         }
-        if (data.isPrivacyMode !== undefined && data.isPrivacyMode !== isPrivacyMode) {
+        if (data.isPrivacyMode !== undefined) {
           setIsPrivacyMode(data.isPrivacyMode);
         }
-        if (data.displayDensity !== undefined && data.displayDensity !== displayDensity) {
+        if (data.displayDensity !== undefined) {
           setDisplayDensity(data.displayDensity as DensityType);
         }
-        if (data.sessionTimeout !== undefined && data.sessionTimeout !== sessionTimeout) {
+        if (data.sessionTimeout !== undefined) {
           setSessionTimeout(data.sessionTimeout);
         }
-        if (data.receiveWeeklySummary !== undefined && data.receiveWeeklySummary !== receiveWeeklySummary) {
+        if (data.receiveWeeklySummary !== undefined) {
           setReceiveWeeklySummary(data.receiveWeeklySummary);
         }
-        if (data.savingsGoal !== undefined && data.savingsGoal !== savingsGoal) {
+        if (data.savingsGoal !== undefined) {
           setSavingsGoal(data.savingsGoal);
         }
-        if (data.isNotificationsEnabled !== undefined && data.isNotificationsEnabled !== isNotificationsEnabled) {
+        if (data.isNotificationsEnabled !== undefined) {
           setIsNotificationsEnabled(data.isNotificationsEnabled);
         }
-        if (data.notificationDaysBefore !== undefined && data.notificationDaysBefore !== notificationDaysBefore) {
+        if (data.notificationDaysBefore !== undefined) {
           setNotificationDaysBefore(data.notificationDaysBefore);
         }
-        if (data.fcmToken !== undefined && data.fcmToken !== fcmToken) {
+        if (data.fcmToken !== undefined) {
           setFcmToken(data.fcmToken);
         }
       }
@@ -2234,7 +2230,7 @@ export default function App() {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
     return unsub;
-  }, [user, isDarkMode, isHighContrast, isPrivacyMode, displayDensity, sessionTimeout, receiveWeeklySummary, savingsGoal, isNotificationsEnabled, notificationDaysBefore, fcmToken]);
+  }, [user?.uid]);
 
   useEffect(() => {
     localStorage.setItem('savingsGoal', savingsGoal.toString());
@@ -2280,14 +2276,21 @@ export default function App() {
         await updateDoc(doc(db, 'users', user.uid), { isNotificationsEnabled: false }).catch(() => {});
       }
     } else {
-      const granted = await requestNotificationPermission();
-      setIsNotificationsEnabled(granted);
-      if (granted && user) {
+      setIsNotificationsEnabled(true);
+      if (user) {
         await updateDoc(doc(db, 'users', user.uid), { isNotificationsEnabled: true }).catch(() => {});
-        const token = await registerFCMToken(user.uid);
-        if (token) {
-          setFcmToken(token);
+      }
+      
+      try {
+        const granted = await requestNotificationPermission();
+        if (granted && user) {
+          const token = await registerFCMToken(user.uid);
+          if (token) {
+            setFcmToken(token);
+          }
         }
+      } catch (err) {
+        console.log('Solicitação de notificação nativa postergada:', err);
       }
     }
   };
@@ -2296,7 +2299,7 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
-        setIsQuickAddModalOpen(true);
+        setIsAddTransactionModalOpen(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -8227,6 +8230,40 @@ export default function App() {
                       </div>
                     )}
 
+                    <div className="flex flex-col gap-1 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-500 ml-1">Observações (Opcional)</label>
+                      <textarea 
+                        name="notes" 
+                        placeholder="Adicione informações adicionais..." 
+                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none min-h-[70px] resize-none"
+                      ></textarea>
+                    </div>
+
+                    <div className="flex flex-col gap-1 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-500 ml-1">Comprovante (Opcional)</label>
+                      <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900 border-dashed">
+                        <input 
+                          type="file" 
+                          accept="image/*,application/pdf"
+                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="consolidated-file-upload"
+                        />
+                        <label 
+                          htmlFor="consolidated-file-upload"
+                          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-xs font-black uppercase tracking-wider"
+                        >
+                          <Paperclip size={14} />
+                          {selectedFile ? 'Alterar Arquivo' : 'Anexar Comprovante'}
+                        </label>
+                        {selectedFile && (
+                          <span className="text-xs text-slate-500 truncate max-w-[200px] font-medium">
+                            {selectedFile.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-4 p-3 md:col-span-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -9100,252 +9137,9 @@ export default function App() {
             </div>
           )}
 
-          {/* Quick Add Modal */}
-          {isQuickAddModalOpen && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[150]">
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
-              >
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Lançamento Rápido</h2>
-                  <button onClick={() => setIsQuickAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                    <X size={24} />
-                  </button>
-                </div>
-
-                <form onSubmit={async (e) => {
-                  await handleAddTransaction(e);
-                  setIsQuickAddModalOpen(false);
-                }} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 ml-1">Tipo</label>
-                    <select 
-                      name="type" 
-                      value={transactionType}
-                      onChange={(e) => setTransactionType(e.target.value as TransactionType)}
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                      required
-                    >
-                      <option value="expense">Despesa</option>
-                      <option value="income">Receita</option>
-                      <option value="transfer">Transferência</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 ml-1">Valor</label>
-                    <div className="relative flex gap-2">
-                      <input 
-                        name="amount" 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0,00" 
-                        value={amountValue}
-                        onChange={(e) => setAmountValue(e.target.value)}
-                        className="flex-1 p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                        required 
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          setCalcValue(amountValue || '0');
-                          setActiveCalcField('amount');
-                          setIsCalculatorOpen(true);
-                        }}
-                        className="p-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                        title="Calculadora"
-                      >
-                        <Calculator size={20} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 ml-1">Descrição</label>
-                    <input 
-                      name="description" 
-                      type="text" 
-                      placeholder="Ex: Aluguel, Salário..." 
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                      required 
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 ml-1">Observações (Opcional)</label>
-                    <textarea 
-                      name="notes" 
-                      placeholder="Adicione informações adicionais..." 
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none min-h-[80px] resize-none"
-                    ></textarea>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 ml-1">Data</label>
-                    <input 
-                      name="date" 
-                      type="date" 
-                      defaultValue={format(new Date(), 'yyyy-MM-dd')}
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                      required 
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-500 ml-1">Conta {transactionType === 'transfer' ? 'Origem' : ''}</label>
-                    <select 
-                      name="accountId" 
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                      required
-                    >
-                      <option value="">Selecione a Conta</option>
-                      {accounts.map((a, idx) => <option key={`recurring-edit-acc-opt-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
-                    </select>
-                  </div>
-
-                  {transactionType === 'transfer' ? (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-slate-500 ml-1">Conta Destino</label>
-                      <select 
-                        name="toAccountId" 
-                        className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                        required
-                      >
-                        <option value="">Selecione a Conta Destino</option>
-                        {accounts.map((a, idx) => <option key={`recurring-edit-to-acc-opt-${a.id || idx}-${idx}`} value={a.id}>{a.name}</option>)}
-                      </select>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 ml-1">Centro de Custo</label>
-                        <select 
-                          name="costCenterId" 
-                          value={selectedCostCenterId}
-                          onChange={(e) => setSelectedCostCenterId(e.target.value)}
-                          className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                          required
-                        >
-                          <option value="">Selecione o Centro de Custo</option>
-                          {categories
-                            .filter(c => !c.parentId && c.type === transactionType)
-                            .map((c, idx) => <option key={`quick-add-tr-cc-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
-                          }
-                        </select>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 ml-1">Categoria</label>
-                        <select 
-                          name="categoryId" 
-                          className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" 
-                          required
-                          disabled={!selectedCostCenterId}
-                        >
-                          <option value="">Selecione a Categoria</option>
-                          {categories
-                            .filter(c => c.parentId === selectedCostCenterId)
-                            .map((c, idx) => <option key={`quick-add-tr-cat-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>)
-                          }
-                        </select>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="flex flex-col gap-1 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 ml-1">Comprovante (Opcional)</label>
-                    <div className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 dark:border-slate-700 dark:bg-slate-900">
-                      <input 
-                        type="file" 
-                        accept="image/*,application/pdf"
-                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                        className="hidden"
-                        id="quick-file-upload"
-                      />
-                      <label 
-                        htmlFor="quick-file-upload"
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm font-bold"
-                      >
-                        <Paperclip size={16} />
-                        {selectedFile ? 'Alterar Arquivo' : 'Anexar Comprovante'}
-                      </label>
-                      {selectedFile && (
-                        <span className="text-xs text-slate-500 truncate max-w-[200px]">
-                          {selectedFile.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-4 p-3 md:col-span-2 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <input 
-                          name="consolidated" 
-                          type="checkbox" 
-                          id="quick-consolidated" 
-                          defaultChecked 
-                          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
-                        />
-                        <label htmlFor="quick-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300">Consolidado</label>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <input 
-                          name="paid" 
-                          type="checkbox" 
-                          id="quick-paid" 
-                          className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
-                          checked={isPaid}
-                          onChange={(e) => setIsPaid(e.target.checked)}
-                        />
-                        <label htmlFor="quick-paid" className="text-sm font-bold text-slate-700 dark:text-slate-300">Marcado como Pago</label>
-                      </div>
-                    </div>
-
-                    {isPaid && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="flex flex-col gap-1 pt-2 border-t border-slate-200 dark:border-slate-700"
-                      >
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
-                        <input 
-                          name="paymentDate" 
-                          type="date" 
-                          value={paymentDate}
-                          onChange={(e) => setPaymentDate(e.target.value)}
-                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm" 
-                          required={isPaid}
-                        />
-                      </motion.div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-4 pt-4 md:col-span-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsQuickAddModalOpen(false)}
-                      className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 dark:shadow-none"
-                    >
-                      Lançar Transação
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            </div>
-          )}
-
           {/* Floating Action Button */}
           <button
-            onClick={() => setIsQuickAddModalOpen(true)}
+            onClick={() => setIsAddTransactionModalOpen(true)}
             className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-blue-700 hover:scale-110 active:scale-95 transition-all z-50 group"
             title="Novo Lançamento (Alt + N)"
           >
