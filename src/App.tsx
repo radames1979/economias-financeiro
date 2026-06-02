@@ -5463,36 +5463,56 @@ export default function App() {
 
                   <Card title="Portfólio" className="flex-1 overflow-hidden relative" density={displayDensity}>
                     <div className="space-y-4 relative z-10">
-                      {accounts.slice(0, 4).map((account, idx) => (
-                        <motion.div 
-                          key={`dashboard-account-${account.id || idx}`} 
-                          whileHover={{ x: 4, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,1)' }}
-                          className="flex items-center gap-4 p-4 rounded-3xl bg-white/40 dark:bg-slate-900/40 border border-transparent hover:border-white/10 cursor-pointer transition-all duration-300"
-                          onClick={() => {
-                            setSelectedAccountForDetails(account);
-                            setIsAccountDetailsVisible(true);
-                          }}
-                        >
-                          <div className={cn(
-                            "w-10 h-10 rounded-[15px] flex items-center justify-center shadow-sm transition-transform duration-500",
-                            account.type === 'checking' ? "bg-blue-500 text-white" :
-                            account.type === 'savings' ? "bg-emerald-500 text-white" :
-                            account.type === 'investment' ? "bg-indigo-500 text-white" :
-                            "bg-slate-500 text-white"
-                          )}>
-                            <CreditCard size={18} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{account.name}</p>
-                            <p className={cn(
-                              "text-xs font-mono font-black tracking-tighter mt-0.5",
-                              account.balance < 0 ? "text-rose-500" : "text-emerald-500"
+                      {accounts.slice(0, 4).map((account, idx) => {
+                        const isNegative = account.balance < 0;
+                        return (
+                          <motion.div 
+                            key={`dashboard-account-${account.id || idx}`} 
+                            whileHover={{ x: 4, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,1)' }}
+                            className={cn(
+                              "flex items-center gap-4 p-4 rounded-3xl bg-white/40 dark:bg-slate-900/40 border cursor-pointer transition-all duration-300",
+                              isNegative 
+                                ? "border-rose-500/30 dark:border-rose-500/20 shadow-[0_0_12px_rgba(244,63,94,0.02)] bg-rose-50/20 dark:bg-rose-950/10" 
+                                : "border-transparent hover:border-white/10"
+                            )}
+                            onClick={() => {
+                              setSelectedAccountForDetails(account);
+                              setIsAccountDetailsVisible(true);
+                            }}
+                          >
+                            <div className={cn(
+                              "w-10 h-10 rounded-[15px] flex items-center justify-center shadow-sm transition-transform duration-500 relative",
+                              account.type === 'checking' ? "bg-blue-500 text-white" :
+                              account.type === 'savings' ? "bg-emerald-500 text-white" :
+                              account.type === 'investment' ? "bg-indigo-500 text-white" :
+                              "bg-slate-500 text-white"
                             )}>
-                              {formatCurrencyWithPrivacy(account.balance)}
-                            </p>
-                          </div>
-                        </motion.div>
-                      ))}
+                              <CreditCard size={18} />
+                              {isNegative && (
+                                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white shadow-md animate-pulse">
+                                  <AlertCircle size={10} strokeWidth={3} />
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-black text-slate-900 dark:text-white truncate uppercase tracking-tight flex items-center gap-1.5">
+                                {account.name}
+                                {isNegative && (
+                                  <span className="text-rose-500 inline-flex shrink-0 animate-bounce" title="Saldo negativo!">
+                                    <AlertCircle size={14} />
+                                  </span>
+                                )}
+                              </p>
+                              <p className={cn(
+                                "text-xs font-mono font-black tracking-tighter mt-0.5",
+                                isNegative ? "text-rose-500" : "text-emerald-500"
+                              )}>
+                                {formatCurrencyWithPrivacy(account.balance)}
+                              </p>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                       {accounts.length > 4 && (
                         <button onClick={() => setActiveTab('accounts')} className="w-full py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-cyan-500 transition-colors">
                           Ver mais {accounts.length - 4} ativos

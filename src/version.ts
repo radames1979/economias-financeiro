@@ -1,6 +1,13 @@
-export const APP_VERSION = "1.6.1";
+export const APP_VERSION = "1.6.2";
 
 export const VERSION_HISTORY = [
+  {
+    version: "1.6.2",
+    date: "2026-06-02",
+    changes: [
+      "Adicionado indicador visual (ícone de alerta) e borda de aviso sutil nos cartões com saldos negativos no componente de Portfólio"
+    ]
+  },
   {
     version: "1.6.1",
     date: "2026-06-02",
