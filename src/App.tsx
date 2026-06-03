@@ -2037,6 +2037,8 @@ export default function App() {
     if (!isAddTransactionModalOpen) {
       setAddTxDescription('');
       setAddTxCategoryId('');
+    } else {
+      setIsPaid(true);
     }
   }, [isAddTransactionModalOpen]);
 
@@ -3282,13 +3284,17 @@ export default function App() {
     const toAccountId = formData.get('toAccountId') as string;
     const notes = formData.get('notes') as string;
     const consolidated = formData.get('consolidated') === 'on';
-    const paid = formData.get('paid') === 'on';
-    const paymentDate = formData.get('paymentDate') as string;
+    const paid = consolidated;
     const priority = (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium';
 
     if (type === 'transfer' && accountId === toAccountId) {
       alert('A conta de origem e destino não podem ser a mesma.');
       return;
+    }
+
+    let finalDate = date;
+    if (consolidated) {
+      finalDate = format(new Date(), 'yyyy-MM-dd');
     }
 
     confirmAction({
@@ -3421,7 +3427,7 @@ export default function App() {
           amount,
           description,
           notes,
-          date,
+          date: finalDate,
           accountId,
           consolidated,
           paid,
@@ -3429,8 +3435,8 @@ export default function App() {
           updatedAt: serverTimestamp()
         };
 
-        if (paid && paymentDate) {
-          updatedData.paymentDate = paymentDate;
+        if (paid) {
+          updatedData.paymentDate = finalDate;
         } else {
           updatedData.paymentDate = deleteField();
         }
@@ -3559,13 +3565,17 @@ export default function App() {
     const toAccountId = formData.get('toAccountId') as string;
     const notes = formData.get('notes') as string;
     const consolidated = formData.get('consolidated') === 'on';
-    const paid = formData.get('paid') === 'on';
-    const paymentDate = formData.get('paymentDate') as string;
+    const paid = consolidated;
     const priority = (formData.get('priority') as 'low' | 'medium' | 'high') || 'medium';
 
     if (type === 'transfer' && accountId === toAccountId) {
       alert('A conta de origem e destino não podem ser a mesma.');
       return;
+    }
+
+    let finalDate = date;
+    if (consolidated) {
+      finalDate = format(new Date(), 'yyyy-MM-dd');
     }
 
     let attachment = null;
@@ -3591,7 +3601,7 @@ export default function App() {
           amount,
           description,
           notes,
-          date,
+          date: finalDate,
           accountId,
           userId: user.uid,
           createdAt: serverTimestamp(),
@@ -3600,8 +3610,8 @@ export default function App() {
           priority,
         };
 
-        if (paid && paymentDate) {
-          data.paymentDate = paymentDate;
+        if (paid) {
+          data.paymentDate = finalDate;
         }
 
         if (attachment) {
@@ -3837,7 +3847,21 @@ export default function App() {
           }
         }
 
-        transaction.update(transRef, { consolidated: newConsolidated, updatedAt: serverTimestamp() });
+        const updatePayload: any = { 
+          consolidated: newConsolidated, 
+          paid: newConsolidated,
+          updatedAt: serverTimestamp() 
+        };
+        
+        if (newConsolidated) {
+          const todayStr = format(new Date(), 'yyyy-MM-dd');
+          updatePayload.date = todayStr;
+          updatePayload.paymentDate = todayStr;
+        } else {
+          updatePayload.paymentDate = deleteField();
+        }
+
+        transaction.update(transRef, updatePayload);
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/transactions/${t.id}`);
@@ -3911,7 +3935,13 @@ export default function App() {
                 });
               }
             }
-            transaction.update(transRef, { consolidated: true, updatedAt: serverTimestamp() });
+            transaction.update(transRef, { 
+              consolidated: true, 
+              paid: true, 
+              date: format(new Date(), 'yyyy-MM-dd'),
+              paymentDate: format(new Date(), 'yyyy-MM-dd'),
+              updatedAt: serverTimestamp() 
+            });
           });
           successCount++;
         } catch (error) {
@@ -7066,9 +7096,9 @@ export default function App() {
                       Detectamos <span className="font-bold text-rose-500">{savingsRecommendations.length} categorias</span> com consumo acima do padrão histórico nos últimos 3 meses. Reduzir custos nestas categorias trará o maior impacto financeiro no seu saldo:
                     </p>
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                      {savingsRecommendations.map((rec) => (
+                      {savingsRecommendations.map((rec, idx) => (
                         <div 
-                          key={`savings-rec-${rec.categoryId}`} 
+                          key={`savings-rec-${rec.categoryId || idx}-${idx}`} 
                           className="flex flex-col justify-between p-5 rounded-3xl border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/40 hover:border-slate-200 dark:hover:border-white/10 transition-all shadow-sm"
                         >
                           <div>
@@ -8463,53 +8493,30 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-4 p-3 md:col-span-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <input 
-                            name="consolidated" 
-                            type="checkbox" 
-                            id="modal-consolidated" 
-                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            defaultChecked
-                          />
-                          <label htmlFor="modal-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
-                            Consolidado
-                          </label>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <input 
-                            name="paid" 
-                            type="checkbox" 
-                            tabIndex={0}
-                            id="modal-paid" 
-                            className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                            checked={isPaid}
-                            onChange={(e) => setIsPaid(e.target.checked)}
-                          />
-                          <label htmlFor="modal-paid" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
-                            Marcado como Pago
-                          </label>
-                        </div>
+                    <div className="flex flex-col gap-4 p-3.5 md:col-span-2 bg-emerald-50/30 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/35">
+                      <div className="flex items-center gap-2.5">
+                        <input 
+                          name="consolidated" 
+                          type="checkbox" 
+                          id="modal-consolidated" 
+                          className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          checked={isPaid}
+                          onChange={(e) => setIsPaid(e.target.checked)}
+                        />
+                        <label htmlFor="modal-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                          Lançamento Pago / Recebido (Consolidado)
+                        </label>
                       </div>
 
                       {isPaid && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="flex flex-col gap-1 pt-2 border-t border-slate-200 dark:border-slate-700"
-                        >
-                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
-                          <input 
-                            name="paymentDate" 
-                            type="date" 
-                            value={paymentDate}
-                            onChange={(e) => setPaymentDate(e.target.value)}
-                            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm" 
-                            required={isPaid} 
-                          />
-                        </motion.div>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium ml-7">
+                          ✓ O saldo da conta será atualizado imediatamente considerando a data atual (do momento do pagamento).
+                        </p>
+                      )}
+                      {!isPaid && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium ml-7">
+                          ⚠ Este lançamento ficará como pendente/agendado e não atualizará o saldo da conta até ser consolidado.
+                        </p>
                       )}
                     </div>
 
@@ -8837,8 +8844,8 @@ export default function App() {
                       className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                       <option value="">Nenhum (Será um Centro de Custo)</option>
-                      {categories.filter(c => !c.parentId && c.id !== categoryToEdit.id).map(c => (
-                        <option key={`edit-cat-parent-opt-${c.id}`} value={c.id}>{c.name}</option>
+                      {categories.filter(c => !c.parentId && c.id !== categoryToEdit.id).map((c, idx) => (
+                        <option key={`edit-cat-parent-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -8929,8 +8936,8 @@ export default function App() {
                       className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
                     >
                       <option value="">Nenhum (Será um Centro de Custo)</option>
-                      {categories.filter(c => !c.parentId && c.type === transactionType).map(c => (
-                        <option key={`quick-add-parent-opt-${c.id}`} value={c.id}>{c.name}</option>
+                      {categories.filter(c => !c.parentId && c.type === transactionType).map((c, idx) => (
+                        <option key={`quick-add-parent-opt-${c.id || idx}-${idx}`} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
@@ -9010,7 +9017,7 @@ export default function App() {
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Conta {transactionType === 'transfer' ? 'Origem' : ''}</label>
                     <select name="accountId" defaultValue={transactionToEdit.accountId} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required>
                       <option value="">Selecione a Conta</option>
-                      {accounts.map(acc => <option key={`edit-tx-acc-from-opt-${acc.id}`} value={acc.id}>{acc.name}</option>)}
+                      {accounts.map((acc, idx) => <option key={`edit-tx-acc-from-opt-${acc.id || idx}-${idx}`} value={acc.id}>{acc.name}</option>)}
                     </select>
                   </div>
 
@@ -9019,7 +9026,7 @@ export default function App() {
                       <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Conta Destino</label>
                       <select name="toAccountId" defaultValue={transactionToEdit.toAccountId || ''} className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required>
                         <option value="">Selecione a Conta Destino</option>
-                        {accounts.map(acc => <option key={`edit-tx-acc-to-opt-${acc.id}`} value={acc.id}>{acc.name}</option>)}
+                        {accounts.map((acc, idx) => <option key={`edit-tx-acc-to-opt-${acc.id || idx}-${idx}`} value={acc.id}>{acc.name}</option>)}
                       </select>
                     </div>
                   )}
@@ -9086,48 +9093,30 @@ export default function App() {
                     </>
                   )}
 
-                  <div className="flex flex-col gap-4 p-3 md:col-span-2 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <input 
-                          name="consolidated" 
-                          type="checkbox" 
-                          id="edit-consolidated" 
-                          defaultChecked={transactionToEdit.consolidated}
-                          className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
-                        />
-                        <label htmlFor="edit-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300">Consolidado</label>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <input 
-                          name="paid" 
-                          type="checkbox" 
-                          id="edit-paid" 
-                          className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" 
-                          checked={isPaid}
-                          onChange={(e) => setIsPaid(e.target.checked)}
-                        />
-                        <label htmlFor="edit-paid" className="text-sm font-bold text-slate-700 dark:text-slate-300">Marcado como Pago</label>
-                      </div>
+                  <div className="flex flex-col gap-4 p-3.5 md:col-span-2 bg-emerald-50/30 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100 dark:border-emerald-900/35">
+                    <div className="flex items-center gap-2.5">
+                      <input 
+                        name="consolidated" 
+                        type="checkbox" 
+                        id="edit-consolidated" 
+                        className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        checked={isPaid}
+                        onChange={(e) => setIsPaid(e.target.checked)}
+                      />
+                      <label htmlFor="edit-consolidated" className="text-sm font-bold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                        Lançamento Pago / Recebido (Consolidado)
+                      </label>
                     </div>
 
                     {isPaid && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="flex flex-col gap-1 pt-2 border-t border-slate-200 dark:border-slate-700"
-                      >
-                        <label className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Data do Pagamento / Recebimento</label>
-                        <input 
-                          name="paymentDate" 
-                          type="date" 
-                          value={paymentDate}
-                          onChange={(e) => setPaymentDate(e.target.value)}
-                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 text-sm" 
-                          required={isPaid}
-                        />
-                      </motion.div>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium ml-7">
+                        ✓ O saldo da conta será atualizado imediatamente considerando a data atual (do momento do pagamento).
+                      </p>
+                    )}
+                    {!isPaid && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium ml-7">
+                        ⚠ Este lançamento ficará como pendente/agendado e não atualizará o saldo da conta até ser consolidado.
+                      </p>
                     )}
                   </div>
 
@@ -10087,7 +10076,7 @@ export default function App() {
                         <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-loose">
                           Histórico de resumos gerados pelo serviço Conta Raiz no Firebase Firestore:
                         </p>
-                        {sentEmails.map((email) => {
+                        {sentEmails.map((email, idx) => {
                           const formattedDate = new Date(email.sentAt).toLocaleString('pt-BR', {
                             day: '2-digit',
                             month: '2-digit',
@@ -10097,7 +10086,7 @@ export default function App() {
                           });
                           return (
                             <button
-                              key={email.id}
+                              key={`sent-email-${email.id || idx}-${idx}`}
                               onClick={() => setSelectedEmailToView(email)}
                               className="w-full text-left p-5 rounded-[26px] border border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-[#152033] hover:border-emerald-300 dark:hover:border-emerald-500/30 transition-all flex flex-col gap-2.5 group relative overflow-hidden active:scale-[0.99]"
                             >
