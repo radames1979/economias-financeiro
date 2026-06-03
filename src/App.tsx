@@ -656,29 +656,21 @@ const TransactionCard = ({
             </div>
           )}
           <div className="flex justify-end items-center gap-2 mt-1">
-            {t.paid && (
-              <span className={cn(
-                "font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center gap-1",
-                d.textBadge
-              )}>
-                <ShieldCheck size={d.badgeIconSize} />
-                Pago
-              </span>
-            )}
             <button 
               onClick={() => onToggleConsolidation(t)}
               className={cn(
-                "font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-all flex items-center gap-1",
+                "font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-all flex items-center gap-1 border shadow-sm",
                 d.textBadge,
                 t.consolidated 
-                  ? "text-blue-500/60 bg-blue-500/5 shadow-sm" 
-                  : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 shadow-sm"
+                  ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-900/50" 
+                  : "bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-900/50"
               )}
+              title={t.consolidated ? "Marcar como Pendente" : "Marcar como Pago"}
             >
               {t.consolidated ? (
                 <>
-                  <Check size={d.badgeIconSize} />
-                  Efetivado
+                  <ShieldCheck size={d.badgeIconSize} />
+                  Pago
                 </>
               ) : (
                 <>
@@ -6062,11 +6054,11 @@ export default function App() {
                       name="consolidated" 
                       type="checkbox" 
                       id="consolidated" 
-                      className="w-5 h-5 rounded border-slate-200 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded border-slate-200 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                       defaultChecked
                     />
-                    <label htmlFor="consolidated" className="text-sm font-bold text-slate-600 cursor-pointer">
-                      Consolidado (Afeta saldo atual)
+                    <label htmlFor="consolidated" className="text-sm font-bold text-slate-600 dark:text-slate-330 cursor-pointer select-none">
+                      Lançamento Pago / Recebido (Afeta saldo)
                     </label>
                   </div>
 
@@ -6262,19 +6254,19 @@ export default function App() {
                                 </span>
                               </div>
                             </div>
-                            <div className="w-32">
+                             <div className="w-32">
                               <button 
                                 onClick={() => handleToggleConsolidation(t)}
                                 className={cn(
-                                  "flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full transition-colors",
+                                  "flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full transition-colors",
                                   t.consolidated 
-                                    ? "bg-emerald-100 text-emerald-700" 
-                                    : "bg-amber-100 text-amber-700"
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" 
+                                    : "bg-amber-100 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400"
                                 )}
-                                title={t.consolidated ? "Consolidado" : "Pendente"}
+                                title={t.consolidated ? "Marcar como Pendente" : "Marcar como Pago"}
                               >
-                                {t.consolidated ? <RefreshCw size={10} /> : <Calendar size={10} />}
-                                {t.consolidated ? "CONSOLIDADO" : "PENDENTE"}
+                                {t.consolidated ? <ShieldCheck size={10} /> : <Clock size={10} className="animate-pulse" />}
+                                {t.consolidated ? "PAGO" : "AGENDADO"}
                               </button>
                             </div>
                             <div className="w-32 flex flex-col items-end justify-center font-bold">
@@ -6481,22 +6473,21 @@ export default function App() {
                           </td>
                           <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
                             <div className="flex flex-col gap-1 items-center">
-                              <div className="flex items-center gap-1">
+                              <button 
+                                onClick={() => handleToggleConsolidation(t)} 
+                                className="focus:outline-none"
+                                title={t.consolidated ? "Marcar como Pendente" : "Marcar como Pago"}
+                              >
                                 {t.consolidated ? (
-                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">
-                                    <Check size={8} strokeWidth={4} /> Efetivado
+                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded cursor-pointer hover:scale-105 active:scale-95 transition-transform">
+                                    <ShieldCheck size={8} strokeWidth={4} /> Pago
                                   </span>
                                 ) : (
-                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                                  <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded cursor-pointer hover:scale-105 active:scale-95 transition-transform">
                                     <Clock size={8} strokeWidth={4} className="animate-pulse" /> Agendado
                                   </span>
                                 )}
-                              </div>
-                              {t.paid && (
-                                <span className="flex items-center gap-0.5 text-[8px] font-black uppercase tracking-tighter text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                  <ShieldCheck size={8} strokeWidth={4} /> Pago
-                                </span>
-                              )}
+                              </button>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-right border-b border-slate-100 dark:border-white/5">
