@@ -128,6 +128,7 @@ import {
   Scissors,
   Mail,
   Target,
+  Code,
 } from 'lucide-react';
 import { ptBR } from 'date-fns/locale';
 import { GroupedVirtuoso, TableVirtuoso } from 'react-virtuoso';
@@ -2099,8 +2100,13 @@ export default function App() {
       try {
         await getDocFromServer(doc(db, 'test', 'connection'));
       } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
+        if (error instanceof Error) {
+          const msg = error.message.toLowerCase();
+          if (msg.includes('offline') || msg.includes('unavailable') || msg.includes('could not reach cloud firestore')) {
+            console.warn("Firestore está operando em modo offline ou reestabelecendo conexão.");
+          } else {
+            console.error("Erro na verificação de conexão Firestore:", error.message);
+          }
         }
       }
     }
@@ -4960,14 +4966,16 @@ export default function App() {
             </div>
             
             {!sidebarCollapsed && (
-              <div className="px-4 flex items-center justify-between">
-                <span 
-                  onClick={() => setIsVersionHistoryOpen(true)}
-                  className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em] cursor-pointer hover:text-cyan-500 transition-colors"
-                >
-                  v{APP_VERSION}
-                </span>
-                <span className="text-[9px] font-medium text-slate-300 dark:text-slate-700">© 2026 Conta Raiz</span>
+              <div className="px-4 flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span 
+                    onClick={() => setIsVersionHistoryOpen(true)}
+                    className="text-[9px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em] cursor-pointer hover:text-cyan-500 transition-colors"
+                  >
+                    v{APP_VERSION}
+                  </span>
+                  <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500">Dev: Radamés</span>
+                </div>
               </div>
             )}
           </div>
@@ -8283,6 +8291,45 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Rodapé com Atribuição e Créditos do Desenvolvedor */}
+        <footer className="mt-16 pt-8 border-t border-slate-200/80 dark:border-white/5 flex flex-col md:flex-row items-center justify-between gap-6 pb-6 text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-black text-sm border border-cyan-500/20 shadow-sm shrink-0">
+              <Code size={18} />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                Conta Raiz • Créditos do Desenvolvedor
+              </p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Desenvolvedor & Programador: <strong className="text-slate-900 dark:text-white font-bold">Radamés</strong>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <a 
+              href="https://wa.me/5547992126402" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40 rounded-xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all active:scale-95 shadow-sm"
+              title="Abrir conversa no WhatsApp"
+            >
+              <Phone size={14} className="text-emerald-600 dark:text-emerald-400" />
+              <span>WhatsApp: (47) 99212-6402</span>
+            </a>
+
+            <a 
+              href="mailto:messi@bol.com.br"
+              className="flex items-center gap-2 px-3.5 py-2 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40 rounded-xl text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all active:scale-95 shadow-sm"
+              title="Enviar e-mail para o desenvolvedor"
+            >
+              <Mail size={14} className="text-blue-600 dark:text-blue-400" />
+              <span>E-mail: messi@bol.com.br</span>
+            </a>
+          </div>
+        </footer>
 
         {/* Add Transaction Modal */}
         <AnimatePresence>
