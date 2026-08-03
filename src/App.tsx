@@ -2104,6 +2104,8 @@ export default function App() {
           const msg = error.message.toLowerCase();
           if (msg.includes('offline') || msg.includes('unavailable') || msg.includes('could not reach cloud firestore')) {
             console.warn("Firestore está operando em modo offline ou reestabelecendo conexão.");
+          } else if (msg.includes('permission') || msg.includes('insufficient')) {
+            console.warn("Verificação de conexão Firestore concluída (regras ativas).");
           } else {
             console.error("Erro na verificação de conexão Firestore:", error.message);
           }
