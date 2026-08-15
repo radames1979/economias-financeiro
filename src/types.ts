@@ -53,6 +53,7 @@ export interface Account {
   includeInNetWorth?: boolean;
   currency?: string;
   exchangeRate?: number;
+  hidden?: boolean;
 }
 
 export interface Category {

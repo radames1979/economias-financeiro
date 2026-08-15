@@ -506,7 +506,8 @@ const TransactionCard = ({
   onToggleConsolidation, 
   formatCurrency, 
   density = 'normal',
-  monthlyTotalsMap
+  monthlyTotalsMap,
+  currentAccountId
 }: { 
   t: Transaction, 
   accounts: Account[], 
@@ -516,12 +517,19 @@ const TransactionCard = ({
   onToggleConsolidation: (t: Transaction) => void, 
   formatCurrency: (v: number, currency?: string) => string, 
   density?: DensityType,
-  monthlyTotalsMap?: Record<string, { income: number; expense: number }>
+  monthlyTotalsMap?: Record<string, { income: number; expense: number }>,
+  currentAccountId?: string
 }) => {
   const category = categories.find(c => c.id === (t.categoryId || t.costCenterId));
   const account = accounts.find(a => a.id === t.accountId);
   const toAccount = t.type === 'transfer' ? accounts.find(a => a.id === t.toAccountId) : null;
   const d = DISPLAY_DENSITIES[density];
+
+  const isTransfer = t.type === 'transfer';
+  const isIncomingTransfer = isTransfer && currentAccountId && t.toAccountId === currentAccountId;
+  const isOutgoingTransfer = isTransfer && currentAccountId && t.accountId === currentAccountId;
+  const isEffectiveIncome = t.type === 'income' || isIncomingTransfer;
+  const isEffectiveExpense = t.type === 'expense' || isOutgoingTransfer;
   
   const getPercentage = () => {
     if (!monthlyTotalsMap || (t.type !== 'income' && t.type !== 'expense')) return null;
@@ -593,8 +601,8 @@ const TransactionCard = ({
         <div className={cn(
           "flex items-center justify-center transition-all duration-500 group-hover:rotate-12",
           d.iconWrapper,
-          t.type === 'income' ? "bg-emerald-500/10 text-emerald-500" : 
-          t.type === 'expense' ? "bg-rose-500/10 text-rose-500" : 
+          isEffectiveIncome ? "bg-emerald-500/10 text-emerald-500" : 
+          isEffectiveExpense ? "bg-rose-500/10 text-rose-500" : 
           "bg-cyan-500/10 text-cyan-500"
         )}>
           {t.type === 'transfer' ? <ArrowRightLeft size={d.iconSize} /> : <CategoryIcon iconName={category?.icon || ''} size={d.iconSize} />}
@@ -611,7 +619,19 @@ const TransactionCard = ({
             {t.attachmentUrl && <Paperclip size={12} className="text-slate-400" />}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={cn("font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full", d.textCategory)}>{account?.name || '---'}</span>
+            {isIncomingTransfer ? (
+              <span className={cn("font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/40 dark:border-emerald-800/40", d.textCategory)}>
+                De: {account?.name || 'Conta'}
+              </span>
+            ) : isOutgoingTransfer ? (
+              <span className={cn("font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-full border border-rose-200/40 dark:border-rose-800/40", d.textCategory)}>
+                Para: {toAccount?.name || 'Conta'}
+              </span>
+            ) : (
+              <span className={cn("font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full", d.textCategory)}>
+                {isTransfer ? `${account?.name || '---'} → ${toAccount?.name || '---'}` : (account?.name || '---')}
+              </span>
+            )}
             {category?.name && <span className={cn("font-bold text-slate-400 dark:text-slate-600 truncate", d.textCategory)}>{category.name}</span>}
             {(() => {
               const priority = t.priority || 'medium';
@@ -632,11 +652,19 @@ const TransactionCard = ({
           <div className={cn(
             "font-mono font-black tracking-tight",
             d.textAmount,
-            t.type === 'income' ? "text-emerald-500" : 
-            t.type === 'expense' ? "text-rose-500" : 
+            isEffectiveIncome ? "text-emerald-500" : 
+            isEffectiveExpense ? "text-rose-500" : 
             "text-cyan-500"
           )}>
-            {t.type === 'transfer' ? (
+            {isIncomingTransfer ? (
+              <span className="text-emerald-500 font-bold">
+                +{formatCurrency(t.convertedAmount !== undefined && t.convertedAmount !== null ? t.convertedAmount : t.amount, toAccount?.currency || account?.currency || 'BRL')}
+              </span>
+            ) : isOutgoingTransfer ? (
+              <span className="text-rose-500 font-bold">
+                -{formatCurrency(t.amount, account?.currency || 'BRL')}
+              </span>
+            ) : t.type === 'transfer' ? (
               <span className="flex flex-col items-end">
                 <span className="text-xs text-slate-500 font-normal">
                   -{formatCurrency(t.amount, account?.currency || 'BRL')}
@@ -2065,21 +2093,75 @@ export default function App() {
   const [dashboardDrillDownCategory, setDashboardDrillDownCategory] = useState<string | null>(null);
   const [dashboardFilterMode, setDashboardFilterMode] = useState<'to-today' | 'full-month' | 'tomorrow'>('to-today');
 
+  // Account view & statement filters
+  const [accountFilterTab, setAccountFilterTab] = useState<'active' | 'hidden' | 'all'>('active');
+  const [accountDetailsPeriod, setAccountDetailsPeriod] = useState<'all' | 'month'>('all');
+  const [accountDetailsSearch, setAccountDetailsSearch] = useState('');
+  const [accountDetailsTypeFilter, setAccountDetailsTypeFilter] = useState<'all' | 'income' | 'expense' | 'transfer'>('all');
+
   const currentMonth = startOfMonth(dashboardDate);
 
-  // Filter transactions for selected account in current month
+  // Filter transactions for selected account (all movements or current month, with search and type filter)
   const accountTransactions = useMemo(() => {
     if (!selectedAccountForDetails) return [];
     
     return transactions
-      .filter(t => t.accountId === selectedAccountForDetails.id)
+      .filter(t => t.accountId === selectedAccountForDetails.id || t.toAccountId === selectedAccountForDetails.id)
       .filter(t => {
-        const tDate = new Date(t.date);
-        return tDate.getMonth() === currentMonth.getMonth() && 
-               tDate.getFullYear() === currentMonth.getFullYear();
+        if (accountDetailsPeriod === 'month') {
+          const tDate = parseISO(t.date);
+          return tDate.getMonth() === dashboardDate.getMonth() && 
+                 tDate.getFullYear() === dashboardDate.getFullYear();
+        }
+        return true;
+      })
+      .filter(t => {
+        if (accountDetailsTypeFilter === 'income') {
+          return t.type === 'income' || (t.type === 'transfer' && t.toAccountId === selectedAccountForDetails.id);
+        }
+        if (accountDetailsTypeFilter === 'expense') {
+          return t.type === 'expense' || (t.type === 'transfer' && t.accountId === selectedAccountForDetails.id);
+        }
+        if (accountDetailsTypeFilter === 'transfer') {
+          return t.type === 'transfer';
+        }
+        return true;
+      })
+      .filter(t => {
+        if (!accountDetailsSearch.trim()) return true;
+        const q = accountDetailsSearch.toLowerCase();
+        const cat = categories.find(c => c.id === (t.categoryId || t.costCenterId));
+        return (
+          (t.description && t.description.toLowerCase().includes(q)) ||
+          (t.notes && t.notes.toLowerCase().includes(q)) ||
+          (cat && cat.name.toLowerCase().includes(q)) ||
+          t.amount.toString().includes(q)
+        );
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [selectedAccountForDetails, transactions, currentMonth]);
+  }, [selectedAccountForDetails, transactions, accountDetailsPeriod, dashboardDate, accountDetailsTypeFilter, accountDetailsSearch, categories]);
+
+  const accountInflowTotal = useMemo(() => {
+    if (!selectedAccountForDetails) return 0;
+    return accountTransactions.reduce((acc, t) => {
+      if (t.type === 'income') return acc + t.amount;
+      if (t.type === 'transfer' && t.toAccountId === selectedAccountForDetails.id) {
+        return acc + (t.convertedAmount !== undefined && t.convertedAmount !== null ? t.convertedAmount : t.amount);
+      }
+      return acc;
+    }, 0);
+  }, [accountTransactions, selectedAccountForDetails]);
+
+  const accountOutflowTotal = useMemo(() => {
+    if (!selectedAccountForDetails) return 0;
+    return accountTransactions.reduce((acc, t) => {
+      if (t.type === 'expense') return acc + t.amount;
+      if (t.type === 'transfer' && t.accountId === selectedAccountForDetails.id) {
+        return acc + t.amount;
+      }
+      return acc;
+    }, 0);
+  }, [accountTransactions, selectedAccountForDetails]);
 
   // Reports State
   const [reportStartDate, setReportStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -4047,6 +4129,7 @@ export default function App() {
     const newExchangeRate = Number(formData.get('exchangeRate')) || 1;
     const newIncludeInMainBalance = formData.get('includeInMainBalance') !== 'false';
     const newIncludeInNetWorth = formData.get('includeInNetWorth') !== 'false';
+    const newHidden = formData.get('hidden') === 'true';
 
     confirmAction({
       title: 'Editar Conta',
@@ -4063,6 +4146,7 @@ export default function App() {
           exchangeRate: newExchangeRate,
           includeInMainBalance: newIncludeInMainBalance,
           includeInNetWorth: newIncludeInNetWorth,
+          hidden: newHidden,
           updatedAt: serverTimestamp()
         });
         setIsEditAccountModalOpen(false);
@@ -4071,6 +4155,18 @@ export default function App() {
         handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/accounts/${accountToEdit.id}`);
       }
     });
+  };
+
+  const handleToggleHideAccount = async (account: Account, hide: boolean) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, `users/${user.uid}/accounts`, account.id), {
+        hidden: hide,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/accounts/${account.id}`);
+    }
   };
 
   const filteredTransactions = useMemo(() => {
@@ -6571,8 +6667,55 @@ export default function App() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Gerenciar Contas</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Gerenciar Contas</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Visualize, edite ou oculte contas inativas e consulte extratos detalhados com todas as movimentações.
+                  </p>
+                </div>
+
+                {/* Filter Tabs: Ativas / Ocultas / Todas */}
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setAccountFilterTab('active')}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      accountFilterTab === 'active'
+                        ? "bg-white dark:bg-slate-700 text-cyan-600 dark:text-cyan-400 shadow-sm"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                    )}
+                  >
+                    <Eye size={14} />
+                    Ativas ({accounts.filter(a => !a.hidden).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountFilterTab('hidden')}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      accountFilterTab === 'hidden'
+                        ? "bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                    )}
+                  >
+                    <EyeOff size={14} />
+                    Ocultas ({accounts.filter(a => !!a.hidden).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountFilterTab('all')}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                      accountFilterTab === 'all'
+                        ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                        : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                    )}
+                  >
+                    Todas ({accounts.length})
+                  </button>
+                </div>
               </div>
 
               <Card title="Nova Conta" density={displayDensity}>
@@ -6653,7 +6796,13 @@ export default function App() {
                 animate="show"
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               >
-                {accounts.map((a, idx) => (
+                {accounts
+                  .filter(a => {
+                    if (accountFilterTab === 'active') return !a.hidden;
+                    if (accountFilterTab === 'hidden') return !!a.hidden;
+                    return true;
+                  })
+                  .map((a, idx) => (
                   <motion.div
                     key={`account-main-${a.id || idx}-${idx}`}
                     variants={{
@@ -6661,7 +6810,12 @@ export default function App() {
                       show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 15 } }
                     }}
                     whileHover={{ y: -6 }}
-                    className="group relative h-52 bg-slate-900 dark:bg-slate-800 rounded-[32px] p-6 shadow-2xl shadow-slate-200 dark:shadow-black overflow-hidden flex flex-col justify-between cursor-pointer"
+                    className={cn(
+                      "group relative h-56 rounded-[32px] p-6 shadow-2xl overflow-hidden flex flex-col justify-between cursor-pointer border transition-all",
+                      a.hidden 
+                        ? "bg-slate-950/90 dark:bg-slate-900/90 border-dashed border-amber-500/40 opacity-85 hover:opacity-100 shadow-slate-300 dark:shadow-black" 
+                        : "bg-slate-900 dark:bg-slate-800 border-transparent shadow-slate-200 dark:shadow-black"
+                    )}
                     onClick={() => {
                       setSelectedAccountForDetails(a);
                       setIsAccountDetailsVisible(true);
@@ -6671,17 +6825,40 @@ export default function App() {
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-emerald-500/10 blur-2xl rounded-full translate-y-1/2 -translate-x-1/2" />
                     
                     <div className="relative z-10 flex justify-between items-start">
-                      <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl">
-                        <CreditCard size={24} className="text-white" />
+                      <div className="flex items-center gap-2">
+                        <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl">
+                          <CreditCard size={24} className="text-white" />
+                        </div>
+                        {a.hidden && (
+                          <span className="flex items-center gap-1 text-[9px] font-black uppercase text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                            <EyeOff size={10} /> Oculta / Inativa
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleHideAccount(a, !a.hidden);
+                          }}
+                          className={cn(
+                            "p-2 rounded-xl transition-colors",
+                            a.hidden 
+                              ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/20" 
+                              : "text-white/40 hover:text-white hover:bg-white/10"
+                          )}
+                          title={a.hidden ? "Reexibir esta conta (tornar ativa)" : "Ocultar conta (marcar como inativa / sem uso)"}
+                        >
+                          {a.hidden ? <Eye size={16} /> : <EyeOff size={16} />}
+                        </button>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             setAccountToEdit(a);
                             setIsEditAccountModalOpen(true);
                           }}
-                          className="p-2 text-white/40 hover:text-white"
+                          className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+                          title="Editar Conta"
                         >
                           <Edit2 size={16} />
                         </button>
@@ -6701,7 +6878,8 @@ export default function App() {
                               }
                             });
                           }}
-                          className="p-2 text-white/40 hover:text-rose-400"
+                          className="p-2 text-white/40 hover:text-rose-400 hover:bg-rose-500/20 rounded-xl transition-colors"
+                          title="Excluir Conta"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -6719,7 +6897,7 @@ export default function App() {
                           </span>
                         )}
                       </div>
-                      <h3 className="text-xl font-bold text-white tracking-tight truncate mb-4">{a.name}</h3>
+                      <h3 className="text-xl font-bold text-white tracking-tight truncate mb-3">{a.name}</h3>
                       
                       <div className="flex items-end justify-between">
                         <div>
@@ -6742,6 +6920,24 @@ export default function App() {
                     </div>
                   </motion.div>
                 ))}
+
+                {accounts.filter(a => {
+                  if (accountFilterTab === 'active') return !a.hidden;
+                  if (accountFilterTab === 'hidden') return !!a.hidden;
+                  return true;
+                }).length === 0 && (
+                  <div className="col-span-full py-12 px-6 rounded-3xl bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 text-center">
+                    <EyeOff size={36} className="mx-auto mb-3 text-slate-400 opacity-50" />
+                    <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
+                      {accountFilterTab === 'hidden' ? 'Nenhuma conta oculta no momento' : 'Nenhuma conta encontrada'}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                      {accountFilterTab === 'hidden'
+                        ? 'Você pode ocultar contas inativas ou temporariamente sem uso clicando no ícone do olho nos cards de contas ativas.'
+                        : 'Cadastre suas contas bancárias, carteiras ou cartões no formulário acima.'}
+                    </p>
+                  </div>
+                )}
 
                 <motion.button 
                   variants={{
@@ -8816,6 +9012,18 @@ export default function App() {
                         <option value="false">Não (Excluir do Patrimônio)</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Status / Visibilidade da Conta</label>
+                      <select
+                        name="hidden"
+                        defaultValue={accountToEdit.hidden ? 'true' : 'false'}
+                        className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        required
+                      >
+                        <option value="false">Ativa (Visível nos cards e telas)</option>
+                        <option value="true">Oculta / Inativa (Ocultar card temporariamente)</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="flex gap-4 pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -9386,46 +9594,67 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAccountDetailsVisible(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[140]"
+              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[140]"
             />
             <motion.div 
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 top-12 lg:top-0 lg:left-auto lg:right-0 lg:w-[500px] bg-white dark:bg-slate-950 rounded-t-[40px] lg:rounded-l-[40px] lg:rounded-tr-none z-[150] shadow-2xl flex flex-col overflow-hidden pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+              className="fixed bottom-0 left-0 right-0 top-12 lg:top-0 lg:left-auto lg:right-0 lg:w-[540px] bg-white dark:bg-slate-950 rounded-t-[40px] lg:rounded-l-[40px] lg:rounded-tr-none z-[150] shadow-2xl flex flex-col overflow-hidden pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
             >
-              <div className="w-12 h-1 bg-slate-200 dark:bg-slate-800 rounded-full mx-auto mt-4 mb-4 lg:hidden" />
+              <div className="w-12 h-1 bg-slate-200 dark:bg-slate-800 rounded-full mx-auto mt-4 mb-3 lg:hidden" />
               
               {/* Header */}
-              <div className="px-6 pt-2 pb-6 border-b border-slate-100 dark:border-white/5 bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl">
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
-                      <CreditCard size={28} />
+              <div className="px-6 pt-2 pb-4 border-b border-slate-100 dark:border-white/5 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
+                      <CreditCard size={24} />
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
-                        {selectedAccountForDetails.name}
-                      </h3>
-                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                        Extrato Detalhado
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
+                          {selectedAccountForDetails.name}
+                        </h3>
+                        {selectedAccountForDetails.hidden && (
+                          <span className="flex items-center gap-1 text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            <EyeOff size={10} /> Oculta
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
+                        Extrato Completo da Conta
                       </p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setIsAccountDetailsVisible(false)}
-                    className="p-2.5 bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all active:scale-90"
-                  >
-                    <X size={20} />
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => handleToggleHideAccount(selectedAccountForDetails, !selectedAccountForDetails.hidden)}
+                      className={cn(
+                        "p-2.5 rounded-xl transition-all active:scale-90 text-xs font-bold flex items-center gap-1",
+                        selectedAccountForDetails.hidden
+                          ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+                          : "bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      )}
+                      title={selectedAccountForDetails.hidden ? "Reexibir Conta" : "Ocultar Conta"}
+                    >
+                      {selectedAccountForDetails.hidden ? <Eye size={18} /> : <EyeOff size={18} />}
+                    </button>
+                    <button 
+                      onClick={() => setIsAccountDetailsVisible(false)}
+                      className="p-2.5 bg-slate-100 dark:bg-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all active:scale-90"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-4 border border-slate-100 dark:border-white/5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-3.5 border border-slate-100 dark:border-white/5">
                     <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Saldo Atual</p>
                     <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter">
-                      {formatCurrencyWithPrivacy(selectedAccountForDetails.balance)}
+                      {formatCurrencyWithPrivacy(selectedAccountForDetails.balance, selectedAccountForDetails.currency || 'BRL')}
                     </p>
                   </div>
                   <button 
@@ -9433,48 +9662,152 @@ export default function App() {
                       setDefaultAccountIdForModal(selectedAccountForDetails.id);
                       setIsAddTransactionModalOpen(true);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl p-4 transition-all flex flex-col justify-center items-center gap-1 shadow-lg shadow-blue-500/20 active:scale-95"
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-2xl p-3.5 transition-all flex flex-col justify-center items-center gap-1 shadow-lg shadow-blue-500/20 active:scale-95 cursor-pointer"
                   >
                     <Plus size={20} />
                     <span className="text-[10px] font-black uppercase tracking-wider">Novo Lançamento</span>
                   </button>
                 </div>
 
-                {/* Internal Month Selector */}
-                <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
-                  <button 
-                    onClick={() => setDashboardDate(subMonths(dashboardDate, 1))}
-                    className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all text-slate-500 hover:text-cyan-500"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                    {dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                  </span>
-                  <button 
-                    onClick={() => setDashboardDate(addMonths(dashboardDate, 1))}
-                    className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all text-slate-500 hover:text-cyan-500"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
+                {/* Period Selector Tabs (Todas as Movimentações / Por Mês) */}
+                <div className="space-y-2">
+                  <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setAccountDetailsPeriod('all')}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all text-center",
+                        accountDetailsPeriod === 'all'
+                          ? "bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                      )}
+                    >
+                      Todo o Histórico
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAccountDetailsPeriod('month')}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all text-center",
+                        accountDetailsPeriod === 'month'
+                          ? "bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 shadow-sm"
+                          : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                      )}
+                    >
+                      Filtrar por Mês
+                    </button>
+                  </div>
+
+                  {accountDetailsPeriod === 'month' && (
+                    <div className="flex items-center justify-between bg-slate-100 dark:bg-white/5 p-1 rounded-xl">
+                      <button 
+                        onClick={() => setDashboardDate(subMonths(dashboardDate, 1))}
+                        className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all text-slate-500 hover:text-cyan-500"
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                        {dashboardDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                      </span>
+                      <button 
+                        onClick={() => setDashboardDate(addMonths(dashboardDate, 1))}
+                        className="p-1.5 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all text-slate-500 hover:text-cyan-500"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Search and Type Filter */}
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar neste extrato..."
+                        value={accountDetailsSearch}
+                        onChange={(e) => setAccountDetailsSearch(e.target.value)}
+                        className="w-full pl-8 pr-7 py-1.5 bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-cyan-500 font-medium"
+                      />
+                      {accountDetailsSearch && (
+                        <button
+                          onClick={() => setAccountDetailsSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 p-0.5 rounded-xl border border-slate-200/50 dark:border-white/5 text-[10px] font-black uppercase">
+                      <button
+                        onClick={() => setAccountDetailsTypeFilter('all')}
+                        className={cn(
+                          "px-2 py-1 rounded-lg transition-all",
+                          accountDetailsTypeFilter === 'all'
+                            ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                            : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                        )}
+                      >
+                        Todos
+                      </button>
+                      <button
+                        onClick={() => setAccountDetailsTypeFilter('income')}
+                        className={cn(
+                          "px-2 py-1 rounded-lg transition-all",
+                          accountDetailsTypeFilter === 'income'
+                            ? "bg-emerald-500 text-white shadow-xs"
+                            : "text-slate-400 hover:text-emerald-500"
+                        )}
+                      >
+                        Entradas
+                      </button>
+                      <button
+                        onClick={() => setAccountDetailsTypeFilter('expense')}
+                        className={cn(
+                          "px-2 py-1 rounded-lg transition-all",
+                          accountDetailsTypeFilter === 'expense'
+                            ? "bg-rose-500 text-white shadow-xs"
+                            : "text-slate-400 hover:text-rose-500"
+                        )}
+                      >
+                        Saídas
+                      </button>
+                      <button
+                        onClick={() => setAccountDetailsTypeFilter('transfer')}
+                        className={cn(
+                          "px-2 py-1 rounded-lg transition-all",
+                          accountDetailsTypeFilter === 'transfer'
+                            ? "bg-blue-500 text-white shadow-xs"
+                            : "text-slate-400 hover:text-blue-500"
+                        )}
+                      >
+                        Transf.
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Stats Bar */}
-              <div className="px-6 py-4 flex gap-4 overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50">
-                <div className="flex-shrink-0 flex items-center gap-2">
+              <div className="px-6 py-3 flex items-center justify-between border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Receitas:</span>
-                  <span className="text-xs font-black text-emerald-600">
-                    {formatCurrency(accountTransactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0))}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Entradas:</span>
+                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                    +{formatCurrency(accountInflowTotal)}
                   </span>
                 </div>
-                <div className="flex-shrink-0 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Despesas:</span>
-                  <span className="text-xs font-black text-rose-600">
-                    {formatCurrency(accountTransactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0))}
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Saídas:</span>
+                  <span className="text-xs font-black text-rose-600 dark:text-rose-400">
+                    -{formatCurrency(accountOutflowTotal)}
                   </span>
+                </div>
+                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                  <span>{accountTransactions.length}</span>
+                  <span>{accountTransactions.length === 1 ? 'movimento' : 'movimentos'}</span>
                 </div>
               </div>
 
@@ -9504,6 +9837,7 @@ export default function App() {
                                 accounts={accounts}
                                 categories={categories}
                                 formatCurrency={formatCurrency}
+                                currentAccountId={selectedAccountForDetails.id}
                                 onEdit={(trans) => {
                                   setTransactionToEdit(trans);
                                   setIsEditTransactionModalOpen(true);
@@ -9528,11 +9862,29 @@ export default function App() {
                     })()
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                      <div className="w-20 h-20 bg-slate-50 dark:bg-white/5 rounded-[32px] flex items-center justify-center mb-6">
+                      <div className="w-20 h-20 bg-slate-50 dark:bg-white/5 rounded-[32px] flex items-center justify-center mb-4">
                         <ArrowUpCircle size={40} className="opacity-20" />
                       </div>
-                      <p className="font-black text-sm uppercase tracking-widest text-slate-300 dark:text-slate-600">Sem movimentações</p>
-                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 uppercase">Para este período selecionado</p>
+                      <p className="font-black text-sm uppercase tracking-widest text-slate-700 dark:text-slate-300">Nenhuma movimentação encontrada</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-xs text-center">
+                        {accountDetailsSearch 
+                          ? 'Nenhum lançamento corresponde aos termos da pesquisa.' 
+                          : accountDetailsPeriod === 'month' 
+                            ? 'Nenhum lançamento registrado neste mês. Clique em "Todo o Histórico" para ver todos os lançamentos desta conta.'
+                            : 'Nenhum lançamento foi registrado para esta conta até o momento.'}
+                      </p>
+                      {(accountDetailsSearch || accountDetailsTypeFilter !== 'all' || accountDetailsPeriod === 'month') && (
+                        <button
+                          onClick={() => {
+                            setAccountDetailsSearch('');
+                            setAccountDetailsTypeFilter('all');
+                            setAccountDetailsPeriod('all');
+                          }}
+                          className="mt-4 px-4 py-2 text-xs font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 rounded-xl transition-colors"
+                        >
+                          Limpar Filtros e Ver Todos
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
