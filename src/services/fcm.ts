@@ -30,13 +30,20 @@ export const registerFCMToken = async (userId: string): Promise<string | null> =
 
     const messaging = getMessaging();
     
-    // Request a push token with our registration details
-    const token = await getToken(messaging, {
+    // Check if custom VAPID key is provided in environment variables
+    const customVapidKey = (import.meta as any).env?.VITE_FIREBASE_VAPID_KEY;
+    const tokenOptions: { serviceWorkerRegistration: ServiceWorkerRegistration; vapidKey?: string } = {
       serviceWorkerRegistration: registration,
-      // Default public FCM server configuration key (vapid key) for direct token allocation
-      vapidKey: 'BDb0V9q55g4b0U392b8A-0eN3gAWeS88b2b6U3B4N8B8V4Y8T5A2T1B6N1W2Y3E4C'
-    }).catch((e) => {
-      console.warn('Falha na obtenção do Token FCM (esperado se não for HTTPS completo ou sem VAPID customizado):', e);
+    };
+    
+    // Valid standard Web Push VAPID keys are base64url strings of at least 80 chars
+    if (typeof customVapidKey === 'string' && customVapidKey.trim().length > 50) {
+      tokenOptions.vapidKey = customVapidKey.trim();
+    }
+
+    // Request a push token with our registration details
+    const token = await getToken(messaging, tokenOptions).catch((e) => {
+      console.warn('FCM Push token indisponível neste ambiente ou sem VAPID key:', e?.message || e);
       return null;
     });
 

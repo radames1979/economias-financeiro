@@ -291,6 +291,35 @@ const DISPLAY_DENSITIES = {
 
 import { LandingPage } from './components/LandingPage';
 
+// --- Safe Date Parsing and Formatting Helpers ---
+export const safeParseDate = (dateVal?: string | Date | null): Date | null => {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) {
+    return isNaN(dateVal.getTime()) ? null : dateVal;
+  }
+  if (typeof dateVal !== 'string' || !dateVal.trim()) return null;
+  try {
+    const d = parseISO(dateVal);
+    if (!isNaN(d.getTime())) return d;
+    const d2 = new Date(dateVal);
+    if (!isNaN(d2.getTime())) return d2;
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+export const safeFormatDate = (dateVal?: string | Date | null, formatStr: string = 'dd/MM/yyyy', options?: any): string => {
+  if (!dateVal) return '---';
+  try {
+    const d = safeParseDate(dateVal);
+    if (!d) return typeof dateVal === 'string' ? dateVal : '---';
+    return format(d, formatStr, options);
+  } catch {
+    return typeof dateVal === 'string' ? dateVal : '---';
+  }
+};
+
 // --- Error Handling ---
 enum OperationType {
   CREATE = 'create',
@@ -2109,7 +2138,8 @@ export default function App() {
       .filter(t => t.accountId === selectedAccountForDetails.id || t.toAccountId === selectedAccountForDetails.id)
       .filter(t => {
         if (accountDetailsPeriod === 'month') {
-          const tDate = parseISO(t.date);
+          const tDate = safeParseDate(t.date);
+          if (!tDate) return true;
           return tDate.getMonth() === dashboardDate.getMonth() && 
                  tDate.getFullYear() === dashboardDate.getFullYear();
         }
@@ -2138,7 +2168,11 @@ export default function App() {
           t.amount.toString().includes(q)
         );
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => {
+        const timeA = safeParseDate(a.date)?.getTime() || 0;
+        const timeB = safeParseDate(b.date)?.getTime() || 0;
+        return timeB - timeA;
+      });
   }, [selectedAccountForDetails, transactions, accountDetailsPeriod, dashboardDate, accountDetailsTypeFilter, accountDetailsSearch, categories]);
 
   const accountInflowTotal = useMemo(() => {
@@ -5505,11 +5539,15 @@ export default function App() {
                       dashboardTransactionsByDate.map(([date, dateItems]) => (
                         <div key={`dashboard-group-${date}`}>
                           <div className="flex items-center gap-3 mb-4 md:mb-6 sticky top-0 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl z-20 py-2">
-                             <div className="px-2 md:px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                               <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">
-                                {isToday(parseISO(date)) ? 'Hoje' : isYesterday(parseISO(date)) ? 'Ontem' : format(parseISO(date), "dd MMM", { locale: ptBR })}
-                               </span>
-                             </div>
+                              <div className="px-2 md:px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-cyan-500">
+                                  {(() => {
+                                    const parsed = safeParseDate(date);
+                                    if (!parsed) return date;
+                                    return isToday(parsed) ? 'Hoje' : isYesterday(parsed) ? 'Ontem' : safeFormatDate(parsed, "dd MMM", { locale: ptBR });
+                                  })()}
+                                </span>
+                              </div>
                             <div className="h-[1px] flex-1 bg-slate-200/50 dark:bg-slate-800/50" />
                           </div>
                           <div className="space-y-3">
@@ -6264,7 +6302,7 @@ export default function App() {
                               <div className="flex items-center gap-4 px-2 py-4">
                                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                                 <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                  {format(parseISO(`${dayGroup.monthKey}-01`), 'MMMM yyyy', { locale: ptBR })}
+                                  {safeFormatDate(`${dayGroup.monthKey}-01`, 'MMMM yyyy', { locale: ptBR })}
                                 </h4>
                                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                               </div>
@@ -6277,9 +6315,9 @@ export default function App() {
                                 </div>
                                 <div>
                                   <h5 className="text-sm font-black text-slate-700 dark:text-slate-300">
-                                    {format(parseISO(dayGroup.dayKey), "dd 'de' MMMM", { locale: ptBR })}
+                                    {safeFormatDate(dayGroup.dayKey, "dd 'de' MMMM", { locale: ptBR })}
                                   </h5>
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{format(parseISO(dayGroup.dayKey), 'eeee', { locale: ptBR })}</p>
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{safeFormatDate(dayGroup.dayKey, 'eeee', { locale: ptBR })}</p>
                                 </div>
                               </div>
                               
@@ -6442,7 +6480,7 @@ export default function App() {
                               <div className="flex items-center gap-4 py-2 mt-4 first:mt-0">
                                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                                  {format(parseISO(`${group.monthKey}-01`), 'MMMM yyyy', { locale: ptBR })}
+                                  {safeFormatDate(`${group.monthKey}-01`, 'MMMM yyyy', { locale: ptBR })}
                                 </h4>
                                 <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
                               </div>
@@ -6451,10 +6489,10 @@ export default function App() {
                             <div className="flex items-center justify-between px-2 pt-2">
                               <div className="flex items-baseline gap-2">
                                 <span className="text-lg font-black text-slate-900 dark:text-white">
-                                  {format(parseISO(group.dayKey), 'dd')}
+                                  {safeFormatDate(group.dayKey, 'dd')}
                                 </span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                  {format(parseISO(group.dayKey), 'EEEE', { locale: ptBR })}
+                                  {safeFormatDate(group.dayKey, 'EEEE', { locale: ptBR })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-3">
@@ -6536,7 +6574,7 @@ export default function App() {
                       return (
                         <>
                           <td className="px-5 py-4 text-xs font-mono text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-white/5">
-                            {format(parseISO(t.date), 'dd/MM/yy')}
+                            {safeFormatDate(t.date, 'dd/MM/yy')}
                           </td>
                           <td className="px-5 py-4 border-b border-slate-100 dark:border-white/5">
                             <div className="flex items-center gap-2">
@@ -9524,7 +9562,7 @@ export default function App() {
                   <div>
                     <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
                       <RefreshCw size={16} className="text-blue-500" />
-                      Projeções de Recorrência (até {format(parseISO(dashboardRange.end), 'dd/MM')})
+                      Projeções de Recorrência (até {safeFormatDate(dashboardRange.end, 'dd/MM')})
                     </h3>
                     <div className="space-y-2">
                       {futureRecurringDetails
@@ -9818,7 +9856,7 @@ export default function App() {
                       // Group entries within the panel
                       const days: Record<string, Transaction[]> = {};
                       accountTransactions.forEach(t => {
-                        const day = format(new Date(t.date), 'dd/MM/yyyy');
+                        const day = safeFormatDate(t.date, 'dd/MM/yyyy');
                         if (!days[day]) days[day] = [];
                         days[day].push(t);
                       });
